@@ -263,6 +263,10 @@
     }
     .opt input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,106,255,.3); }
     .opt input:checked ~ .toggle-track::after { transform: translateX(16px); background: #fff; }
+    .opt.opt-backend { flex-direction: column; align-items: stretch; cursor: default; }
+    .opt.opt-backend input[type=url] { display: block; width: 100%; padding: 8px 12px; margin-top: 4px; font-size: .75rem; font-family: 'JetBrains Mono', monospace; background: var(--dim); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+    .opt.opt-backend input[type=url]::placeholder { color: var(--muted); }
+    .opt.opt-backend .opt-label { display: block; font-size: .7rem; color: var(--sub); }
 
     /* ── Cloak disguise selector ── */
     .cloak-as { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
@@ -403,6 +407,19 @@
           </button>
         </div>
 
+        <div class="section-hdr"><span>UV / Scramjet backends</span></div>
+        <p class="mode-hint">When using UV or Scramjet mode, point to your hosted instance. Leave blank to use this server (server-side fallback).</p>
+        <div class="opts">
+          <label class="opt opt-backend">
+            <span class="opt-label">UV backend URL</span>
+            <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
+          </label>
+          <label class="opt opt-backend">
+            <span class="opt-label">Scramjet backend URL</span>
+            <input type="url" id="scramjet-backend" placeholder="https://your-scramjet.render.com" autocomplete="off"/>
+          </label>
+        </div>
+
         <div class="section-hdr"><span>Search Engine</span></div>
         <div class="engines" id="engines">
           <button type="button" class="eng-btn active" data-e="brave">
@@ -529,6 +546,11 @@
     });
   });
 
+  // Backend URL inputs — persist on change
+  [document.getElementById('uv-backend'), document.getElementById('scramjet-backend')].forEach(function(el){
+    if (el) el.addEventListener('input', savePrefs);
+  });
+
   // Cloak toggle -> show/hide disguise options
   var cloakCheck = document.getElementById('opt-cloak');
   var cloakAs = document.getElementById('cloak-as');
@@ -578,12 +600,8 @@
       var activeMode = document.querySelector('.mode-btn.active');
       if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
       savePrefs();
-      var params = 'url=' + encodeURIComponent(targetUrl) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(modeInput.value);
-      var nojsEl = document.getElementById('opt-nojs');
-      var noimgEl = document.getElementById('opt-noimg');
-      if (nojsEl && nojsEl.checked) params += '&nojs=1';
-      if (noimgEl && noimgEl.checked) params += '&noimg=1';
-      var goUrl = '/go?' + params;
+      var goUrl = buildGoUrl(targetUrl);
+      if (!goUrl) return false;
       if (cloakCheck && cloakCheck.checked) {
         openCloaked(goUrl);
       } else if (optIframe && optIframe.checked) {
@@ -607,12 +625,28 @@
     }
   }
 
-  function buildGoUrl() {
-    var urlVal = document.getElementById('url').value.trim();
+  function buildGoUrl(optionalTargetUrl) {
+    var urlVal = (optionalTargetUrl != null && optionalTargetUrl !== '') ? String(optionalTargetUrl).trim() : document.getElementById('url').value.trim();
     if (!urlVal) return null;
-    var params = 'url=' + encodeURIComponent(urlVal) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(modeInput.value);
-    if (document.getElementById('opt-nojs').checked) params += '&nojs=1';
-    if (document.getElementById('opt-noimg').checked) params += '&noimg=1';
+    var mode = (document.querySelector('.mode-btn.active') && document.querySelector('.mode-btn.active').dataset.m) || modeInput.value || 'server';
+    var uvBackend = (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '';
+    var scramjetBackend = (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '';
+    var nojs = document.getElementById('opt-nojs').checked;
+    var noimg = document.getElementById('opt-noimg').checked;
+    var q = 'url=' + encodeURIComponent(urlVal);
+    if (nojs) q += '&nojs=1';
+    if (noimg) q += '&noimg=1';
+    if (mode === 'uv' && uvBackend) {
+      var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
+      return uvBackend.replace(/\/+$/, '') + sep + q;
+    }
+    if (mode === 'scramjet' && scramjetBackend) {
+      var sep2 = scramjetBackend.indexOf('?') >= 0 ? '&' : '?';
+      return scramjetBackend.replace(/\/+$/, '') + sep2 + q;
+    }
+    var params = 'url=' + encodeURIComponent(urlVal) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(mode);
+    if (nojs) params += '&nojs=1';
+    if (noimg) params += '&noimg=1';
     return '/go?' + params;
   }
 
@@ -620,16 +654,20 @@
     var activeMode = document.querySelector('.mode-btn.active');
     if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
     savePrefs();
+    var goUrl = buildGoUrl();
     if (cloakCheck.checked) {
       e.preventDefault();
-      var goUrl = buildGoUrl();
       if (goUrl) openCloaked(goUrl);
       return;
     }
     if (optIframe && optIframe.checked) {
       e.preventDefault();
-      var goUrl = buildGoUrl();
       if (goUrl) showIframeOverlay(goUrl);
+      return;
+    }
+    if (goUrl && goUrl.indexOf('http') === 0) {
+      e.preventDefault();
+      location.assign(goUrl);
       return;
     }
     form.querySelectorAll('input.opt-hidden').forEach(function(h){ h.remove(); });
@@ -656,6 +694,8 @@
         cloakTitle: cloakTitle,
         cloakIcon: cloakIcon,
         useIframe: optIframe ? optIframe.checked : false,
+        uvBackend: (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '',
+        scramjetBackend: (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '',
       }));
     } catch(e){}
   }
@@ -689,6 +729,8 @@
       advPanel.classList.add('open');
     }
     if (saved.useIframe && optIframe) optIframe.checked = true;
+    if (saved.uvBackend && document.getElementById('uv-backend')) document.getElementById('uv-backend').value = saved.uvBackend;
+    if (saved.scramjetBackend && document.getElementById('scramjet-backend')) document.getElementById('scramjet-backend').value = saved.scramjetBackend;
   } catch(e){}
 
   var updateCtl = document.getElementById('update-ctl');

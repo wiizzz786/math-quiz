@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="void-update-repo" content=""/>
   <title>Void</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
@@ -201,6 +202,12 @@
     }
     .opt input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,106,255,.3); }
     .opt input:checked ~ .toggle-track::after { transform: translateX(16px); background: #fff; }
+    .opt.opt-backend { flex-direction: column; align-items: stretch; cursor: default; }
+    .opt.opt-backend input[type=url] { display: block; width: 100%; padding: 8px 12px; margin-top: 4px; font-size: .75rem; font-family: 'JetBrains Mono', monospace; background: var(--dim); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+    .opt.opt-backend input[type=url]::placeholder { color: var(--muted); }
+    .opt.opt-backend .opt-label { display: block; font-size: .7rem; color: var(--sub); }
+    .mode-hint { font-size: .65rem; color: var(--muted); margin-top: -4px; margin-bottom: 8px; line-height: 1.35; }
+    .opts-backend { flex-direction: column; }
 
     /* ── Quick links ── */
     .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
@@ -269,6 +276,30 @@
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+    .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mode-btn {
+      padding: 6px 12px; border-radius: var(--rad-sm); font-size: .72rem; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); color: var(--sub);
+      cursor: pointer; transition: all .15s;
+    }
+    .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; }
+    .mode-btn .tag { font-size: .6rem; opacity: .9; margin-left: 4px; }
+    .update-ctl { position: fixed; top: 12px; right: 12px; z-index: 9999; display: none; }
+    .update-ctl.visible { display: block; }
+    .update-btn {
+      padding: 8px 14px; border-radius: var(--rad-sm);
+      background: rgba(255,255,255,.04); color: var(--sub);
+      border: 1px solid rgba(255,255,255,.08); font-weight: 600; font-size: .8rem;
+      cursor: pointer;
+    }
+    .update-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
+    .update-btn:disabled { opacity: .7; cursor: wait; }
+    .iframe-overlay { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; background: var(--bg); }
+    .iframe-overlay.visible { display: flex; }
+    .iframe-close { align-self: flex-start; margin: 8px 12px; padding: 8px 14px; background: rgba(255,255,255,.06); border: 1px solid var(--border); color: var(--sub); border-radius: var(--rad-sm); font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .iframe-wrap { flex: 1; position: relative; overflow: hidden; }
+    .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+
     /* ── Responsive ── */
     @media (max-width: 600px) {
       .card { padding: 1.5rem; border-radius: 16px; }
@@ -303,6 +334,14 @@
         <button class="go-btn" id="go-btn">Browse</button>
       </div>
 
+      <div class="section-hdr"><span>Proxy Mode</span></div>
+      <div class="mode-btns" id="mode-btns">
+        <button type="button" class="mode-btn active" data-m="server">Server-side <span class="tag">DEFAULT</span></button>
+        <button type="button" class="mode-btn" data-m="experimental">Experimental <span class="tag">CUSTOM</span></button>
+        <button type="button" class="mode-btn" data-m="uv">UV</button>
+        <button type="button" class="mode-btn" data-m="scramjet">Scramjet</button>
+      </div>
+
       <div class="section-hdr"><span>Search Engine</span></div>
       <div class="engines" id="engines">
         <button class="eng-btn active" data-e="brave">
@@ -323,6 +362,19 @@
         </button>
       </div>
 
+      <div class="section-hdr"><span>UV / Scramjet backends</span></div>
+      <p class="mode-hint">When using UV or Scramjet, set your hosted instance URL. Leave blank to use the current origin.</p>
+      <div class="opts opts-backend">
+        <label class="opt opt-backend">
+          <span class="opt-label">UV backend URL</span>
+          <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
+        </label>
+        <label class="opt opt-backend">
+          <span class="opt-label">Scramjet backend URL</span>
+          <input type="url" id="scramjet-backend" placeholder="https://your-scramjet.render.com" autocomplete="off"/>
+        </label>
+      </div>
+
       <div class="section-hdr"><span>Options</span></div>
       <div class="opts">
         <label class="opt" title="Load in a double iframe (outer + inner) instead of same tab">
@@ -339,6 +391,16 @@
           <input type="checkbox" id="opt-newtab"/>
           <span class="toggle-track"></span>
           New Tab
+        </label>
+        <label class="opt" title="Strip JavaScript from proxied pages">
+          <input type="checkbox" id="opt-nojs"/>
+          <span class="toggle-track"></span>
+          No scripts
+        </label>
+        <label class="opt" title="Strip images from proxied pages">
+          <input type="checkbox" id="opt-noimg"/>
+          <span class="toggle-track"></span>
+          No images
         </label>
       </div>
 
@@ -367,14 +429,19 @@
       <span>VOID</span>
       <span class="dot"></span>
       <span>Single file</span>
-      <span class="dot"></span>
-      <span>No server required</span>
     </div>
   </div>
 
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="iframe-overlay" class="iframe-overlay">
+  <button type="button" class="iframe-close" id="iframe-close">&#x2715; Close</button>
+  <div class="iframe-wrap"><iframe id="iframe-outer" title="Proxy"></iframe></div>
+</div>
+<div id="update-ctl" class="update-ctl" aria-hidden="true">
+  <button type="button" class="update-btn" id="update-btn">Update</button>
+</div>
 
 <script>
 (function(){
@@ -382,10 +449,30 @@
   var input = $('url-input');
 
   var engine = 'brave';
+  var mode = 'server';
+
+  function getMode() {
+    var active = document.querySelector('.mode-btn.active');
+    return (active && active.dataset.m) ? active.dataset.m : 'server';
+  }
 
   function buildProxyUrl(targetUrl) {
     var base = window.location.origin;
-    return base + '/go?url=' + encodeURIComponent(targetUrl) + '&engine=' + encodeURIComponent(engine);
+    var m = getMode();
+    var uvBackend = ($('uv-backend') && $('uv-backend').value.trim()) || '';
+    var scramjetBackend = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
+    var q = 'url=' + encodeURIComponent(targetUrl);
+    if ($('opt-nojs') && $('opt-nojs').checked) q += '&nojs=1';
+    if ($('opt-noimg') && $('opt-noimg').checked) q += '&noimg=1';
+    if (m === 'uv' && uvBackend) {
+      var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
+      return uvBackend.replace(/\/+$/, '') + sep + q;
+    }
+    if (m === 'scramjet' && scramjetBackend) {
+      var sep2 = scramjetBackend.indexOf('?') >= 0 ? '&' : '?';
+      return scramjetBackend.replace(/\/+$/, '') + sep2 + q;
+    }
+    return base + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
   }
 
   var SEARCH = {
@@ -396,6 +483,14 @@
     yahoo:  function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
   };
 
+  document.querySelectorAll('.mode-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      mode = btn.dataset.m;
+      savePrefs();
+    });
+  });
   document.querySelectorAll('.eng-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       document.querySelectorAll('.eng-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -426,6 +521,11 @@
     toast('Opened in new tab');
   }
 
+  function buildDoubleIframeSrcdoc(goUrl) {
+    var safe = goUrl.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<!DOCTYPE html><html><head><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none}</style></head><body><iframe src="' + safe + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay;payment"></iframe></body></html>';
+  }
+
   function navigate(rawOrUrl){
     var url = rawOrUrl.startsWith('http') ? rawOrUrl : toUrl(rawOrUrl);
     if(!url) return;
@@ -436,12 +536,27 @@
       openCloaked(proxyUrl);
       return;
     }
+    if($('opt-iframe') && $('opt-iframe').checked){
+      var outer = $('iframe-outer');
+      var overlay = $('iframe-overlay');
+      if(outer && overlay){ outer.srcdoc = buildDoubleIframeSrcdoc(proxyUrl); overlay.classList.add('visible'); }
+      return;
+    }
     if($('opt-newtab').checked){
       window.open(proxyUrl, '_blank');
       return;
     }
 
     window.location.href = proxyUrl;
+  }
+
+  if($('iframe-close')){
+    $('iframe-close').addEventListener('click', function(){
+      var overlay = $('iframe-overlay');
+      var outer = $('iframe-outer');
+      if(overlay) overlay.classList.remove('visible');
+      if(outer) outer.srcdoc = '';
+    });
   }
 
   $('go-btn').addEventListener('click', function(){ navigate(input.value); });
@@ -462,25 +577,69 @@
     try{
       localStorage.setItem('void_prefs', JSON.stringify({
         engine: engine,
+        mode: getMode(),
         cloak: $('opt-cloak').checked,
         newtab: $('opt-newtab').checked,
+        useIframe: $('opt-iframe') ? $('opt-iframe').checked : false,
+        nojs: $('opt-nojs') ? $('opt-nojs').checked : false,
+        noimg: $('opt-noimg') ? $('opt-noimg').checked : false,
+        uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
+        scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
       }));
     }catch(e){}
   }
   function loadPrefs(){
     try{
       var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+      if(p.mode){
+        var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
+        if(mb){ mb.click(); mode = p.mode; }
+      }
       if(p.engine){
         var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
         if(btn) btn.click();
       }
       if(p.cloak) $('opt-cloak').checked = true;
       if(p.newtab) $('opt-newtab').checked = true;
+      if(p.useIframe && $('opt-iframe')) $('opt-iframe').checked = true;
+      if(p.nojs && $('opt-nojs')) $('opt-nojs').checked = true;
+      if(p.noimg && $('opt-noimg')) $('opt-noimg').checked = true;
+      if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
+      if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
     }catch(e){}
   }
   loadPrefs();
+  if($('uv-backend')) $('uv-backend').addEventListener('input', savePrefs);
+  if($('scramjet-backend')) $('scramjet-backend').addEventListener('input', savePrefs);
   $('opt-cloak').addEventListener('change', savePrefs);
   $('opt-newtab').addEventListener('change', savePrefs);
+  if($('opt-iframe')) $('opt-iframe').addEventListener('change', savePrefs);
+  if($('opt-nojs')) $('opt-nojs').addEventListener('change', savePrefs);
+  if($('opt-noimg')) $('opt-noimg').addEventListener('change', savePrefs);
+
+  var updateCtl = $('update-ctl');
+  var updateBtn = $('update-btn');
+  document.addEventListener('keydown', function(e){
+    if(e.shiftKey && (e.key === 'Escape' || e.code === 'Escape')){
+      e.preventDefault();
+      if(updateCtl) updateCtl.classList.toggle('visible');
+    }
+  });
+  if(updateBtn) updateBtn.addEventListener('click', function(){
+    var meta = document.querySelector('meta[name="void-update-repo"]');
+    var repo = meta && meta.getAttribute('content') && meta.getAttribute('content').trim();
+    if(!repo){ alert('Set <meta name="void-update-repo" content="user/repo"> to enable update.'); return; }
+    updateBtn.disabled = true;
+    updateBtn.textContent = 'Updating…';
+    var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g, '') + '/main/void.html';
+    fetch(rawUrl).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function(html){ document.open(); document.write(html); document.close(); })
+      .catch(function(err){
+        updateBtn.disabled = false;
+        updateBtn.textContent = 'Update';
+        alert('Update failed: ' + (err.message || 'Check repo and branch (main).'));
+      });
+  });
 })();
 </script>
 </body>

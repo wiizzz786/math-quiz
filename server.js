@@ -702,6 +702,8 @@ function buildStealthHeaders(targetUrl, req) {
     "sec-ch-ua": '"Safari";v="17.2", "Chromium";v="", "Not_A Brand";v="24"',
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"macOS"',
+    "sec-ch-ua-full-version-list": '"Safari";v="17.2.0", "Chromium";v="", "Not_A Brand";v="24.0.0"',
+    "priority": "u=1",
     ...(req.method === "POST" && req.headers["content-type"]
       ? { "content-type": req.headers["content-type"] }
       : {}),
@@ -716,11 +718,15 @@ const STRIP_RESPONSE_HEADERS = new Set([
   "cross-origin-opener-policy",
   "cross-origin-embedder-policy",
   "cross-origin-resource-policy",
+  "permissions-policy",
+  "x-permitted-cross-domain-policies",
+  "x-xss-protection",
   "strict-transport-security",
   "transfer-encoding",
   "content-encoding",
   "content-length",
   "set-cookie",
+  "report-to",
 ]);
 
 function remapSetCookie(rawCookie, _proxyHost) {
@@ -769,21 +775,32 @@ function experimentalRewriteHtml(html, base, optSuffix) {
     [/<a\s+([^>]*?)href\s*=\s*["']([^"']*)["']/gi, "href"],
     [/<link\s+([^>]*?)href\s*=\s*["']([^"']*)["']/gi, "href"],
     [/<img\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
+    [/<img\s+([^>]*?)srcset\s*=\s*["']([^"']*)["']/gi, "srcset"],
+    [/<img\s+([^>]*?)data-src\s*=\s*["']([^"']*)["']/gi, "data-src"],
     [/<script\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
     [/<form\s+([^>]*?)action\s*=\s*["']([^"']*)["']/gi, "action"],
     [/<iframe\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
     [/<source\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
+    [/<source\s+([^>]*?)srcset\s*=\s*["']([^"']*)["']/gi, "srcset"],
     [/<embed\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
     [/<object\s+([^>]*?)data\s*=\s*["']([^"']*)["']/gi, "data"],
+    [/<video\s+([^>]*?)poster\s*=\s*["']([^"']*)["']/gi, "poster"],
+    [/<video\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
+    [/<track\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
   ];
   for (const [re, attr] of attrPatterns) {
     html = html.replace(re, (full, _rest, url) => {
-      const rewritten = rw(url);
+      const rewritten = attr === "srcset" ? url.replace(/([^\s,]+)(\s+[^,]*)?/g, (_, u, d) => rwNoOpts(u) + (d || "")) : rw(url);
       if (rewritten === url) return full;
       const q = full.indexOf(url);
       return q === -1 ? full : full.slice(0, q) + rewritten + full.slice(q + url.length);
     });
   }
+
+  html = html.replace(/<meta\s+http-equiv\s*=\s*["']?refresh["']?[^>]*content\s*=\s*["']?(\d+)\s*;\s*url\s*=\s*([^"'>\s]+)/gi, (match, _n, url) => {
+    const r = rw(url.trim());
+    return r !== url ? match.replace(url, r) : match;
+  });
 
   html = html.replace(/url\(\s*(['"]?)([^'")\s]+)\1\s*\)/gi, (match, q, url) => {
     const r = rwNoOpts(url);
@@ -795,6 +812,7 @@ function experimentalRewriteHtml(html, base, optSuffix) {
   });
 
   html = html.replace(/<meta\s+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
+  html = html.replace(/<meta\s+http-equiv\s*=\s*["']?content-security-policy-report-only["']?[^>]*>/gi, "");
   html = html.replace(/\s+target\s*=\s*["']?[^"'\s>]+["']?/gi, "");
   return html;
 }
@@ -914,11 +932,46 @@ function injectionScriptExperimental(base, optSuffix, proxyHost) {
       if((abs.startsWith('http')||abs.startsWith('https'))&&!abs.startsWith(location.origin))f.action=E(abs);
     }catch(err){}
   },true);
+  function rwEl(el){
+    if(el.tagName==='A'){
+      el.removeAttribute('target');
+      var h=el.getAttribute('href');
+      if(h&&h!=='/'&&!h.startsWith('/pe/')&&!h.startsWith('#')&&!h.startsWith('javascript:')&&!h.startsWith('data:')&&!h.startsWith('mailto:')){
+        try{var abs=new URL(h,B).href;if(abs.startsWith('http'))el.setAttribute('href',E(abs));}catch(e){}
+      }
+    }
+    if(el.tagName==='FORM'){
+      el.removeAttribute('target');
+      var a=el.getAttribute('action');
+      if(a&&!a.startsWith('/pe/')){
+        try{var abs2=new URL(a,B).href;if(abs2.startsWith('http'))el.setAttribute('action',E(abs2));}catch(e){}
+      }
+    }
+    if((el.tagName==='IMG'||el.tagName==='SCRIPT'||el.tagName==='LINK')&&(el.src||el.href)){
+      var s=el.getAttribute('src')||el.getAttribute('href');
+      if(s&&!s.startsWith('/pe/')&&!s.startsWith('data:')&&!s.startsWith('blob:')){
+        try{var abs3=new URL(s,B).href;if(abs3.startsWith('http'))el.setAttribute(el.getAttribute('src')?'src':'href',E(abs3));}catch(e){}
+      }
+    }
+  }
+  var obs=new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if(n.nodeType!==1)return;
+        rwEl(n);
+        if(n.querySelectorAll) n.querySelectorAll('a[href],form[action],img[src],link[href],script[src]').forEach(rwEl);
+      });
+    });
+  });
+  obs.observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>`;
 }
 
-function requestWithNode(targetUrl, opts) {
+const EXPERIMENTAL_REQUEST_TIMEOUT_MS = 25000;
+const EXPERIMENTAL_MAX_REDIRECTS = 5;
+
+function requestWithNode(targetUrl, opts, redirectCount = 0) {
   return new Promise((resolve, reject) => {
     const u = new URL(targetUrl);
     const isHttps = u.protocol === "https:";
@@ -932,12 +985,30 @@ function requestWithNode(targetUrl, opts) {
       rejectUnauthorized: true,
     };
     const req = lib.request(reqOpts, (res) => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && redirectCount < EXPERIMENTAL_MAX_REDIRECTS) {
+        const loc = res.headers.location;
+        if (loc) {
+          try {
+            const nextUrl = new URL(loc, targetUrl).href;
+            if (/^https?:/.test(nextUrl)) {
+              res.resume();
+              requestWithNode(nextUrl, { ...opts, headers: { ...opts.headers, host: new URL(nextUrl).host } }, redirectCount + 1)
+                .then(resolve).catch(reject);
+              return;
+            }
+          } catch (_) {}
+        }
+      }
       const chunks = [];
       res.on("data", (c) => chunks.push(c));
       res.on("end", () => resolve({ res, body: Buffer.concat(chunks), chunks }));
       res.on("error", reject);
     });
     req.on("error", reject);
+    req.setTimeout(EXPERIMENTAL_REQUEST_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
+    });
     if (opts.body) req.write(opts.body);
     req.end();
   });
@@ -1011,8 +1082,10 @@ async function handleExperimentalProxy(req, res) {
     if ([301, 302, 303, 307, 308].includes(upstream.statusCode)) {
       const loc = upstream.headers.location;
       if (loc) {
-        const abs = new URL(loc, targetUrl).href;
-        return res.redirect(upstream.statusCode, encPe(abs) + optSuffix);
+        try {
+          const abs = new URL(loc, targetUrl).href;
+          if (/^https?:/.test(abs)) return res.redirect(upstream.statusCode, encPe(abs) + optSuffix);
+        } catch (_) {}
       }
     }
 
