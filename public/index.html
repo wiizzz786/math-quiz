@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="void-update-repo" content=""/>
+  <title>Void</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #06060b;
+      --surface: rgba(255,255,255,.022);
+      --surface2: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.055);
+      --border2: rgba(255,255,255,.1);
+      --accent: #7c6aff;
+      --accent-glow: rgba(124,106,255,.15);
+      --accent2: #ff5f8f;
+      --green: #34d399;
+      --text: #eef0f8;
+      --sub: #9a9bb8;
+      --muted: #464660;
+      --dim: #2a2a3d;
+      --rad: 20px;
+      --rad-sm: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      min-height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .wavy-grad {
+      position: absolute; inset: -20%;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(124,106,255,.18) 40%, transparent 70%),
+        linear-gradient(260deg, transparent 0%, rgba(255,95,143,.12) 35%, transparent 70%),
+        linear-gradient(380deg, transparent 0%, rgba(52,211,153,.08) 40%, transparent 75%);
+      background-size: 150% 150%;
+      animation: wavy-drift 30s linear infinite;
+      filter: blur(50px);
+      opacity: 0.9;
+    }
+    @keyframes wavy-drift {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .wavy-grad { animation: none; }
+    }
+    .bg .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .bg .noise-grad {
+      position: absolute; inset: -15%;
+      background:
+        radial-gradient(ellipse 70% 50% at 25% 35%, rgba(124,106,255,.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 70% at 75% 65%, rgba(255,95,143,.08) 0%, transparent 50%);
+      opacity: 0.9;
+    }
+
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1.5rem; gap: 1.5rem;
+    }
+
+    .brand, .card, .hint-row, .foot {
+      opacity: 0; transform: translateY(18px);
+      animation: enter .7s cubic-bezier(.16,1,.3,1) forwards;
+    }
+    .brand   { animation-delay: .15s; }
+    .card    { animation-delay: .28s; }
+    .hint-row{ animation-delay: .4s; }
+    .foot    { animation-delay: .5s; }
+    @keyframes enter { to { opacity: 1; transform: translateY(0); } }
+
+    .brand { text-align: center; }
+    .brand .logo-text {
+      font-size: clamp(4.5rem, 14vw, 8rem); font-weight: 900;
+      letter-spacing: -.08em; line-height: .82;
+      background: linear-gradient(135deg, #fff 0%, #d0cbff 25%, #a78bfa 50%, #ff5f8f 75%, #ff8f5f 100%);
+      background-size: 200% 200%;
+      animation: grad-shift 6s ease infinite;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 50px rgba(124,106,255,.2));
+    }
+    @keyframes grad-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .brand p {
+      font-size: .68rem; font-weight: 600; letter-spacing: .45em;
+      text-transform: uppercase; color: var(--muted); margin-top: .6rem;
+    }
+
+    .card {
+      width: 100%; max-width: 660px;
+      background: linear-gradient(170deg, rgba(255,255,255,.028) 0%, rgba(255,255,255,.008) 100%);
+      border: 1px solid var(--border); border-radius: var(--rad);
+      padding: 2rem;
+      backdrop-filter: blur(20px) saturate(1.1);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 0 0 1px rgba(0,0,0,.4),
+        0 25px 80px -15px rgba(0,0,0,.55),
+        0 0 120px rgba(124,106,255,.035);
+    }
+
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,.45);
+      border: 1.5px solid var(--border); border-radius: var(--rad-sm);
+      padding: 5px 6px 5px 16px;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .search-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 0 40px rgba(124,106,255,.06);
+    }
+    .search-ico { width: 18px; height: 18px; flex-shrink: 0; opacity: .3; transition: opacity .2s; }
+    .search-wrap:focus-within .search-ico { opacity: .6; }
+    .search-wrap input[type="text"] {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .88rem;
+      padding: .55rem 0; caret-color: var(--accent); min-width: 0;
+    }
+    .search-wrap input::placeholder { color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 400; }
+    .go-btn {
+      padding: .65rem 2rem;
+      background: linear-gradient(135deg, var(--accent), #9f8aff 50%, var(--accent2));
+      background-size: 200% 200%;
+      border: none; border-radius: 10px; color: #fff;
+      font-family: inherit; font-weight: 700; font-size: .82rem;
+      cursor: pointer; letter-spacing: .04em;
+      transition: transform .15s, box-shadow .25s, background-position .4s;
+      box-shadow: 0 4px 24px rgba(124,106,255,.3), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .go-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(124,106,255,.45), inset 0 1px 0 rgba(255,255,255,.15); background-position: 100% 50%; }
+    .go-btn:active { transform: scale(.96) translateY(0); }
+
+    .section-hdr {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 1.5rem; margin-bottom: .7rem;
+    }
+    .section-hdr span {
+      font-size: .6rem; font-weight: 700; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .section-hdr::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent 80%);
+    }
+
+    /* ── Quick links ── */
+    .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+    .ql {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--sub); font-family: inherit; font-size: .74rem; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; text-decoration: none;
+    }
+    button.ql { appearance: none; -webkit-appearance: none; }
+    .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+    .ql img { width: 18px; height: 18px; border-radius: 4px; background: rgba(255,255,255,.05); }
+
+    /* ── Advanced toggle button ── */
+    .adv-toggle {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 1.5rem; padding: 10px 0;
+      background: none; border: none;
+      color: var(--muted); font-family: inherit; font-size: .72rem; font-weight: 600;
+      cursor: pointer; transition: color .2s; width: 100%;
+      letter-spacing: .04em;
+    }
+    .adv-toggle:hover { color: var(--sub); }
+    .adv-toggle .arrow {
+      display: inline-block; transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      font-size: .65rem;
+    }
+    .adv-toggle.open .arrow { transform: rotate(180deg); }
+
+    /* ── Advanced panel ── */
+    .adv-panel {
+      max-height: 0; overflow: hidden;
+      transition: max-height .4s cubic-bezier(.16,1,.3,1), opacity .3s;
+      opacity: 0;
+    }
+    .adv-panel.open { max-height: 800px; opacity: 1; }
+
+    /* ── Engine pills ── */
+    .engines { display: flex; gap: 6px; flex-wrap: wrap; }
+    .eng-btn {
+      position: relative; display: flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: 10px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      color: var(--sub); font-family: inherit; font-size: .74rem; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; white-space: nowrap;
+    }
+    .eng-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-1px); }
+    .eng-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 20px rgba(124,106,255,.1); }
+    .eng-btn .ico { width: 16px; height: 16px; border-radius: 3px; }
+    .rec-badge {
+      position: absolute; top: -7px; right: -5px;
+      font-size: .5rem; font-weight: 800; letter-spacing: .06em;
+      padding: 2px 6px; border-radius: 5px;
+      background: linear-gradient(135deg, #34d399, #2ac88e);
+      color: #000; box-shadow: 0 2px 8px rgba(52,211,153,.3);
+    }
+
+    /* ── Proxy mode selector ── */
+    .mode-hint {
+      font-size: .68rem; color: var(--muted); margin-bottom: .5rem; line-height: 1.4;
+    }
+    .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mode-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: 10px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      color: var(--sub); font-family: inherit; font-size: .74rem; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; white-space: nowrap;
+    }
+    .mode-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-1px); }
+    .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 20px rgba(124,106,255,.1); }
+    .mode-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .mode-btn .tag {
+      font-size: .5rem; font-weight: 700; letter-spacing: .04em;
+      padding: 1px 5px; border-radius: 4px;
+      background: rgba(255,255,255,.06); color: var(--muted);
+    }
+    .mode-btn.active .tag { background: rgba(255,255,255,.15); color: rgba(255,255,255,.7); }
+
+    /* ── Toggle switches ── */
+    .opts { display: flex; gap: 16px; flex-wrap: wrap; }
+    .opt {
+      display: flex; align-items: center; gap: 9px;
+      font-size: .74rem; font-weight: 500; color: var(--sub);
+      cursor: pointer; user-select: none; transition: color .2s;
+    }
+    .opt:hover { color: var(--text); }
+    .opt input { display: none; }
+    .toggle-track {
+      width: 36px; height: 20px; border-radius: 10px;
+      background: var(--dim); border: 1px solid var(--border);
+      position: relative; transition: all .25s; flex-shrink: 0;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--sub); transition: all .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .opt input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,106,255,.3); }
+    .opt input:checked ~ .toggle-track::after { transform: translateX(16px); background: #fff; }
+
+    /* ── Cloak disguise selector ── */
+    .cloak-as { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .cloak-as.hidden { display: none; }
+    .cloak-opt {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--sub); font-family: inherit; font-size: .68rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .cloak-opt:hover { background: var(--surface2); color: var(--text); }
+    .cloak-opt.active { background: var(--accent-glow); border-color: rgba(124,106,255,.3); color: #fff; }
+    .cloak-opt img { width: 14px; height: 14px; border-radius: 2px; }
+
+    /* ── Hint & footer ── */
+    .hint-row {
+      font-size: .62rem; color: var(--muted); letter-spacing: .02em;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hint-row kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 7px; border-radius: 5px;
+      background: rgba(255,255,255,.035); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .56rem;
+      color: var(--sub); line-height: 1.4;
+    }
+    .foot {
+      display: flex; align-items: center; gap: 10px;
+      font-size: .6rem; color: var(--muted); letter-spacing: .08em; font-weight: 500;
+    }
+
+    .iframe-overlay {
+      position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
+      background: var(--bg);
+    }
+    .iframe-overlay.hidden { display: none; }
+    .iframe-close {
+      flex-shrink: 0; margin: 8px 12px; padding: 8px 14px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      color: var(--sub); border-radius: var(--rad-sm); font-size: .8rem; font-weight: 600;
+      cursor: pointer; align-self: flex-start;
+    }
+    .iframe-close:hover { background: rgba(255,255,255,.1); color: var(--text); }
+    .iframe-wrap { flex: 1; position: relative; overflow: hidden; }
+    .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+
+    .update-ctl {
+      position: fixed; top: 12px; right: 12px; z-index: 9999;
+      display: none; align-items: center; gap: 6px;
+    }
+    .update-ctl.visible { display: flex; }
+    .update-btn {
+      padding: 8px 14px; border-radius: var(--rad-sm);
+      background: rgba(255,255,255,.04);
+      color: var(--sub); border: 1px solid rgba(255,255,255,.08);
+      font-weight: 600; font-size: .8rem;
+      cursor: pointer;
+    }
+    .update-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
+    .update-btn:disabled { opacity: .7; cursor: wait; }
+
+    @media (max-width: 600px) {
+      .card { padding: 1.5rem; border-radius: 16px; }
+      .links { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .engines { gap: 4px; }
+      .eng-btn { padding: 7px 11px; font-size: .7rem; }
+      .mode-btns { gap: 4px; }
+      .mode-btn { padding: 7px 11px; font-size: .7rem; }
+      .opts { gap: 12px; }
+      .brand .logo-text { filter: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="wavy-grad"></div>
+  <div class="noise-grad"></div>
+  <div class="grid"></div>
+</div>
+
+<div class="page">
+
+  <div class="brand">
+    <h1 class="logo-text">void</h1>
+    <p>Web Proxy</p>
+  </div>
+
+  <div class="card">
+    <form id="f" action="/go" method="GET">
+      <input type="hidden" name="engine" id="engine-input" value="brave"/>
+      <input type="hidden" name="mode" id="mode-input" value="server"/>
+      <div class="search-wrap">
+        <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" name="url" id="url" placeholder="Search the web or enter a URL..." autocomplete="off" spellcheck="false" autofocus/>
+        <button type="submit" class="go-btn">Browse</button>
+      </div>
+
+      <div class="section-hdr"><span>Quick Access</span></div>
+      <div class="links" id="quick-links">
+        <button type="button" class="ql" data-url="https://www.google.com"><img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/>Google</button>
+        <button type="button" class="ql" data-url="https://www.youtube.com"><img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=32" alt=""/>YouTube</button>
+        <button type="button" class="ql" data-url="https://discord.com/app"><img src="https://www.google.com/s2/favicons?domain=discord.com&sz=32" alt=""/>Discord</button>
+        <button type="button" class="ql" data-url="https://reddit.com"><img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=32" alt=""/>Reddit</button>
+        <button type="button" class="ql" data-url="https://twitch.tv"><img src="https://www.google.com/s2/favicons?domain=twitch.tv&sz=32" alt=""/>Twitch</button>
+        <button type="button" class="ql" data-url="https://spotify.com"><img src="https://www.google.com/s2/favicons?domain=spotify.com&sz=32" alt=""/>Spotify</button>
+        <button type="button" class="ql" data-url="https://tiktok.com"><img src="https://www.google.com/s2/favicons?domain=tiktok.com&sz=32" alt=""/>TikTok</button>
+        <button type="button" class="ql" data-url="https://chat.openai.com"><img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" alt=""/>ChatGPT</button>
+        <button type="button" class="ql" data-url="https://github.com"><img src="https://www.google.com/s2/favicons?domain=github.com&sz=32" alt=""/>GitHub</button>
+        <button type="button" class="ql" data-url="https://wikipedia.org"><img src="https://www.google.com/s2/favicons?domain=wikipedia.org&sz=32" alt=""/>Wikipedia</button>
+        <button type="button" class="ql" data-url="https://now.gg"><img src="https://www.google.com/s2/favicons?domain=now.gg&sz=32" alt=""/>now.gg</button>
+        <button type="button" class="ql" data-url="https://twitter.com"><img src="https://www.google.com/s2/favicons?domain=x.com&sz=32" alt=""/>Twitter</button>
+      </div>
+
+      <!-- Advanced toggle -->
+      <button type="button" class="adv-toggle" id="adv-toggle">
+        <span>Advanced</span>
+        <span class="arrow">&#9660;</span>
+      </button>
+
+      <div class="adv-panel" id="adv-panel">
+
+        <div class="section-hdr"><span>Proxy Mode</span></div>
+        <p class="mode-hint">How pages are loaded. Server-side is the default and only mode that works without extra setup.</p>
+        <div class="mode-btns" id="mode-btns">
+          <button type="button" class="mode-btn active" data-m="server" title="Default. Pages are fetched and rewritten on the server. No service workers.">
+            Server-side <span class="tag">DEFAULT</span>
+          </button>
+          <button type="button" class="mode-btn" data-m="experimental" title="Custom bare-metal proxy: stealth headers, stream rewriting, cookie remap, WebSocket support.">
+            Experimental <span class="tag">CUSTOM</span>
+          </button>
+          <button type="button" class="mode-btn" data-m="uv" title="Ultraviolet proxy (requires UV backend; falls back to server-side if not configured).">
+            Ultraviolet <span class="tag">SW</span>
+          </button>
+          <button type="button" class="mode-btn" data-m="scramjet" title="Scramjet proxy (requires Scramjet backend; falls back to server-side if not configured).">
+            Scramjet <span class="tag">SW</span>
+          </button>
+        </div>
+
+        <div class="section-hdr"><span>Search Engine</span></div>
+        <div class="engines" id="engines">
+          <button type="button" class="eng-btn active" data-e="brave">
+            <img class="ico" src="https://www.google.com/s2/favicons?domain=brave.com&sz=32" alt=""/>Brave
+            <span class="rec-badge">BEST</span>
+          </button>
+          <button type="button" class="eng-btn" data-e="google">
+            <img class="ico" src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/>Google
+          </button>
+          <button type="button" class="eng-btn" data-e="ddg">
+            <img class="ico" src="https://www.google.com/s2/favicons?domain=duckduckgo.com&sz=32" alt=""/>DuckDuckGo
+          </button>
+          <button type="button" class="eng-btn" data-e="bing">
+            <img class="ico" src="https://www.google.com/s2/favicons?domain=bing.com&sz=32" alt=""/>Bing
+          </button>
+          <button type="button" class="eng-btn" data-e="yahoo">
+            <img class="ico" src="https://www.google.com/s2/favicons?domain=yahoo.com&sz=32" alt=""/>Yahoo
+          </button>
+        </div>
+
+        <div class="section-hdr"><span>Tab Cloaking</span></div>
+        <div class="opts">
+          <label class="opt" title="Open proxy in a disguised about:blank tab">
+            <input type="checkbox" id="opt-cloak" value="1"/>
+            <span class="toggle-track"></span>
+            about:blank Cloak
+          </label>
+        </div>
+        <div class="cloak-as hidden" id="cloak-as">
+          <button type="button" class="cloak-opt" data-title="Void" data-icon="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%237c6aff' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" alt=""/>Void
+          </button>
+          <button type="button" class="cloak-opt active" data-title="Google Docs" data-icon="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico">
+            <img src="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" alt=""/>Google Docs
+          </button>
+          <button type="button" class="cloak-opt" data-title="Google Drive" data-icon="https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png">
+            <img src="https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png" alt=""/>Google Drive
+          </button>
+          <button type="button" class="cloak-opt" data-title="Clever | Portal" data-icon="https://www.google.com/s2/favicons?domain=clever.com&sz=32">
+            <img src="https://www.google.com/s2/favicons?domain=clever.com&sz=32" alt=""/>Clever
+          </button>
+          <button type="button" class="cloak-opt" data-title="Canvas" data-icon="https://www.google.com/s2/favicons?domain=instructure.com&sz=32">
+            <img src="https://www.google.com/s2/favicons?domain=instructure.com&sz=32" alt=""/>Canvas
+          </button>
+          <button type="button" class="cloak-opt" data-title="Google Classroom" data-icon="https://www.google.com/s2/favicons?domain=classroom.google.com&sz=32">
+            <img src="https://www.google.com/s2/favicons?domain=classroom.google.com&sz=32" alt=""/>Classroom
+          </button>
+        </div>
+
+        <div class="section-hdr"><span>Page Options</span></div>
+        <div class="opts">
+          <label class="opt" title="Load proxy in a double iframe (outer + inner) instead of same tab">
+            <input type="checkbox" id="opt-iframe" value="1"/>
+            <span class="toggle-track"></span>
+            Use iframe
+          </label>
+          <label class="opt" title="Strip all JavaScript from proxied pages">
+            <input type="checkbox" id="opt-nojs" value="1"/>
+            <span class="toggle-track"></span>
+            Remove Scripts
+          </label>
+          <label class="opt" title="Strip images for faster loading">
+            <input type="checkbox" id="opt-noimg" value="1"/>
+            <span class="toggle-track"></span>
+            Remove Images
+          </label>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+  <div class="hint-row">
+    Press <kbd>Enter</kbd> to browse
+  </div>
+
+  <div class="foot">
+    <span>VOID</span>
+  </div>
+
+  <div id="iframe-overlay" class="iframe-overlay hidden">
+    <button type="button" class="iframe-close" id="iframe-close">&#x2715; Close</button>
+    <div class="iframe-wrap">
+      <iframe id="iframe-outer" title="Outer frame"></iframe>
+    </div>
+  </div>
+
+  <div id="update-ctl" class="update-ctl" aria-hidden="true">
+    <button type="button" class="update-btn" id="update-btn">Update</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var form = document.getElementById('f');
+  var engineInput = document.getElementById('engine-input');
+  var modeInput = document.getElementById('mode-input');
+
+  // Advanced panel toggle
+  var advToggle = document.getElementById('adv-toggle');
+  var advPanel = document.getElementById('adv-panel');
+  advToggle.addEventListener('click', function(){
+    advToggle.classList.toggle('open');
+    advPanel.classList.toggle('open');
+    try { localStorage.setItem('void_adv_open', advPanel.classList.contains('open') ? '1' : ''); } catch(e){}
+  });
+
+  // Engine selector
+  document.querySelectorAll('.eng-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.eng-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      engineInput.value = btn.dataset.e;
+    });
+  });
+
+  // Proxy mode selector
+  document.querySelectorAll('.mode-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      modeInput.value = btn.dataset.m;
+    });
+  });
+
+  // Cloak toggle -> show/hide disguise options
+  var cloakCheck = document.getElementById('opt-cloak');
+  var cloakAs = document.getElementById('cloak-as');
+  cloakCheck.addEventListener('change', function(){
+    cloakAs.classList.toggle('hidden', !cloakCheck.checked);
+  });
+
+  // Cloak disguise selector
+  var cloakTitle = 'Google Docs';
+  var cloakIcon = 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico';
+  document.querySelectorAll('.cloak-opt').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.cloak-opt').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      cloakTitle = btn.dataset.title;
+      cloakIcon = btn.dataset.icon;
+    });
+  });
+
+  var iframeOverlay = document.getElementById('iframe-overlay');
+  var iframeOuter = document.getElementById('iframe-outer');
+  var iframeClose = document.getElementById('iframe-close');
+  var optIframe = document.getElementById('opt-iframe');
+
+  function buildDoubleIframeSrcdoc(goUrl) {
+    var safe = goUrl.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<!DOCTYPE html><html><head><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none}</style></head><body><iframe src="' + safe + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay;payment"></iframe></body></html>';
+  }
+
+  function showIframeOverlay(goUrl) {
+    iframeOuter.srcdoc = buildDoubleIframeSrcdoc(goUrl);
+    iframeOverlay.classList.remove('hidden');
+  }
+
+  iframeClose.addEventListener('click', function(){
+    iframeOverlay.classList.add('hidden');
+    iframeOuter.srcdoc = '';
+  });
+
+  // Quick links — use click with return false to avoid form submit when inside form
+  document.querySelectorAll('.ql').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      var targetUrl = el.dataset.url;
+      if (!targetUrl) return false;
+      var activeMode = document.querySelector('.mode-btn.active');
+      if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
+      savePrefs();
+      var params = 'url=' + encodeURIComponent(targetUrl) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(modeInput.value);
+      var nojsEl = document.getElementById('opt-nojs');
+      var noimgEl = document.getElementById('opt-noimg');
+      if (nojsEl && nojsEl.checked) params += '&nojs=1';
+      if (noimgEl && noimgEl.checked) params += '&noimg=1';
+      var goUrl = '/go?' + params;
+      if (cloakCheck && cloakCheck.checked) {
+        openCloaked(goUrl);
+      } else if (optIframe && optIframe.checked) {
+        showIframeOverlay(goUrl);
+      } else {
+        location.assign(goUrl);
+      }
+      return false;
+    }, false);
+  });
+
+  function openCloaked(url) {
+    var win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked! Allow pop-ups for this site.'); return; }
+    if (optIframe && optIframe.checked) {
+      win.document.write('<!DOCTYPE html><html><head><title>' + (cloakTitle || 'Void').replace(/</g, '&lt;') + '</title><link rel="icon" href="' + (cloakIcon || '').replace(/"/g, '&quot;') + '"/><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none}</style></head><body><iframe id="o" title="Outer"></iframe></body></html>');
+      win.document.close();
+      win.document.getElementById('o').srcdoc = buildDoubleIframeSrcdoc(url);
+    } else {
+      win.location.href = url;
+    }
+  }
+
+  function buildGoUrl() {
+    var urlVal = document.getElementById('url').value.trim();
+    if (!urlVal) return null;
+    var params = 'url=' + encodeURIComponent(urlVal) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(modeInput.value);
+    if (document.getElementById('opt-nojs').checked) params += '&nojs=1';
+    if (document.getElementById('opt-noimg').checked) params += '&noimg=1';
+    return '/go?' + params;
+  }
+
+  form.addEventListener('submit', function(e){
+    var activeMode = document.querySelector('.mode-btn.active');
+    if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
+    savePrefs();
+    if (cloakCheck.checked) {
+      e.preventDefault();
+      var goUrl = buildGoUrl();
+      if (goUrl) openCloaked(goUrl);
+      return;
+    }
+    if (optIframe && optIframe.checked) {
+      e.preventDefault();
+      var goUrl = buildGoUrl();
+      if (goUrl) showIframeOverlay(goUrl);
+      return;
+    }
+    form.querySelectorAll('input.opt-hidden').forEach(function(h){ h.remove(); });
+    if(document.getElementById('opt-nojs').checked){
+      var h = document.createElement('input');
+      h.type='hidden'; h.name='nojs'; h.value='1'; h.className='opt-hidden';
+      form.appendChild(h);
+    }
+    if(document.getElementById('opt-noimg').checked){
+      var h2 = document.createElement('input');
+      h2.type='hidden'; h2.name='noimg'; h2.value='1'; h2.className='opt-hidden';
+      form.appendChild(h2);
+    }
+  });
+
+  function savePrefs() {
+    try {
+      localStorage.setItem('void_prefs', JSON.stringify({
+        engine: engineInput.value,
+        mode: modeInput.value,
+        nojs: document.getElementById('opt-nojs').checked,
+        noimg: document.getElementById('opt-noimg').checked,
+        cloak: cloakCheck.checked,
+        cloakTitle: cloakTitle,
+        cloakIcon: cloakIcon,
+        useIframe: optIframe ? optIframe.checked : false,
+      }));
+    } catch(e){}
+  }
+
+  // Restore preferences
+  try {
+    var saved = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+    if (saved.engine) {
+      var btn = document.querySelector('.eng-btn[data-e="'+saved.engine+'"]');
+      if (btn) btn.click();
+    }
+    if (saved.mode) {
+      var mb = document.querySelector('.mode-btn[data-m="'+saved.mode+'"]');
+      if (mb) mb.click();
+    }
+    if (saved.nojs) document.getElementById('opt-nojs').checked = true;
+    if (saved.noimg) document.getElementById('opt-noimg').checked = true;
+    if (saved.cloak) {
+      cloakCheck.checked = true;
+      cloakAs.classList.remove('hidden');
+    }
+    if (saved.cloakTitle && saved.cloakIcon) {
+      cloakTitle = saved.cloakTitle;
+      cloakIcon = saved.cloakIcon;
+      document.querySelectorAll('.cloak-opt').forEach(function(b){
+        b.classList.toggle('active', b.dataset.title === cloakTitle);
+      });
+    }
+    if (localStorage.getItem('void_adv_open') === '1') {
+      advToggle.classList.add('open');
+      advPanel.classList.add('open');
+    }
+    if (saved.useIframe && optIframe) optIframe.checked = true;
+  } catch(e){}
+
+  var updateCtl = document.getElementById('update-ctl');
+  var updateBtn = document.getElementById('update-btn');
+  document.addEventListener('keydown', function(e){
+    if (e.shiftKey && (e.key === 'Escape' || e.code === 'Escape')) {
+      e.preventDefault();
+      if (updateCtl) updateCtl.classList.toggle('visible');
+    }
+  });
+  if (updateBtn) updateBtn.addEventListener('click', function(){
+    var meta = document.querySelector('meta[name="void-update-repo"]');
+    var repo = meta && meta.getAttribute('content') && meta.getAttribute('content').trim();
+    if (!repo) {
+      alert('Set the GitHub repo in the page: add <meta name="void-update-repo" content="YourUsername/proxy-site">');
+      return;
+    }
+    updateBtn.disabled = true;
+    updateBtn.textContent = 'Updating…';
+    var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g, '') + '/main/public/index.html';
+    fetch(rawUrl).then(function(r){ if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function(html){
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(function(err){
+        updateBtn.disabled = false;
+        updateBtn.textContent = 'Update';
+        alert('Update failed: ' + (err.message || 'Could not fetch from GitHub. Check repo name and branch (main).'));
+      });
+  });
+})();
+</script>
+</body>
+</html>
