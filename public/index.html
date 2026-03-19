@@ -353,7 +353,7 @@
 
   <div class="brand">
     <h1 class="logo-text">void</h1>
-    <p>Web Proxy</p>
+    <p>Go Anywhere</p>
   </div>
 
   <div class="card">
@@ -486,6 +486,11 @@
             <span class="toggle-track"></span>
             Remove Images
           </label>
+          <label class="opt" title="Inject Eruda dev tools (console, elements) into proxied pages">
+            <input type="checkbox" id="opt-eruda" value="1"/>
+            <span class="toggle-track"></span>
+            Inject Eruda
+          </label>
         </div>
 
       </div>
@@ -509,6 +514,7 @@
 
   <div id="update-ctl" class="update-ctl" aria-hidden="true">
     <button type="button" class="update-btn" id="update-btn">Update</button>
+    <button type="button" class="update-btn" id="download-void-btn">Download single file</button>
   </div>
 
 </div>
@@ -590,18 +596,18 @@
     iframeOuter.srcdoc = '';
   });
 
-  // Quick links — use click with return false to avoid form submit when inside form
+  // Quick links — prevent form submit; use data-url and buildGoUrl(that url) only
   document.querySelectorAll('.ql').forEach(function(el){
-    el.addEventListener('click', function(e){
+    function goQuickLink(e) {
       e.preventDefault();
       e.stopPropagation();
-      var targetUrl = el.dataset.url;
-      if (!targetUrl) return false;
+      var targetUrl = el.getAttribute('data-url');
+      if (!targetUrl) return;
       var activeMode = document.querySelector('.mode-btn.active');
       if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
       savePrefs();
       var goUrl = buildGoUrl(targetUrl);
-      if (!goUrl) return false;
+      if (!goUrl) return;
       if (cloakCheck && cloakCheck.checked) {
         openCloaked(goUrl);
       } else if (optIframe && optIframe.checked) {
@@ -609,8 +615,9 @@
       } else {
         location.assign(goUrl);
       }
-      return false;
-    }, false);
+    }
+    el.addEventListener('mousedown', function(e){ e.preventDefault(); }, true);
+    el.addEventListener('click', goQuickLink, false);
   });
 
   function openCloaked(url) {
@@ -631,11 +638,16 @@
     var mode = (document.querySelector('.mode-btn.active') && document.querySelector('.mode-btn.active').dataset.m) || modeInput.value || 'server';
     var uvBackend = (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '';
     var scramjetBackend = (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '';
-    var nojs = document.getElementById('opt-nojs').checked;
-    var noimg = document.getElementById('opt-noimg').checked;
+    var nojsEl = document.getElementById('opt-nojs');
+    var noimgEl = document.getElementById('opt-noimg');
+    var erudaEl = document.getElementById('opt-eruda');
+    var nojs = nojsEl && nojsEl.checked;
+    var noimg = noimgEl && noimgEl.checked;
+    var eruda = erudaEl && erudaEl.checked;
     var q = 'url=' + encodeURIComponent(urlVal);
     if (nojs) q += '&nojs=1';
     if (noimg) q += '&noimg=1';
+    if (eruda) q += '&eruda=1';
     if (mode === 'uv' && uvBackend) {
       var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
       return uvBackend.replace(/\/+$/, '') + sep + q;
@@ -647,6 +659,7 @@
     var params = 'url=' + encodeURIComponent(urlVal) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(mode);
     if (nojs) params += '&nojs=1';
     if (noimg) params += '&noimg=1';
+    if (eruda) params += '&eruda=1';
     return '/go?' + params;
   }
 
@@ -655,31 +668,42 @@
     if (activeMode && modeInput) modeInput.value = activeMode.dataset.m || 'server';
     savePrefs();
     var goUrl = buildGoUrl();
+    if (!goUrl) {
+      e.preventDefault();
+      return;
+    }
     if (cloakCheck.checked) {
       e.preventDefault();
-      if (goUrl) openCloaked(goUrl);
+      openCloaked(goUrl);
       return;
     }
     if (optIframe && optIframe.checked) {
       e.preventDefault();
-      if (goUrl) showIframeOverlay(goUrl);
+      showIframeOverlay(goUrl);
       return;
     }
-    if (goUrl && goUrl.indexOf('http') === 0) {
+    if (goUrl.indexOf('http') === 0) {
       e.preventDefault();
       location.assign(goUrl);
       return;
     }
     form.querySelectorAll('input.opt-hidden').forEach(function(h){ h.remove(); });
-    if(document.getElementById('opt-nojs').checked){
+    var nojsEl = document.getElementById('opt-nojs');
+    var noimgEl = document.getElementById('opt-noimg');
+    if(nojsEl && nojsEl.checked){
       var h = document.createElement('input');
       h.type='hidden'; h.name='nojs'; h.value='1'; h.className='opt-hidden';
       form.appendChild(h);
     }
-    if(document.getElementById('opt-noimg').checked){
+    if(noimgEl && noimgEl.checked){
       var h2 = document.createElement('input');
       h2.type='hidden'; h2.name='noimg'; h2.value='1'; h2.className='opt-hidden';
       form.appendChild(h2);
+    }
+    if(document.getElementById('opt-eruda') && document.getElementById('opt-eruda').checked){
+      var h3 = document.createElement('input');
+      h3.type='hidden'; h3.name='eruda'; h3.value='1'; h3.className='opt-hidden';
+      form.appendChild(h3);
     }
   });
 
@@ -688,12 +712,13 @@
       localStorage.setItem('void_prefs', JSON.stringify({
         engine: engineInput.value,
         mode: modeInput.value,
-        nojs: document.getElementById('opt-nojs').checked,
-        noimg: document.getElementById('opt-noimg').checked,
+        nojs: (document.getElementById('opt-nojs') && document.getElementById('opt-nojs').checked),
+        noimg: (document.getElementById('opt-noimg') && document.getElementById('opt-noimg').checked),
         cloak: cloakCheck.checked,
         cloakTitle: cloakTitle,
         cloakIcon: cloakIcon,
         useIframe: optIframe ? optIframe.checked : false,
+        eruda: document.getElementById('opt-eruda') ? document.getElementById('opt-eruda').checked : false,
         uvBackend: (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '',
         scramjetBackend: (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '',
       }));
@@ -729,6 +754,7 @@
       advPanel.classList.add('open');
     }
     if (saved.useIframe && optIframe) optIframe.checked = true;
+    if (saved.eruda && document.getElementById('opt-eruda')) document.getElementById('opt-eruda').checked = true;
     if (saved.uvBackend && document.getElementById('uv-backend')) document.getElementById('uv-backend').value = saved.uvBackend;
     if (saved.scramjetBackend && document.getElementById('scramjet-backend')) document.getElementById('scramjet-backend').value = saved.scramjetBackend;
   } catch(e){}
@@ -761,6 +787,27 @@
         updateBtn.disabled = false;
         updateBtn.textContent = 'Update';
         alert('Update failed: ' + (err.message || 'Could not fetch from GitHub. Check repo name and branch (main).'));
+      });
+  });
+
+  var downloadVoidBtn = document.getElementById('download-void-btn');
+  if (downloadVoidBtn) downloadVoidBtn.addEventListener('click', function(){
+    var meta = document.querySelector('meta[name="void-update-repo"]');
+    var repo = meta && meta.getAttribute('content') && meta.getAttribute('content').trim();
+    var url = repo
+      ? 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g, '') + '/main/void.html'
+      : window.location.origin + '/void.html';
+    fetch(url).then(function(r){ if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function(html){
+        var blob = new Blob([html], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'void.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch(function(err){
+        alert('Download failed: ' + (err.message || 'Set <meta name="void-update-repo" content="user/repo"> or ensure /void.html is served.'));
       });
   });
 })();

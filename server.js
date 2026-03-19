@@ -232,15 +232,24 @@ function proxyBar(displayUrl) {
     ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'"/>`
     : "";
   return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:rgba(6,6,11,.94);backdrop-filter:blur(16px) saturate(1.2);border-bottom:1px solid rgba(255,255,255,.06);font-family:-apple-system,system-ui,sans-serif;font-size:12px;color:#9a9bb8;box-shadow:0 4px 24px rgba(0,0,0,.3);">
-<a href="/" target="_top" style="background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;text-decoration:none;letter-spacing:-.04em;font-size:16px;">void</a>
+<a href="/" target="_top" style="background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;text-decoration:none;letter-spacing:-.04em;font-size:16px;">void</a><span style="color:rgba(255,255,255,.4);font-size:12px;font-weight:500;margin-left:2px;">Go Anywhere</span>
 <span style="width:1px;height:18px;background:rgba(255,255,255,.08);flex-shrink:0;"></span>
 <button onclick="history.back()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Back">&#8592;</button>
 <button onclick="history.forward()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Forward">&#8594;</button>
 <button onclick="location.reload()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Reload">&#8635;</button>
 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.35);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.05);font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:11px;color:#646478;display:flex;align-items:center;gap:6px;">${faviconHtml}${safe}</span>
+<button id="__vjstog" onclick="var p=document.getElementById('__vjspanel');if(p)p.style.display=p.style.display==='flex'?'none':'flex';" style="padding:5px 10px;border-radius:8px;background:rgba(124,106,255,.15);color:#a78bfa;border:1px solid rgba(124,106,255,.25);cursor:pointer;font-weight:600;font-size:11px;" title="Inject JS">JS</button>
 <a href="/" target="_top" style="padding:5px 14px;border-radius:8px;background:rgba(255,255,255,.05);color:#ccc;text-decoration:none;font-weight:600;font-size:11px;border:1px solid rgba(255,255,255,.06);transition:background .15s;">Home</a>
-<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none'" style="padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.04);color:#ff5f8f;border:1px solid rgba(255,255,255,.06);cursor:pointer;font-weight:700;font-size:13px;">&#x2715;</button>
-</div><div id="__vsp" style="height:42px;"></div>`;
+<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';var p=document.getElementById('__vjspanel');if(p)p.style.display='none';" style="padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.04);color:#ff5f8f;border:1px solid rgba(255,255,255,.06);cursor:pointer;font-weight:700;font-size:13px;">&#x2715;</button>
+</div>
+<div id="__vjspanel" style="display:none;position:fixed;top:42px;left:0;right:0;z-index:2147483646;flex-direction:column;gap:8px;padding:12px;background:rgba(6,6,11,.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08);font-family:-apple-system,system-ui,sans-serif;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+<textarea id="__vjst" placeholder="Enter JavaScript to run in this page... e.g. document.body.style.background='#111'" style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.4);color:#e0e0e0;font-family:monospace;font-size:12px;resize:vertical;box-sizing:border-box;"></textarea>
+<div style="display:flex;gap:8px;align-items:center;">
+<button onclick="try{var c=document.getElementById('__vjst').value;if(c){(0,eval)(c);}}catch(e){console.error(e);alert('Error: '+e.message);}" style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;cursor:pointer;font-weight:600;font-size:12px;">Run</button>
+<button onclick="document.getElementById('__vjspanel').style.display='none';" style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.06);color:#9a9bb8;border:1px solid rgba(255,255,255,.08);cursor:pointer;font-size:12px;">Close</button>
+</div>
+</div>
+<div id="__vsp" style="height:42px;"></div>`;
 }
 
 /* ═══════════════════════════════════════════
@@ -352,6 +361,13 @@ function rewriteHtml(html, base, opts) {
   $("body").prepend(barHtml);
   $("head").prepend(scriptHtml);
 
+  // Optional Eruda (mobile console) injection
+  if (opts.eruda) {
+    $("head").append(
+      '<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>'
+    );
+  }
+
   return $.html();
 }
 
@@ -403,15 +419,29 @@ async function handleProxy(req, res) {
     return res.status(400).send("Invalid URL");
   }
 
+  // Merge GET query params (e.g. form ?q=...) into targetUrl so searches work
+  if (req.method === "GET" && req.query && Object.keys(req.query).length > 0) {
+    try {
+      const u = new URL(targetUrl);
+      for (const [k, v] of Object.entries(req.query)) {
+        if (k === "nojs" || k === "noimg" || k === "eruda") continue;
+        u.searchParams.set(k, v);
+      }
+      targetUrl = u.href;
+    } catch {}
+  }
+
   const opts = {
     nojs: req.query.nojs === "1",
     noimg: req.query.noimg === "1",
+    eruda: req.query.eruda === "1",
   };
 
   // Build query string to preserve options across navigation
   const optQs = [];
   if (opts.nojs) optQs.push("nojs=1");
   if (opts.noimg) optQs.push("noimg=1");
+  if (opts.eruda) optQs.push("eruda=1");
   const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
 
   // Temporarily override enc() to append options
@@ -652,6 +682,11 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
 
   $("body").prepend(proxyBar(base));
   if (!opts.nojs) $("head").prepend(injectionScript(resolveBase));
+  if (opts.eruda) {
+    $("head").append(
+      '<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>'
+    );
+  }
 
   return $.html();
 }
@@ -1056,11 +1091,22 @@ async function handleExperimentalProxy(req, res) {
   if (!/^https?:\/\//i.test(targetUrl)) {
     return res.status(400).send("Invalid URL");
   }
+  if (req.method === "GET" && req.query && Object.keys(req.query).length > 0) {
+    try {
+      const u = new URL(targetUrl);
+      for (const [k, v] of Object.entries(req.query)) {
+        if (k === "nojs" || k === "noimg" || k === "eruda") continue;
+        u.searchParams.set(k, v);
+      }
+      targetUrl = u.href;
+    } catch {}
+  }
 
-  const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1" };
+  const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
   const optQs = [];
   if (opts.nojs) optQs.push("nojs=1");
   if (opts.noimg) optQs.push("noimg=1");
+  if (opts.eruda) optQs.push("eruda=1");
   const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
 
   const proxyHost = req.headers.host || "localhost";
@@ -1128,6 +1174,9 @@ async function handleExperimentalProxy(req, res) {
       const barHtml = proxyBar(targetUrl);
       const scriptHtml = opts.nojs ? "" : injectionScriptExperimental(targetUrl, optSuffix, proxyHost);
       html = html.replace(/<body\s*/i, `<body>${barHtml}${scriptHtml}`);
+      if (opts.eruda) {
+        html = html.replace(/<\/head>/i, '<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script></head>');
+      }
       res.type("text/html; charset=utf-8").send(html);
       return;
     }
@@ -1262,6 +1311,7 @@ app.get("/go", (req, res) => {
   const qs = [];
   if (req.query.nojs === "1") qs.push("nojs=1");
   if (req.query.noimg === "1") qs.push("noimg=1");
+  if (req.query.eruda === "1") qs.push("eruda=1");
   const qsStr = qs.length ? "?" + qs.join("&") : "";
 
   const mode = (req.query.mode || "server").toLowerCase().trim();
@@ -1276,6 +1326,21 @@ app.post("/p/:encoded", handleProxy);
 
 app.get("/pe/:encoded", handleExperimentalProxy);
 app.post("/pe/:encoded", handleExperimentalProxy);
+
+app.get("/void.html", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(join(__dirname, "void.html"));
+});
+
+app.get("/", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(join(__dirname, "public", "index.html"));
+});
+
+app.get("/index.html", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(join(__dirname, "public", "index.html"));
+});
 
 app.get("/{*path}", (_req, res) => {
   res.sendFile(join(__dirname, "public", "index.html"));
