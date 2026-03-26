@@ -334,6 +334,13 @@
         <button class="go-btn" id="go-btn">Browse</button>
       </div>
 
+      <div id="server-backend-wrap" class="opts opts-backend" style="display:none;margin-bottom:12px;">
+        <label class="opt opt-backend">
+          <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Void Server URL <span style="font-weight:400;color:var(--muted);">(required when opening this file directly)</span></span>
+          <input type="url" id="server-backend" placeholder="http://localhost:8080" autocomplete="off"/>
+        </label>
+      </div>
+
       <div class="section-hdr"><span>Proxy Mode</span></div>
       <div class="mode-btns" id="mode-btns">
         <button type="button" class="mode-btn active" data-m="server">Server-side <span class="tag">DEFAULT</span></button>
@@ -402,11 +409,6 @@
           <span class="toggle-track"></span>
           No images
         </label>
-        <label class="opt" title="Inject Eruda dev tools into proxied pages">
-          <input type="checkbox" id="opt-eruda"/>
-          <span class="toggle-track"></span>
-          Eruda
-        </label>
       </div>
 
       <div class="section-hdr"><span>Quick Access</span></div>
@@ -461,8 +463,26 @@
     return (active && active.dataset.m) ? active.dataset.m : 'server';
   }
 
+  var isFileProtocol = window.location.protocol === 'file:';
+
+  function getServerBase() {
+    var custom = ($('server-backend') && $('server-backend').value.trim()) || '';
+    if (custom) return custom.replace(/\/+$/, '');
+    if (!isFileProtocol) return window.location.origin;
+    return '';
+  }
+
+  if (isFileProtocol) {
+    var wrap = $('server-backend-wrap');
+    if (wrap) wrap.style.display = '';
+    try {
+      var saved = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+      if (saved.serverBackend && $('server-backend')) $('server-backend').value = saved.serverBackend;
+    } catch(e){}
+  }
+
   function buildProxyUrl(targetUrl) {
-    var base = window.location.origin;
+    var base = getServerBase();
     var m = getMode();
     var uvBackend = ($('uv-backend') && $('uv-backend').value.trim()) || '';
     var scramjetBackend = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
@@ -477,6 +497,10 @@
     if (m === 'scramjet' && scramjetBackend) {
       var sep2 = scramjetBackend.indexOf('?') >= 0 ? '&' : '?';
       return scramjetBackend.replace(/\/+$/, '') + sep2 + q;
+    }
+    if (!base) {
+      toast('Enter your Void server URL above (e.g. http://localhost:8080)');
+      return null;
     }
     return base + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
   }
@@ -537,6 +561,7 @@
     if(!url) return;
 
     var proxyUrl = buildProxyUrl(url);
+    if(!proxyUrl) return;
 
     if($('opt-cloak').checked){
       openCloaked(proxyUrl);
@@ -589,7 +614,7 @@
         useIframe: $('opt-iframe') ? $('opt-iframe').checked : false,
         nojs: $('opt-nojs') ? $('opt-nojs').checked : false,
         noimg: $('opt-noimg') ? $('opt-noimg').checked : false,
-        eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
+        serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
         uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
         scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
       }));
@@ -611,12 +636,13 @@
       if(p.useIframe && $('opt-iframe')) $('opt-iframe').checked = true;
       if(p.nojs && $('opt-nojs')) $('opt-nojs').checked = true;
       if(p.noimg && $('opt-noimg')) $('opt-noimg').checked = true;
-      if(p.eruda && $('opt-eruda')) $('opt-eruda').checked = true;
+      if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
       if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
       if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
     }catch(e){}
   }
   loadPrefs();
+  if($('server-backend')) $('server-backend').addEventListener('input', savePrefs);
   if($('uv-backend')) $('uv-backend').addEventListener('input', savePrefs);
   if($('scramjet-backend')) $('scramjet-backend').addEventListener('input', savePrefs);
   $('opt-cloak').addEventListener('change', savePrefs);
@@ -624,7 +650,6 @@
   if($('opt-iframe')) $('opt-iframe').addEventListener('change', savePrefs);
   if($('opt-nojs')) $('opt-nojs').addEventListener('change', savePrefs);
   if($('opt-noimg')) $('opt-noimg').addEventListener('change', savePrefs);
-  if($('opt-eruda')) $('opt-eruda').addEventListener('change', savePrefs);
 
   var updateCtl = $('update-ctl');
   var updateBtn = $('update-btn');
