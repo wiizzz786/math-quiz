@@ -402,6 +402,11 @@
           <span class="toggle-track"></span>
           No images
         </label>
+        <label class="opt" title="Inject Eruda dev tools into proxied pages">
+          <input type="checkbox" id="opt-eruda"/>
+          <span class="toggle-track"></span>
+          Eruda
+        </label>
       </div>
 
       <div class="section-hdr"><span>Quick Access</span></div>
@@ -464,6 +469,7 @@
     var q = 'url=' + encodeURIComponent(targetUrl);
     if ($('opt-nojs') && $('opt-nojs').checked) q += '&nojs=1';
     if ($('opt-noimg') && $('opt-noimg').checked) q += '&noimg=1';
+    if ($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
     if (m === 'uv' && uvBackend) {
       var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
       return uvBackend.replace(/\/+$/, '') + sep + q;
@@ -583,6 +589,7 @@
         useIframe: $('opt-iframe') ? $('opt-iframe').checked : false,
         nojs: $('opt-nojs') ? $('opt-nojs').checked : false,
         noimg: $('opt-noimg') ? $('opt-noimg').checked : false,
+        eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
         uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
         scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
       }));
@@ -604,6 +611,7 @@
       if(p.useIframe && $('opt-iframe')) $('opt-iframe').checked = true;
       if(p.nojs && $('opt-nojs')) $('opt-nojs').checked = true;
       if(p.noimg && $('opt-noimg')) $('opt-noimg').checked = true;
+      if(p.eruda && $('opt-eruda')) $('opt-eruda').checked = true;
       if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
       if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
     }catch(e){}
@@ -616,6 +624,7 @@
   if($('opt-iframe')) $('opt-iframe').addEventListener('change', savePrefs);
   if($('opt-nojs')) $('opt-nojs').addEventListener('change', savePrefs);
   if($('opt-noimg')) $('opt-noimg').addEventListener('change', savePrefs);
+  if($('opt-eruda')) $('opt-eruda').addEventListener('change', savePrefs);
 
   var updateCtl = $('update-ctl');
   var updateBtn = $('update-btn');
