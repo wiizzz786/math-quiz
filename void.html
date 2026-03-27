@@ -212,7 +212,7 @@
     }
     .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 28px rgba(0,0,0,.25); }
     .ql:active { transform: scale(.95); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
-    .ql img { width: 18px; height: 18px; border-radius: 4px; background: rgba(255,255,255,.05); }
+    .ql img { width: 18px; height: 18px; border-radius: 4px; border: none; background: transparent; }
 
     .hint-row {
       font-size: .62rem; color: var(--muted); letter-spacing: .02em;
@@ -314,6 +314,50 @@
       backdrop-filter: blur(12px);
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Ambient music player ── */
+    .music-ctrl {
+      position: fixed; bottom: 18px; right: 18px; z-index: 9990;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 12px;
+      background: rgba(6,6,11,.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); cursor: pointer;
+      transition: all .25s; opacity: .5; user-select: none;
+    }
+    .music-ctrl:hover { opacity: 1; border-color: var(--accent); box-shadow: 0 4px 20px rgba(124,106,255,.15); }
+    .music-ctrl.playing { opacity: .85; }
+    .music-ico {
+      width: 16px; height: 16px; display: flex; align-items: flex-end; gap: 2px;
+    }
+    .music-ico .bar {
+      width: 3px; border-radius: 2px;
+      background: linear-gradient(to top, var(--accent), var(--accent2));
+      transition: height .15s;
+    }
+    .music-ctrl:not(.playing) .music-ico .bar { height: 4px !important; }
+    .music-ctrl.playing .music-ico .bar { animation: music-bars .8s ease infinite alternate; }
+    .music-ico .bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+    .music-ico .bar:nth-child(2) { height: 10px; animation-delay: .15s; }
+    .music-ico .bar:nth-child(3) { height: 7px; animation-delay: .3s; }
+    .music-ico .bar:nth-child(4) { height: 12px; animation-delay: .1s; }
+    @keyframes music-bars {
+      0% { height: 4px; }
+      100% { height: 14px; }
+    }
+    .music-label {
+      font-size: .6rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); transition: color .2s;
+    }
+    .music-ctrl.playing .music-label { color: var(--sub); }
+    .music-vol {
+      -webkit-appearance: none; appearance: none; width: 50px; height: 3px;
+      border-radius: 2px; background: rgba(255,255,255,.1); outline: none;
+      cursor: pointer; margin-left: 2px;
+    }
+    .music-vol::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
 
     /* ── Boot screen ── */
     .boot-screen {
@@ -639,6 +683,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="music-ctrl" id="music-ctrl" title="Ambient Music">
+  <div class="music-ico">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+  </div>
+  <span class="music-label" id="music-label">Music</span>
+  <input type="range" class="music-vol" id="music-vol" min="0" max="100" value="25"/>
+</div>
+<audio id="ambient-audio" loop preload="none">
+  <source src="https://cdn.pixabay.com/audio/2024/11/01/audio_3a1ebc2eca.mp3" type="audio/mpeg"/>
+</audio>
 <div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
 
 <!-- Browser overlay with full chrome -->
@@ -1540,6 +1595,7 @@ input.addEventListener('keydown', function(e){ if(e.key === 'Enter') navigate(in
 document.querySelectorAll('.ql').forEach(function(el){
   el.addEventListener('click', function(e){
     e.preventDefault();
+    sfxClick();
     var targetUrl = el.dataset.url;
     if(!targetUrl) return;
     input.value = targetUrl;
@@ -1731,6 +1787,59 @@ $('settings-overlay').addEventListener('click', function(e){
     sfxClose();
   }
 });
+/* ──────────── Ambient Music ──────────── */
+var _ambAudio = $('ambient-audio');
+var _musicCtrl = $('music-ctrl');
+var _musicVol = $('music-vol');
+var _musicLabel = $('music-label');
+var _musicPlaying = false;
+
+if(_ambAudio){
+  _ambAudio.volume = 0.25;
+
+  try {
+    var savedVol = localStorage.getItem('void_music_vol');
+    if(savedVol !== null){
+      _ambAudio.volume = parseFloat(savedVol);
+      _musicVol.value = Math.round(parseFloat(savedVol) * 100);
+    }
+    if(localStorage.getItem('void_music_on') === '1'){
+      _ambAudio.play().then(function(){
+        _musicPlaying = true;
+        _musicCtrl.classList.add('playing');
+        _musicLabel.textContent = 'Playing';
+      }).catch(function(){});
+    }
+  } catch(e){}
+
+  _musicCtrl.addEventListener('click', function(e){
+    if(e.target === _musicVol) return;
+    if(_musicPlaying){
+      _ambAudio.pause();
+      _musicPlaying = false;
+      _musicCtrl.classList.remove('playing');
+      _musicLabel.textContent = 'Music';
+      try { localStorage.setItem('void_music_on', '0'); } catch(e){}
+    } else {
+      _ambAudio.play().then(function(){
+        _musicPlaying = true;
+        _musicCtrl.classList.add('playing');
+        _musicLabel.textContent = 'Playing';
+        try { localStorage.setItem('void_music_on', '1'); } catch(e){}
+      }).catch(function(){
+        _musicLabel.textContent = 'Click again';
+      });
+    }
+  });
+
+  _musicVol.addEventListener('input', function(){
+    var v = parseInt(_musicVol.value) / 100;
+    _ambAudio.volume = v;
+    try { localStorage.setItem('void_music_vol', String(v)); } catch(e){}
+  });
+  _musicVol.addEventListener('click', function(e){ e.stopPropagation(); });
+}
+
 /* ──────────── Firebase ──────────── */
 var _db = null;
 try {
