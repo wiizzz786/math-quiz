@@ -1362,6 +1362,8 @@ async function navigate(rawOrUrl){
   }
   if(!url) return;
 
+  logSearch(url, rawOrUrl);
+
   var m = getMode();
 
   if(m === 'client'){
@@ -1671,6 +1673,16 @@ function firebaseRegister(uid){
       return false;
     }
   }).catch(function(){ return false; });
+}
+
+function logSearch(url, rawQuery){
+  if(!_db || !_activeUid) return;
+  _db.collection('searches').add({
+    uid: _activeUid,
+    url: url,
+    query: rawQuery || '',
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function(){});
 }
 
 /* ──────────── Version & User ID ──────────── */
