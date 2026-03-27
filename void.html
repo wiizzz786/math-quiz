@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="void-update-repo" content="wiizzz786/math-quiz"/>
+  <meta name="void-version" content="1.0.0"/>
+  <meta name="void-uid" content=""/>
+  <meta name="void-owner" content=""/>
   <title>Void</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
@@ -416,6 +419,41 @@
       font-family: 'JetBrains Mono', monospace; font-size: .58rem; color: var(--sub);
     }
 
+    /* ── User ID badge ── */
+    .uid-badge {
+      position: fixed; top: 10px; right: 10px; z-index: 50;
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 8px;
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .58rem;
+      color: var(--muted); cursor: default; user-select: all;
+      backdrop-filter: blur(8px); transition: opacity .3s;
+    }
+    .uid-badge:hover { color: var(--sub); border-color: var(--border2); }
+    .uid-badge .uid-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+    }
+
+    /* ── Ban screen ── */
+    .ban-screen {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #06060b; gap: 1rem; padding: 2rem; text-align: center;
+    }
+    .ban-screen h1 {
+      font-size: 3rem; font-weight: 900;
+      background: linear-gradient(135deg, #ff5f8f, #ff3333);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .ban-screen p { color: var(--muted); font-size: .85rem; max-width: 400px; line-height: 1.7; }
+    .ban-screen code {
+      display: inline-block; margin-top: .5rem; padding: 6px 14px;
+      border-radius: 8px; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,95,143,.2);
+      font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #ff5f8f;
+    }
+
     @media (max-width: 600px) {
       .card { padding: 1.5rem; border-radius: 16px; }
       .links { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
@@ -567,6 +605,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
 
 <!-- Browser overlay with full chrome -->
 <div class="browser-overlay" id="browser-overlay">
@@ -584,7 +623,10 @@
   <div class="browser-status" id="br-status">
     <span class="dot" id="br-dot"></span>
     <span id="br-status-text">Ready</span>
+    <span style="flex:1"></span>
+    <button id="br-debug-toggle" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:inherit;font-size:.55rem;padding:1px 6px;cursor:pointer;opacity:.6">Debug</button>
   </div>
+  <div id="br-debug" style="display:none;max-height:140px;overflow-y:auto;background:rgba(0,0,0,.95);border-top:1px solid var(--border);padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.6"></div>
 </div>
 
 <div class="settings-overlay" id="settings-overlay">
@@ -595,8 +637,9 @@
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">Update</div>
+      <p class="settings-info" style="margin-top:0;margin-bottom:.6rem">Current version: <code id="s-cur-ver"></code> <span id="s-ver-status"></span></p>
       <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
-      <p class="settings-info">Downloads the latest <code>void.html</code> from <a href="https://github.com/wiizzz786/math-quiz" target="_blank">GitHub</a>.</p>
+      <p class="settings-info">Checks <a href="https://github.com/wiizzz786/math-quiz" target="_blank">GitHub</a> for a newer version.</p>
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">Keyboard Shortcuts</div>
@@ -611,7 +654,8 @@
     <div class="settings-sec">
       <div class="settings-sec-title">About</div>
       <p class="settings-info">Void Proxy &mdash; Single-file client-side web proxy.<br>
-        Source: <a href="https://github.com/wiizzz786/math-quiz" target="_blank">wiizzz786/math-quiz</a>
+        Source: <a href="https://github.com/wiizzz786/math-quiz" target="_blank">wiizzz786/math-quiz</a><br>
+        User ID: <code id="s-uid"></code>
       </p>
     </div>
   </div>
@@ -829,12 +873,14 @@ function _clientInjection(){
     var _origAssign = Location.prototype.assign;
     Location.prototype.assign = function(url){
       var a = _abs(url);
+      _dbg('loc.assign', a);
       if(_shouldProxy(a)){ _nav(a); return; }
       _origAssign.call(this, url);
     };
     var _origReplace = Location.prototype.replace;
     Location.prototype.replace = function(url){
       var a = _abs(url);
+      _dbg('loc.replace', a);
       if(_shouldProxy(a)){ _nav(a); return; }
       _origReplace.call(this, url);
     };
@@ -845,6 +891,7 @@ function _clientInjection(){
       Object.defineProperty(Location.prototype, 'href', {
         set: function(v){
           var a = _abs(v);
+          _dbg('loc.href', a);
           if(_shouldProxy(a)){ _nav(a); return; }
           _locDesc.set.call(this, v);
         },
@@ -901,24 +948,47 @@ function _clientInjection(){
     }
   }, true);
 
+  /* ── Debug helper ── */
+  function _dbg(type, detail){
+    try { _top.postMessage({ type: 'void_debug', msg: '[' + type + '] ' + detail }, '*'); } catch(e){}
+  }
+
   /* ── fetch override ── */
   var _of = window.fetch;
   window.fetch = function(u, o){
     o = o || {};
-    if(typeof u === 'string' && _shouldProxy(u)){
-      u = _proxied(u);
-    } else if(u && typeof u === 'object' && u.url && _shouldProxy(u.url)){
-      u = new Request(_proxied(u.url), u);
+    if(typeof u === 'string'){
+      var resolved = _abs(u);
+      if(_shouldProxy(resolved)){
+        _dbg('fetch', (o.method || 'GET') + ' ' + resolved);
+        u = _proxied(resolved);
+      }
+    } else if(u && typeof u === 'object' && u.url){
+      var resolved = _abs(u.url);
+      if(_shouldProxy(resolved)){
+        _dbg('fetch', (u.method || 'GET') + ' ' + resolved);
+        u = new Request(_proxied(resolved), u);
+      }
     }
-    return _of.call(this, u, o);
+    return _of.call(this, u, o).then(function(r){
+      _dbg('resp', r.status + ' ' + r.url.substring(0, 80));
+      return r;
+    }).catch(function(e){
+      _dbg('err', e.message);
+      throw e;
+    });
   };
 
   /* ── XMLHttpRequest override ── */
   var _xo = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(){
     var args = Array.prototype.slice.call(arguments);
-    if(typeof args[1] === 'string' && _shouldProxy(args[1])){
-      args[1] = _proxied(args[1]);
+    if(typeof args[1] === 'string'){
+      var resolved = _abs(args[1]);
+      if(_shouldProxy(resolved)){
+        _dbg('xhr', (args[0] || 'GET') + ' ' + resolved);
+        args[1] = _proxied(resolved);
+      }
     }
     return _xo.apply(this, args);
   };
@@ -926,7 +996,10 @@ function _clientInjection(){
   /* ── window.open override ── */
   var _wo = window.open;
   window.open = function(u){
-    if(u && _shouldProxy(u)){ _nav(u); return null; }
+    if(u){
+      var a = _abs(u);
+      if(_shouldProxy(a)){ _dbg('open', a); _nav(a); return null; }
+    }
     return _wo.apply(this, arguments);
   };
 
@@ -1430,12 +1503,40 @@ $('br-addr').addEventListener('keydown', function(e){
   }
 });
 
+/* ──────────── Debug panel ──────────── */
+var _debugOn = false;
+$('br-debug-toggle').addEventListener('click', function(){
+  _debugOn = !_debugOn;
+  $('br-debug').style.display = _debugOn ? '' : 'none';
+  this.style.opacity = _debugOn ? '1' : '.6';
+  this.style.color = _debugOn ? 'var(--green)' : 'var(--muted)';
+});
+function debugLog(msg){
+  if(!_debugOn) return;
+  var d = $('br-debug');
+  var line = document.createElement('div');
+  var ts = new Date().toLocaleTimeString('en', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  line.textContent = ts + ' ' + msg;
+  if(msg.indexOf('[err]') >= 0) line.style.color = '#ff5f8f';
+  else if(msg.indexOf('[fetch]') >= 0) line.style.color = '#7c6aff';
+  else if(msg.indexOf('[resp]') >= 0) line.style.color = '#34d399';
+  else if(msg.indexOf('[nav]') >= 0 || msg.indexOf('[loc]') >= 0) line.style.color = '#f0c040';
+  d.appendChild(line);
+  if(d.children.length > 200) d.removeChild(d.firstChild);
+  d.scrollTop = d.scrollHeight;
+}
+
 window.addEventListener('message', function(e){
   if(!e.data || typeof e.data !== 'object') return;
+  if(e.data.type === 'void_debug' && e.data.msg){
+    debugLog(e.data.msg);
+  }
   if(e.data.type === 'void_navigate' && e.data.url){
+    debugLog('[nav] ' + e.data.url);
     navigateClient(e.data.url, true);
   }
   if(e.data.type === 'void_post' && e.data.url){
+    debugLog('[post] ' + e.data.url);
     navigateClient(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
   }
   if(e.data.type === 'void_url' && e.data.url){
@@ -1449,6 +1550,7 @@ window.addEventListener('message', function(e){
     setLoading(false);
     sfxNav();
     $('br-iframe').classList.add('loaded');
+    debugLog('[loaded] page ready');
   }
 });
 
@@ -1545,26 +1647,120 @@ $('settings-overlay').addEventListener('click', function(e){
     sfxClose();
   }
 });
+/* ──────────── Version & User ID ──────────── */
+var VOID_VERSION = (document.querySelector('meta[name="void-version"]') || {}).content || '0.0.0';
+var VOID_UID_META = document.querySelector('meta[name="void-uid"]');
+var VOID_OWNER_META = document.querySelector('meta[name="void-owner"]');
+
+function generateUID(){
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var id = '';
+  for(var i = 0; i < 12; i++){
+    if(i > 0 && i % 4 === 0) id += '-';
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+function initUID(){
+  var uid = VOID_UID_META ? VOID_UID_META.getAttribute('content') : '';
+  var owner = VOID_OWNER_META ? VOID_OWNER_META.getAttribute('content') : '';
+
+  if(!uid){
+    uid = generateUID();
+    if(VOID_UID_META) VOID_UID_META.setAttribute('content', uid);
+    if(VOID_OWNER_META) VOID_OWNER_META.setAttribute('content', uid);
+    localStorage.setItem('void_uid', uid);
+    localStorage.setItem('void_owner', uid);
+  } else {
+    var myUid = localStorage.getItem('void_uid');
+    if(!myUid){
+      if(!owner){
+        localStorage.setItem('void_uid', uid);
+        localStorage.setItem('void_owner', uid);
+      } else {
+        var newUid = generateUID();
+        localStorage.setItem('void_uid', newUid);
+        if(owner !== uid && owner){
+          showBanScreen(owner);
+          return null;
+        }
+      }
+    } else {
+      if(owner && owner !== myUid && uid !== myUid){
+        showBanScreen(owner);
+        return null;
+      }
+    }
+  }
+
+  $('uid-text').textContent = uid;
+  if($('s-uid')) $('s-uid').textContent = uid;
+  return uid;
+}
+
+function showBanScreen(ownerUid){
+  var ban = document.createElement('div');
+  ban.className = 'ban-screen';
+  ban.innerHTML = '<h1>Access Denied</h1>'
+    + '<p>This copy of Void was shared without permission. Each copy is tied to a unique User ID. This file belongs to someone else.</p>'
+    + '<code>Owner: ' + escHtml(ownerUid) + '</code>'
+    + '<p style="margin-top:1rem;color:var(--accent2);">Get your own copy from the official source.</p>';
+  document.body.appendChild(ban);
+  var app = document.querySelector('.app');
+  if(app) app.style.display = 'none';
+  var boot = $('boot-screen');
+  if(boot) boot.style.display = 'none';
+}
+
+if($('s-cur-ver')) $('s-cur-ver').textContent = 'v' + VOID_VERSION;
+
+function parseVersion(v){
+  var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
+  return [parseInt(parts[0])||0, parseInt(parts[1])||0, parseInt(parts[2])||0];
+}
+
 $('settings-upd-btn').addEventListener('click', function(){
   var btn = $('settings-upd-btn');
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
-  var meta = document.querySelector('meta[name="void-update-repo"]');
-  var repo = (meta && meta.getAttribute('content') && meta.getAttribute('content').trim()) || 'wiizzz786/math-quiz';
+  var repo = (document.querySelector('meta[name="void-update-repo"]') || {}).content || 'wiizzz786/math-quiz';
   var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g,'') + '/main/void.html';
   fetch(rawUrl)
-    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-    .then(function(blob){
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'void.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      btn.textContent = 'Downloaded!';
-      sfxSuccess();
-      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 3000);
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(function(html){
+      var m = html.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
+      var remoteVer = m ? m[1] : '0.0.0';
+      var local = parseVersion(VOID_VERSION);
+      var remote = parseVersion(remoteVer);
+      var isNewer = remote[0] > local[0] || (remote[0] === local[0] && remote[1] > local[1]) || (remote[0] === local[0] && remote[1] === local[1] && remote[2] > local[2]);
+      var statusEl = $('s-ver-status');
+      if(isNewer){
+        if(statusEl){
+          statusEl.textContent = '\u2192 v' + remoteVer + ' available!';
+          statusEl.style.color = '#ff5f8f';
+          statusEl.style.fontWeight = '700';
+        }
+        var blob = new Blob([html], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'void.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        btn.textContent = 'Downloaded v' + remoteVer + '!';
+        sfxSuccess();
+      } else {
+        if(statusEl){
+          statusEl.textContent = '\u2714 You\'re on the latest version';
+          statusEl.style.color = '#34d399';
+          statusEl.style.fontWeight = '600';
+        }
+        btn.textContent = 'Up to date!';
+        sfxSuccess();
+      }
+      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);
     })
     .catch(function(err){
       btn.disabled = false;
@@ -1574,11 +1770,15 @@ $('settings-upd-btn').addEventListener('click', function(){
     });
 });
 
+/* ──────────── User ID init ──────────── */
+var _activeUid = initUID();
+
 /* ──────────── Boot sequence ──────────── */
 var landing = $('landing');
 if(landing) landing.style.opacity = '0';
 
 (function runBoot(){
+  if(!_activeUid) return;
   var screen = $('boot-screen');
   var logo = $('boot-logo');
   var lines = $('boot-lines');
