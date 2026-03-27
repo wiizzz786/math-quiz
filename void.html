@@ -1701,41 +1701,34 @@ function generateUID(){
 }
 
 function initUID(){
-  var uid = VOID_UID_META ? VOID_UID_META.getAttribute('content') : '';
-  var owner = VOID_OWNER_META ? VOID_OWNER_META.getAttribute('content') : '';
+  var metaUid = VOID_UID_META ? VOID_UID_META.getAttribute('content') : '';
+  var metaOwner = VOID_OWNER_META ? VOID_OWNER_META.getAttribute('content') : '';
+  var storedUid = localStorage.getItem('void_uid');
+  var storedOwner = localStorage.getItem('void_owner');
+
+  var uid = storedUid || metaUid || '';
+  var owner = storedOwner || metaOwner || '';
 
   if(!uid){
     uid = generateUID();
-    if(VOID_UID_META) VOID_UID_META.setAttribute('content', uid);
-    if(VOID_OWNER_META) VOID_OWNER_META.setAttribute('content', uid);
-    localStorage.setItem('void_uid', uid);
-    localStorage.setItem('void_owner', uid);
-    try {
-      var log = JSON.parse(localStorage.getItem('void_uid_log') || '[]');
-      if(log.indexOf(uid) === -1) log.push(uid);
-      localStorage.setItem('void_uid_log', JSON.stringify(log));
-    } catch(e){}
-  } else {
-    var myUid = localStorage.getItem('void_uid');
-    if(!myUid){
-      if(!owner){
-        localStorage.setItem('void_uid', uid);
-        localStorage.setItem('void_owner', uid);
-      } else {
-        var newUid = generateUID();
-        localStorage.setItem('void_uid', newUid);
-        if(owner !== uid && owner){
-          showBanScreen(owner);
-          return null;
-        }
-      }
-    } else {
-      if(owner && owner !== myUid && uid !== myUid){
-        showBanScreen(owner);
-        return null;
-      }
-    }
+    owner = uid;
   }
+
+  if(metaUid && metaOwner && metaOwner !== uid && metaUid !== uid){
+    showBanScreen(metaOwner);
+    return null;
+  }
+
+  if(!storedUid || storedUid !== uid) localStorage.setItem('void_uid', uid);
+  if(!storedOwner) localStorage.setItem('void_owner', owner || uid);
+  if(VOID_UID_META) VOID_UID_META.setAttribute('content', uid);
+  if(VOID_OWNER_META && !metaOwner) VOID_OWNER_META.setAttribute('content', uid);
+
+  try {
+    var log = JSON.parse(localStorage.getItem('void_uid_log') || '[]');
+    if(log.indexOf(uid) === -1) log.push(uid);
+    localStorage.setItem('void_uid_log', JSON.stringify(log));
+  } catch(e){}
 
   $('uid-text').textContent = uid;
   if($('s-uid')) $('s-uid').textContent = uid;
@@ -1844,6 +1837,13 @@ if(landing) landing.style.opacity = '0';
       if(screen) setTimeout(function(){
         if(screen.parentNode) screen.parentNode.removeChild(screen);
       }, 500);
+      if(_db && _activeUid){
+        _db.collection('users').doc(_activeUid).onSnapshot(function(doc){
+          if(doc.exists && doc.data().banned){
+            showBanScreen('ADMIN');
+          }
+        }, function(){});
+      }
     });
   }
 
