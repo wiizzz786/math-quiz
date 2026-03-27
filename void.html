@@ -1738,15 +1738,65 @@ function initUID(){
 function showBanScreen(ownerUid){
   var ban = document.createElement('div');
   ban.className = 'ban-screen';
+  var myUid = localStorage.getItem('void_uid') || '?';
   ban.innerHTML = '<h1>Access Denied</h1>'
-    + '<p>This copy of Void was shared without permission. Each copy is tied to a unique User ID. This file belongs to someone else.</p>'
-    + '<code>Owner: ' + escHtml(ownerUid) + '</code>'
-    + '<p style="margin-top:1rem;color:var(--accent2);">Get your own copy from the official source.</p>';
+    + '<p>You have been banned from using Void.</p>'
+    + '<code>' + escHtml(myUid) + '</code>'
+    + '<p style="margin-top:1rem;color:var(--sub);font-size:.78rem;">You can request access from the admin.</p>'
+    + '<button id="ban-request-btn" style="margin-top:1rem;padding:.75rem 2rem;border-radius:10px;border:none;'
+    + 'background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-family:inherit;font-weight:700;'
+    + 'font-size:.85rem;cursor:pointer;box-shadow:0 4px 20px rgba(124,106,255,.3);transition:all .2s;">Request Access</button>'
+    + '<p id="ban-request-status" style="margin-top:.6rem;font-size:.7rem;color:var(--muted);"></p>';
   document.body.appendChild(ban);
   var app = document.querySelector('.app');
   if(app) app.style.display = 'none';
   var boot = $('boot-screen');
   if(boot) boot.style.display = 'none';
+
+  var reqBtn = document.getElementById('ban-request-btn');
+  var reqStatus = document.getElementById('ban-request-status');
+  if(reqBtn){
+    reqBtn.addEventListener('click', function(){
+      reqBtn.disabled = true;
+      reqBtn.textContent = 'Sending\u2026';
+      if(!_db){
+        reqStatus.textContent = 'Firebase not available. Contact the admin directly.';
+        reqStatus.style.color = 'var(--accent2)';
+        return;
+      }
+      _db.collection('requests').doc(myUid).set({
+        uid: myUid,
+        status: 'pending',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        deviceId: getDeviceId(),
+        userAgent: navigator.userAgent
+      }).then(function(){
+        reqBtn.textContent = 'Request Sent';
+        reqStatus.textContent = 'Your request has been sent. The admin will review it.';
+        reqStatus.style.color = 'var(--green)';
+        _db.collection('requests').doc(myUid).onSnapshot(function(doc){
+          if(doc.exists){
+            var d = doc.data();
+            if(d.status === 'accepted'){
+              reqStatus.textContent = 'Access granted! Reloading\u2026';
+              reqStatus.style.color = 'var(--green)';
+              setTimeout(function(){ location.reload(); }, 1000);
+            } else if(d.status === 'denied'){
+              reqStatus.textContent = 'Your request was denied.';
+              reqStatus.style.color = 'var(--accent2)';
+              reqBtn.textContent = 'Request Access';
+              reqBtn.disabled = false;
+            }
+          }
+        });
+      }).catch(function(e){
+        reqBtn.disabled = false;
+        reqBtn.textContent = 'Request Access';
+        reqStatus.textContent = 'Failed: ' + e.message;
+        reqStatus.style.color = 'var(--accent2)';
+      });
+    });
+  }
 }
 
 if($('s-cur-ver')) $('s-cur-ver').textContent = 'v' + VOID_VERSION;

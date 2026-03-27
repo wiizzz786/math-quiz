@@ -140,6 +140,21 @@
     .uid-tag.owner-tag { background: rgba(52,211,153,.15); color: var(--green); }
     .uid-tag.banned-tag { background: rgba(255,95,143,.15); color: var(--accent2); }
     .uid-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .uid-delete {
+      width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,95,143,.15);
+      background: transparent; color: var(--muted); font-size: .7rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .uid-delete:hover { background: rgba(255,95,143,.15); color: var(--accent2); border-color: rgba(255,95,143,.3); }
+    .req-row {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+      border-radius: var(--rad-sm); background: var(--surface); border: 1px solid rgba(255,95,143,.2);
+      font-size: .75rem; color: var(--text); transition: border-color .2s;
+    }
+    .req-row .req-uid { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 130px; }
+    .req-row .req-meta { font-size: .62rem; color: var(--muted); flex: 1; }
+    .req-row .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
     .history-list { display: flex; flex-direction: column; gap: 4px; }
     .history-row {
@@ -268,6 +283,7 @@
   <div class="sidebar">
     <div class="nav-item active" data-panel="dashboard"><span class="nav-ico">&#9632;</span><span>Dashboard</span></div>
     <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>Users</span><span class="nav-count" id="nav-user-count">0</span></div>
+    <div class="nav-item" data-panel="requests"><span class="nav-ico">&#9993;</span><span>Requests</span><span class="nav-count" id="nav-req-count" style="background:rgba(255,95,143,.2);color:var(--accent2);">0</span></div>
     <div class="nav-item" data-panel="history"><span class="nav-ico">&#9201;</span><span>History</span><span class="nav-count" id="nav-history-count">0</span></div>
     <div class="nav-sep"></div>
     <div class="nav-item" data-panel="proxy"><span class="nav-ico">&#9658;</span><span>Test Proxy</span></div>
@@ -275,6 +291,8 @@
     <div class="nav-item" data-panel="devtools"><span class="nav-ico">&#10095;</span><span>Dev Tools</span></div>
     <div class="nav-sep"></div>
     <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Settings</span></div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" id="nav-open-void" style="color:var(--green);"><span class="nav-ico">&#9654;</span><span>Open Void</span></div>
   </div>
 
   <div class="content">
@@ -330,6 +348,15 @@
           <button class="btn btn-danger btn-sm" id="btn-history-clear">Clear All</button>
         </div>
         <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- Requests -->
+    <div class="panel" id="p-requests">
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="req-live-dot"></span>Access Requests</span><span id="req-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-requests" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Banned users can request access. Accept to unban them, deny to reject.</p>
+        <div class="uid-list" id="req-list"></div>
       </div>
     </div>
 
@@ -615,6 +642,9 @@ function renderFirestoreUsers(){
       var bn = document.createElement('button'); bn.className = 'btn btn-danger btn-sm'; bn.textContent = 'Ban';
       bn.addEventListener('click', function(){ toggleBan(u.uid,true); }); actions.appendChild(bn);
     }
+    var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;'; del.title = 'Delete permanently';
+    del.addEventListener('click', function(){ deleteUser(u.uid); });
+    actions.appendChild(del);
     row.appendChild(actions); list.appendChild(row);
   });
   refreshDashboard(); updateHistoryFilterDropdown();
@@ -624,6 +654,15 @@ function toggleBan(uid, banned){
   if(!_db) return;
   if(banned && !confirm('Ban user '+uid+'?')) return;
   _db.collection('users').doc(uid).update({ banned: banned }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function deleteUser(uid){
+  if(!_db) return;
+  var label = getUserLabel(uid);
+  if(!confirm('Permanently delete ' + (label ? label + ' (' + uid + ')' : uid) + '?\nThis removes them from Firestore.')) return;
+  _db.collection('users').doc(uid).delete().then(function(){
+    _db.collection('requests').doc(uid).delete().catch(function(){});
+  }).catch(function(e){ alert('Error: '+e.message); });
 }
 
 function fetchUsers(){
@@ -758,6 +797,107 @@ $('btn-history-clear').addEventListener('click', function(){
     snap.forEach(function(doc){ b.delete(doc.ref); c++; if(c>=400){ b.commit(); b = _db.batch(); c = 0; } });
     if(c>0) return b.commit();
   }).catch(function(e){ alert(e.message); });
+});
+
+/* ──── Requests ──── */
+var _allRequests = [];
+
+function renderRequests(){
+  var list = $('req-list'); list.innerHTML = '';
+  var pending = _allRequests.filter(function(r){ return r.status === 'pending'; });
+  var rest = _allRequests.filter(function(r){ return r.status !== 'pending'; });
+  var sorted = pending.concat(rest);
+
+  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
+  if(!sorted.length){ list.innerHTML = '<div class="empty-state">No access requests.</div>'; return; }
+
+  sorted.forEach(function(r){
+    var row = document.createElement('div'); row.className = 'req-row';
+    if(r.status !== 'pending') row.style.opacity = '0.5';
+
+    var dot = document.createElement('span'); dot.className = 'uid-dot';
+    dot.style.background = r.status === 'pending' ? 'var(--yellow)' : r.status === 'accepted' ? 'var(--green)' : 'var(--accent2)';
+    row.appendChild(dot);
+
+    var uid = document.createElement('span'); uid.className = 'req-uid';
+    var lbl = getUserLabel(r.uid);
+    uid.textContent = lbl ? lbl + ' (' + r.uid + ')' : r.uid;
+    row.appendChild(uid);
+
+    var meta = document.createElement('span'); meta.className = 'req-meta';
+    var parts = [];
+    if(r.timestamp) parts.push(timeAgo(r.timestamp));
+    if(r.deviceId) parts.push(r.deviceId);
+    parts.push(r.status.toUpperCase());
+    meta.textContent = parts.join(' \u00b7 ');
+    meta.title = r.userAgent || '';
+    row.appendChild(meta);
+
+    if(r.status === 'pending'){
+      var actions = document.createElement('span'); actions.className = 'req-actions';
+      var acc = document.createElement('button'); acc.className = 'btn btn-success btn-sm'; acc.textContent = 'Accept';
+      acc.addEventListener('click', function(){ handleRequest(r.uid, 'accepted'); });
+      actions.appendChild(acc);
+      var deny = document.createElement('button'); deny.className = 'btn btn-danger btn-sm'; deny.textContent = 'Deny';
+      deny.addEventListener('click', function(){ handleRequest(r.uid, 'denied'); });
+      actions.appendChild(deny);
+      var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;'; del.title = 'Dismiss';
+      del.addEventListener('click', function(){ _db.collection('requests').doc(r.uid).delete().catch(function(){}); });
+      actions.appendChild(del);
+      row.appendChild(actions);
+    }
+
+    list.appendChild(row);
+  });
+
+  var pendingCount = pending.length;
+  $('nav-req-count').textContent = pendingCount;
+  $('nav-req-count').style.display = pendingCount ? '' : 'none';
+}
+
+function handleRequest(uid, newStatus){
+  if(!_db) return;
+  _db.collection('requests').doc(uid).update({ status: newStatus }).then(function(){
+    if(newStatus === 'accepted'){
+      _db.collection('users').doc(uid).update({ banned: false }).catch(function(){});
+    }
+  }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function fetchRequests(){
+  if(!_fbOk || !_db) return;
+  $('req-status').textContent = 'loading\u2026';
+  $('req-status').style.color = 'var(--muted)';
+  _db.collection('requests').get().then(function(snap){
+    _allRequests = []; snap.forEach(function(doc){ _allRequests.push(doc.data()); });
+    renderRequests();
+    $('req-status').textContent = _allRequests.length + ' requests \u00b7 ' + new Date().toLocaleTimeString();
+    $('req-status').style.color = 'var(--green)';
+  }).catch(function(err){
+    $('req-status').textContent = 'error: ' + err.message;
+    $('req-status').style.color = 'var(--accent2)';
+  });
+}
+
+if(_fbOk){
+  try {
+    _db.collection('requests').onSnapshot(function(snap){
+      _allRequests = []; snap.forEach(function(doc){ _allRequests.push(doc.data()); });
+      renderRequests();
+      var pending = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
+      $('req-status').textContent = 'live \u00b7 ' + pending + ' pending';
+      $('req-status').style.color = pending ? 'var(--yellow)' : 'var(--green)';
+    }, function(err){
+      if($('req-live-dot')) $('req-live-dot').style.background = 'var(--accent2)';
+      fetchRequests();
+    });
+  } catch(e){ fetchRequests(); }
+}
+
+$('btn-refresh-requests').addEventListener('click', fetchRequests);
+
+$('nav-open-void').addEventListener('click', function(){
+  window.open(location.href.replace(/[^/]*$/, '') + 'void.html', '_blank');
 });
 
 /* ──── Test Proxy (Live Preview) ──── */
