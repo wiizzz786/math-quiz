@@ -126,10 +126,13 @@ export default {
           redirect: 'manual'
         });
 
-        var sc = upstream.headers.get('set-cookie');
-        if (sc) collectedCookies.push(sc);
         var scAll = upstream.headers.getAll ? upstream.headers.getAll('set-cookie') : [];
-        if (scAll.length) collectedCookies.push(...scAll);
+        if (scAll.length) {
+          collectedCookies.push(...scAll);
+        } else {
+          var sc = upstream.headers.get('set-cookie');
+          if (sc) collectedCookies.push(sc);
+        }
 
         if (upstream.status >= 300 && upstream.status < 400) {
           var loc = upstream.headers.get('location');

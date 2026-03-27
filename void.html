@@ -900,9 +900,7 @@ function makeCorsUrl(targetUrl){
 function looksLikeBlockPage(text){
   if(!text || text.length < 50) return true;
   var low = text.slice(0, 4000).toLowerCase();
-  if(low.includes('cloudflare') && (low.includes('challenge') || low.includes('blocked') || low.includes('captcha'))) return true;
-  if(low.includes('sorry, you have been blocked')) return true;
-  if(low.includes('attention required') && low.includes('cloudflare')) return true;
+  if(low.includes('sorry, you have been blocked') && text.length < 5000) return true;
   if(low.includes('access denied') && text.length < 2000) return true;
   return false;
 }
@@ -1037,6 +1035,30 @@ function _clientInjection(){
     _saveCookies();
   }
 
+  /* ── document.cookie override ── */
+  try {
+    Object.defineProperty(document, 'cookie', {
+      get: function(){ return _getCookiesFor(_cur); },
+      set: function(val){
+        if(typeof val !== 'string') return;
+        var parts = val.split(';');
+        var nv = parts[0].trim().split('=');
+        if(nv.length < 2) return;
+        var name = nv[0].trim();
+        var value = nv.slice(1).join('=').trim();
+        var domain = _getDomain(_cur);
+        parts.forEach(function(p){
+          var kv = p.trim().split('=');
+          if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) domain = kv[1].trim().replace(/^\./, '');
+        });
+        if(!_cookieJar[domain]) _cookieJar[domain] = {};
+        _cookieJar[domain][name] = value;
+        _saveCookies();
+      },
+      configurable: true
+    });
+  } catch(e){}
+
   function _abs(u){
     try { return new URL(u, _cur).href; } catch(e){ return u; }
   }
@@ -1047,7 +1069,9 @@ function _clientInjection(){
     return _cp + '?url=' + encodeURIComponent(abs);
   }
   function _shouldProxy(u){
-    return typeof u === 'string' && /^https?:\/\//i.test(u);
+    if(typeof u !== 'string' || !/^https?:\/\//i.test(u)) return false;
+    if(u.indexOf(_cp) === 0) return false;
+    return true;
   }
   var _top = window.top || window.parent;
   function _nav(url){ _top.postMessage({ type: 'void_navigate', url: url }, '*'); }
@@ -1058,9 +1082,19 @@ function _clientInjection(){
   try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
   try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
 
+  /* ── Spoof document properties to match proxied site ── */
+  try {
+    var _pu = new URL(_cur);
+    Object.defineProperty(document, 'URL', { get: function(){ return _cur; }, configurable: true });
+    Object.defineProperty(document, 'documentURI', { get: function(){ return _cur; }, configurable: true });
+    Object.defineProperty(document, 'referrer', { get: function(){ return ''; }, configurable: true });
+    Object.defineProperty(document, 'domain', { get: function(){ try { return new URL(_cur).hostname; } catch(e){ return ''; } }, set: function(){}, configurable: true });
+  } catch(e){}
+
   /* ── Intercept navigation via document.location / window.location setter ── */
   try {
     var _realLoc = window.location;
+    var _locProps = new Set(['origin','host','hostname','protocol','port','href','pathname','search','hash']);
     var _locHandler = {
       set: function(target, prop, value){
         if(prop === 'href' || prop === 'pathname' || prop === 'search' || prop === 'hash'){
@@ -1075,6 +1109,14 @@ function _clientInjection(){
         return true;
       },
       get: function(target, prop){
+        if(_locProps.has(prop)){
+          try { return new URL(_cur)[prop]; } catch(e){}
+        }
+        if(prop === 'toString') return function(){ return _cur; };
+        if(prop === 'valueOf') return function(){ return _cur; };
+        if(prop === 'replace') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.replace(url); };
+        if(prop === 'assign') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.assign(url); };
+        if(prop === 'reload') return function(){ _realLoc.reload(); };
         var v = target[prop];
         return typeof v === 'function' ? v.bind(target) : v;
       }
@@ -1590,7 +1632,9 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       if(ld) ld.className = '';
       var ai = document.getElementById('_va');
       if(ai) ai.style.borderColor = 'rgba(255,95,143,.5)';
-      setTimeout(function(){ if(ai) ai.style.borderColor = ''; }, 2000);
+      if(ai) ai.value = 'Error: ' + (err.message || err);
+      setTimeout(function(){ if(ai) ai.style.borderColor = ''; }, 3000);
+      console.error('[Void nav]', err);
     }
   }
 
@@ -1919,15 +1963,16 @@ function openCloaked(url){
 }
 
 async function navigate(rawOrUrl){
+  try {
   var url = rawOrUrl;
   if(!/^https?:\/\//i.test(url)){
     url = toUrl(rawOrUrl);
   }
   if(!url) return;
 
-  logSearch(url, rawOrUrl);
+  try { logSearch(url, rawOrUrl); } catch(e){}
   var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
-  addToHistory(url, domain);
+  try { addToHistory(url, domain); } catch(e){}
 
   var m = getMode();
 
@@ -1962,6 +2007,10 @@ async function navigate(rawOrUrl){
     return;
   }
   window.location.href = proxyUrl;
+  } catch(navErr) {
+    console.error('[Void navigate]', navErr);
+    alert('Navigation error: ' + (navErr.message || navErr));
+  }
 }
 
 /* ──────────── Event listeners ──────────── */
@@ -1994,7 +2043,13 @@ $('eng-more-btn').addEventListener('click', function(){
   this.classList.toggle('open', open);
 });
 
-$('go-btn').addEventListener('click', function(){ closeSuggestions(); navigate(input.value); });
+$('go-btn').addEventListener('click', function(){
+  closeSuggestions();
+  var btn = $('go-btn');
+  btn.textContent = 'Loading\u2026';
+  btn.disabled = true;
+  navigate(input.value).finally(function(){ btn.textContent = 'Browse'; btn.disabled = false; });
+});
 input.addEventListener('keydown', function(e){
   if(e.key === 'Enter'){ closeSuggestions(); navigate(input.value); }
   if(e.key === 'Escape') closeSuggestions();
