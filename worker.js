@@ -117,12 +117,14 @@ export default {
       var upstream;
       var hops = 0;
       var collectedCookies = [];
+      var curMethod = request.method;
+      var curBody = (curMethod !== 'GET' && curMethod !== 'HEAD') ? request.body : undefined;
 
       while (hops < MAX_REDIRECTS) {
         upstream = await fetch(finalUrl, {
-          method: request.method,
+          method: curMethod,
           headers: fwdHeaders,
-          body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : undefined,
+          body: curBody,
           redirect: 'manual'
         });
 
@@ -139,6 +141,13 @@ export default {
           if (!loc) break;
           try { finalUrl = new URL(loc, finalUrl).href; } catch { break; }
           fwdHeaders.set('Referer', new URL(finalUrl).origin + '/');
+
+          if (upstream.status !== 307 && upstream.status !== 308) {
+            curMethod = 'GET';
+            curBody = undefined;
+            fwdHeaders.delete('Content-Type');
+            fwdHeaders.delete('Content-Length');
+          }
 
           if (collectedCookies.length) {
             var cookieStr = collectedCookies.map(function(c) {

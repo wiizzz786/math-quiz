@@ -1252,6 +1252,8 @@ function _clientInjection(){
           if(o.headers instanceof Headers) o.headers.set('X-Void-Cookie', ck);
           else o.headers['X-Void-Cookie'] = ck;
         }
+        delete o.credentials;
+        o.mode = 'cors';
       }
     } else if(u && typeof u === 'object' && u.url){
       var resolved = _abs(u.url);
@@ -1261,12 +1263,11 @@ function _clientInjection(){
         var h = new Headers(u.headers);
         var ck = _getCookiesFor(resolved);
         if(ck) h.set('X-Void-Cookie', ck);
-        u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: u.mode, credentials: u.credentials });
+        u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: 'cors' });
       }
     }
     var _ou = origUrl;
     return _of.call(this, u, o).then(function(r){
-      _dbg('resp', r.status + ' ' + r.url.substring(0, 80));
       var sc = r.headers.get('x-void-set-cookie');
       if(sc && _ou) _parseSetCookies(sc, _ou);
       return r;
@@ -1292,6 +1293,7 @@ function _clientInjection(){
     }
     var result = _xo.apply(this, args);
     if(this._voidOrigUrl){
+      try { this.withCredentials = false; } catch(e){}
       var ck = _getCookiesFor(this._voidOrigUrl);
       if(ck) try { _xsr.call(this, 'X-Void-Cookie', ck); } catch(e){}
     }
@@ -1314,6 +1316,40 @@ function _clientInjection(){
     }
     return _wo.apply(this, arguments);
   };
+
+  /* ── WebSocket proxy ── */
+  var _OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols){
+    if(url && typeof url === 'string'){
+      var wsUrl = url;
+      if(/^wss?:\/\//i.test(wsUrl)){
+        try {
+          var httpUrl = wsUrl.replace(/^ws/i, 'http');
+          _dbg('ws', httpUrl);
+        } catch(e){}
+      }
+    }
+    if(protocols !== undefined) return new _OrigWS(url, protocols);
+    return new _OrigWS(url);
+  };
+  window.WebSocket.prototype = _OrigWS.prototype;
+  window.WebSocket.CONNECTING = _OrigWS.CONNECTING;
+  window.WebSocket.OPEN = _OrigWS.OPEN;
+  window.WebSocket.CLOSING = _OrigWS.CLOSING;
+  window.WebSocket.CLOSED = _OrigWS.CLOSED;
+
+  /* ── EventSource override ── */
+  var _OrigES = window.EventSource;
+  if(_OrigES){
+    window.EventSource = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a)){ url = _proxied(a); _dbg('sse', a); }
+      }
+      return new _OrigES(url, opts);
+    };
+    window.EventSource.prototype = _OrigES.prototype;
+  }
 
   /* ── History API interception (SPAs) ── */
   var _hps = history.pushState;
@@ -1347,9 +1383,14 @@ function _clientInjection(){
     navigator.serviceWorker.register = function(){ return Promise.reject(new Error('blocked by proxy')); };
   }
 
-  /* ── Block document.write/writeln from nuking proxy ── */
-  document.write = function(){};
-  document.writeln = function(){};
+  /* ── Block document.write/writeln from nuking proxy after load ── */
+  var _origWrite = document.write.bind(document);
+  var _origWriteln = document.writeln.bind(document);
+  var _docLoaded = false;
+  document.write = function(s){ if(!_docLoaded) return _origWrite(s); };
+  document.writeln = function(s){ if(!_docLoaded) return _origWriteln(s); };
+  if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
+  else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
 
   /* ── Catch unintended real navigation ── */
   window.addEventListener('beforeunload', function(e){
@@ -1473,6 +1514,29 @@ function clientRewrite(html, baseUrl){
     html = '<!DOCTYPE html><html><head>' + headInsert + '</head>' + html;
   }
 
+  function _rwUrl(raw){
+    if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
+    if(raw.indexOf(cp) !== -1) return raw;
+    try {
+      var abs = new URL(raw, baseUrl).href;
+      if(!/^https?:\/\//i.test(abs)) return raw;
+      return cp.indexOf('?') >= 0 ? cp + encodeURIComponent(abs) : cp + '?url=' + encodeURIComponent(abs);
+    } catch(e){ return raw; }
+  }
+
+  html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    if(/data-void-inject/i.test(pre)) return m;
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
   html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi, function(m, pre, attr, q, val){
     return pre + attr + q + rewriteSrcset(val, baseUrl, cp) + q;
   });
@@ -1533,6 +1597,25 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
     else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
     else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
+    function _rw(raw){
+      if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
+      if(raw.indexOf(_corsBase) !== -1) return raw;
+      try {
+        var a = new URL(raw, base).href;
+        if(!/^https?:\/\//i.test(a)) return raw;
+        return makeCors(a);
+      } catch(e){ return raw; }
+    }
+    html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      if(/data-void-inject/i.test(pre)) return m;
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
     html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi,
       function(m,pre,attr,q,val){ return pre + attr + q + rwSrcset(val, base) + q; });
     html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi,
