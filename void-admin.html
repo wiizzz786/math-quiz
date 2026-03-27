@@ -33,16 +33,12 @@
       padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700;
       letter-spacing: .08em; background: rgba(255,95,143,.15); color: var(--accent2);
     }
-    .header-fb {
-      padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700;
-      letter-spacing: .06em;
-    }
+    .header-fb { padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700; letter-spacing: .06em; }
     .header-fb.on { background: rgba(52,211,153,.15); color: var(--green); }
     .header-fb.off { background: rgba(255,95,143,.1); color: var(--accent2); }
     .header-ver { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted); margin-left: auto; }
 
     .main { flex: 1; display: flex; overflow: hidden; }
-
     .sidebar {
       width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
       background: rgba(255,255,255,.01); display: flex; flex-direction: column; overflow-y: auto;
@@ -60,9 +56,9 @@
       border-radius: 8px; background: rgba(124,106,255,.15); color: var(--accent);
       font-family: 'JetBrains Mono', monospace;
     }
+    .nav-sep { height: 1px; background: var(--border); margin: 6px 12px; }
 
     .content { flex: 1; overflow-y: auto; padding: 24px; }
-
     .panel { display: none; }
     .panel.active { display: block; }
 
@@ -77,10 +73,7 @@
     }
 
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat {
-      padding: 16px; border-radius: var(--rad-sm);
-      background: var(--surface); border: 1px solid var(--border);
-    }
+    .stat { padding: 16px; border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border); }
     .stat-label { font-size: .6rem; font-weight: 600; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
     .stat-value { font-size: 1.3rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
     .stat-value.green { color: var(--green); }
@@ -113,10 +106,7 @@
       outline: none; font-family: inherit; width: 120px;
     }
     .uid-meta { font-size: .62rem; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .uid-tag {
-      font-size: .52rem; font-weight: 700; padding: 2px 7px;
-      border-radius: 5px; font-family: 'Inter', sans-serif; letter-spacing: .05em; flex-shrink: 0;
-    }
+    .uid-tag { font-size: .52rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; font-family: 'Inter', sans-serif; letter-spacing: .05em; flex-shrink: 0; }
     .uid-tag.owner-tag { background: rgba(52,211,153,.15); color: var(--green); }
     .uid-tag.banned-tag { background: rgba(255,95,143,.15); color: var(--accent2); }
     .uid-actions { display: flex; gap: 4px; flex-shrink: 0; }
@@ -159,16 +149,49 @@
     }
     .debug-url:focus { border-color: var(--accent); }
 
-    .btn {
-      padding: 8px 18px; border-radius: 8px; border: none;
-      font-family: inherit; font-weight: 700; font-size: .78rem;
-      cursor: pointer; transition: all .15s;
+    .preview-frame {
+      width: 100%; height: 500px; border: 1px solid var(--border); border-radius: var(--rad-sm);
+      background: #fff; margin-top: 10px;
     }
+    .preview-bar {
+      display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+      background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: var(--rad-sm) var(--rad-sm) 0 0;
+      font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted);
+    }
+    .preview-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .tool-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: stretch; }
+    .tool-textarea {
+      flex: 1; padding: 10px 14px; border-radius: 8px; resize: vertical;
+      background: var(--dim); border: 1px solid var(--border);
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+      outline: none; min-height: 80px;
+    }
+    .tool-textarea:focus { border-color: var(--accent); }
+    .tool-arrow {
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+      color: var(--muted); padding: 0 6px; flex-shrink: 0;
+    }
+    .tool-output {
+      flex: 1; padding: 10px 14px; border-radius: 8px;
+      background: #0a0a12; border: 1px solid var(--border);
+      color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+      min-height: 80px; white-space: pre-wrap; word-break: break-all; overflow-y: auto;
+      user-select: all; cursor: text;
+    }
+    .ping-results { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .ping-stat { padding: 10px 16px; border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border); text-align: center; }
+    .ping-stat .ps-label { font-size: .55rem; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+    .ping-stat .ps-value { font-size: 1.1rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+    .headers-table { width: 100%; border-collapse: collapse; font-size: .7rem; }
+    .headers-table th { text-align: left; padding: 6px 10px; color: var(--muted); font-weight: 600; font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .headers-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,.02); font-family: 'JetBrains Mono', monospace; font-size: .68rem; }
+    .headers-table td:first-child { color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .headers-table td:last-child { color: var(--sub); word-break: break-all; }
+
+    .btn { padding: 8px 18px; border-radius: 8px; border: none; font-family: inherit; font-weight: 700; font-size: .78rem; cursor: pointer; transition: all .15s; }
     .btn-sm { padding: 4px 10px; font-size: .65rem; border-radius: 6px; }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff; box-shadow: 0 2px 12px rgba(124,106,255,.25);
-    }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 2px 12px rgba(124,106,255,.25); }
     .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,106,255,.4); }
     .btn-primary:active { transform: scale(.97); }
     .btn-danger { background: rgba(255,95,143,.12); color: var(--accent2); border: 1px solid rgba(255,95,143,.2); }
@@ -190,9 +213,9 @@
       .nav-item .nav-count { display: none; }
       .nav-item { justify-content: center; padding: 12px 8px; }
       .content { padding: 16px; }
-      .uid-meta { display: none; }
-      .uid-label { display: none; }
-      .h-query { display: none; }
+      .uid-meta, .uid-label, .h-query { display: none; }
+      .tool-row { flex-direction: column; }
+      .tool-arrow { transform: rotate(90deg); }
     }
   </style>
 </head>
@@ -210,8 +233,12 @@
     <div class="nav-item active" data-panel="dashboard"><span class="nav-ico">&#9632;</span><span>Dashboard</span></div>
     <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>Users</span><span class="nav-count" id="nav-user-count">0</span></div>
     <div class="nav-item" data-panel="history"><span class="nav-ico">&#9201;</span><span>History</span><span class="nav-count" id="nav-history-count">0</span></div>
-    <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug Proxy</span></div>
-    <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Tools</span></div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-panel="proxy"><span class="nav-ico">&#9658;</span><span>Test Proxy</span></div>
+    <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug</span></div>
+    <div class="nav-item" data-panel="devtools"><span class="nav-ico">&#10095;</span><span>Dev Tools</span></div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Settings</span></div>
   </div>
 
   <div class="content">
@@ -219,30 +246,12 @@
     <!-- Dashboard -->
     <div class="panel active" id="p-dashboard">
       <div class="stat-grid">
-        <div class="stat">
-          <div class="stat-label">Version</div>
-          <div class="stat-value purple" id="d-version">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Owner ID</div>
-          <div class="stat-value green" id="d-owner">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Firestore Users</div>
-          <div class="stat-value yellow" id="d-fb-total">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Banned</div>
-          <div class="stat-value pink" id="d-fb-banned">0</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Total Searches</div>
-          <div class="stat-value purple" id="d-fb-searches">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Local UIDs</div>
-          <div class="stat-value" id="d-total">0</div>
-        </div>
+        <div class="stat"><div class="stat-label">Version</div><div class="stat-value purple" id="d-version">&mdash;</div></div>
+        <div class="stat"><div class="stat-label">Owner ID</div><div class="stat-value green" id="d-owner">&mdash;</div></div>
+        <div class="stat"><div class="stat-label">Firestore Users</div><div class="stat-value yellow" id="d-fb-total">&mdash;</div></div>
+        <div class="stat"><div class="stat-label">Banned</div><div class="stat-value pink" id="d-fb-banned">0</div></div>
+        <div class="stat"><div class="stat-label">Total Searches</div><div class="stat-value purple" id="d-fb-searches">&mdash;</div></div>
+        <div class="stat"><div class="stat-label">Local UIDs</div><div class="stat-value" id="d-total">0</div></div>
       </div>
       <div class="card">
         <div class="card-title">Quick Actions</div>
@@ -262,7 +271,7 @@
     <div class="panel" id="p-users">
       <div class="card">
         <div class="card-title"><span class="live-dot"></span>Firestore Users (Real-time)</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Click a label to rename a user. Labels are saved to Firestore.</p>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Click a label to rename a user.</p>
         <div class="uid-list" id="fb-uid-list"></div>
       </div>
       <div class="card">
@@ -280,9 +289,7 @@
       <div class="card">
         <div class="card-title"><span class="live-dot"></span>Search History (Real-time)</div>
         <div class="history-filters">
-          <select id="history-filter-user">
-            <option value="">All Users</option>
-          </select>
+          <select id="history-filter-user"><option value="">All Users</option></select>
           <button class="btn btn-ghost btn-sm" id="btn-history-export">Export</button>
           <button class="btn btn-danger btn-sm" id="btn-history-clear">Clear All</button>
         </div>
@@ -290,11 +297,41 @@
       </div>
     </div>
 
-    <!-- Debug -->
+    <!-- Test Proxy (live preview) -->
+    <div class="panel" id="p-proxy">
+      <div class="card">
+        <div class="card-title">Live Proxy Tester</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Load any URL through the CORS proxy and see the rendered page. Works just like void.html's browser.</p>
+        <div class="debug-bar">
+          <input type="text" class="debug-url" id="proxy-test-url" placeholder="https://example.com" autocomplete="off"/>
+          <button class="btn btn-primary" id="btn-proxy-load">Load</button>
+          <button class="btn btn-ghost" id="btn-proxy-clear">Clear</button>
+        </div>
+        <div class="preview-bar" id="proxy-preview-bar" style="display:none;">
+          <span id="proxy-preview-status">Loading&hellip;</span>
+        </div>
+        <iframe id="proxy-preview-frame" class="preview-frame" style="display:none;" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+      </div>
+      <div class="card">
+        <div class="card-title">Response Headers</div>
+        <div id="proxy-headers" style="overflow-x:auto;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Proxy Latency Test</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Ping the CORS proxy 5 times and measure response time.</p>
+        <div class="debug-bar">
+          <input type="text" class="debug-url" id="ping-url" placeholder="https://example.com" value="https://example.com" autocomplete="off" style="max-width:300px"/>
+          <button class="btn btn-primary" id="btn-ping">Run Ping Test</button>
+        </div>
+        <div class="ping-results" id="ping-results"></div>
+      </div>
+    </div>
+
+    <!-- Debug Console -->
     <div class="panel" id="p-debug">
       <div class="card">
-        <div class="card-title">Proxy Debug Tester</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Test a URL through the CORS proxy and see all requests/responses.</p>
+        <div class="card-title">Proxy Fetch Debug</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Raw fetch through the CORS proxy with full logging.</p>
         <div class="debug-bar">
           <input type="text" class="debug-url" id="debug-url" placeholder="https://example.com" autocomplete="off"/>
           <button class="btn btn-primary" id="btn-debug-go">Fetch</button>
@@ -304,12 +341,74 @@
       </div>
     </div>
 
-    <!-- Tools -->
+    <!-- Dev Tools -->
+    <div class="panel" id="p-devtools">
+      <div class="card">
+        <div class="card-title">Proxy URL Builder</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Paste a URL to get the full proxied URL. Click output to copy.</p>
+        <div class="debug-bar">
+          <input type="text" class="debug-url" id="dt-proxy-input" placeholder="https://example.com" autocomplete="off"/>
+          <button class="btn btn-ghost btn-sm" id="btn-dt-proxy-build">Build</button>
+        </div>
+        <div class="tool-output" id="dt-proxy-output" style="min-height:40px;margin-top:6px;" title="Click to copy"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">URL Encode / Decode</div>
+        <div class="tool-row">
+          <textarea class="tool-textarea" id="dt-url-input" placeholder="Paste text to encode/decode..."></textarea>
+          <div class="tool-arrow">&rarr;</div>
+          <div class="tool-output" id="dt-url-output"></div>
+        </div>
+        <div class="actions" style="margin-top:4px;">
+          <button class="btn btn-ghost btn-sm" id="btn-url-encode">Encode</button>
+          <button class="btn btn-ghost btn-sm" id="btn-url-decode">Decode</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Base64 Encode / Decode</div>
+        <div class="tool-row">
+          <textarea class="tool-textarea" id="dt-b64-input" placeholder="Paste text..."></textarea>
+          <div class="tool-arrow">&rarr;</div>
+          <div class="tool-output" id="dt-b64-output"></div>
+        </div>
+        <div class="actions" style="margin-top:4px;">
+          <button class="btn btn-ghost btn-sm" id="btn-b64-encode">Encode</button>
+          <button class="btn btn-ghost btn-sm" id="btn-b64-decode">Decode</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">JSON Formatter</div>
+        <div class="tool-row">
+          <textarea class="tool-textarea" id="dt-json-input" placeholder='{"key":"value"}' style="min-height:120px;"></textarea>
+          <div class="tool-arrow">&rarr;</div>
+          <div class="tool-output" id="dt-json-output" style="min-height:120px;"></div>
+        </div>
+        <div class="actions" style="margin-top:4px;">
+          <button class="btn btn-ghost btn-sm" id="btn-json-format">Format</button>
+          <button class="btn btn-ghost btn-sm" id="btn-json-minify">Minify</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">HTTP Header Inspector</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Fetch a URL through the proxy and display all response headers.</p>
+        <div class="debug-bar">
+          <input type="text" class="debug-url" id="dt-headers-url" placeholder="https://example.com" autocomplete="off"/>
+          <button class="btn btn-primary btn-sm" id="btn-dt-headers">Inspect</button>
+        </div>
+        <div id="dt-headers-result" style="margin-top:10px;overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Settings/Tools -->
     <div class="panel" id="p-tools">
       <div class="card">
         <div class="card-title">CORS Proxy Config</div>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <input type="text" class="debug-url" id="tool-cors-url" placeholder="https://void-proxy.aadizzz786.workers.dev" autocomplete="off"/>
+          <input type="text" class="debug-url" id="tool-cors-url" autocomplete="off"/>
           <button class="btn btn-ghost" id="btn-save-cors">Save</button>
         </div>
         <p style="font-size:.65rem;color:var(--muted);">Changes the CORS proxy URL in localStorage for void.html.</p>
@@ -317,9 +416,7 @@
       <div class="card">
         <div class="card-title">localStorage Viewer</div>
         <div class="debug-console" id="ls-viewer" style="height:250px;"></div>
-        <div class="actions">
-          <button class="btn btn-ghost" id="btn-refresh-ls">Refresh</button>
-        </div>
+        <div class="actions"><button class="btn btn-ghost" id="btn-refresh-ls">Refresh</button></div>
       </div>
       <div class="card">
         <div class="card-title">Danger Zone</div>
@@ -340,16 +437,9 @@
 var $ = function(id){ return document.getElementById(id); };
 var CORS_PROXY = 'https://void-proxy.aadizzz786.workers.dev';
 var VER = '1.0.0';
-var _db = null;
-var _fbOk = false;
-var _allUsers = [];
-var _allSearches = [];
-var _userLabels = {};
+var _db = null, _fbOk = false, _allUsers = [], _allSearches = [], _userLabels = {};
 
-try {
-  var p = localStorage.getItem('void_prefs');
-  if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; }
-} catch(e){}
+try { var p = localStorage.getItem('void_prefs'); if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; } } catch(e){}
 
 try {
   firebase.initializeApp({
@@ -367,20 +457,16 @@ try {
 var fbBadge = $('h-fb');
 if(_fbOk){ fbBadge.textContent = 'FIRESTORE \u2713'; fbBadge.className = 'header-fb on'; }
 else { fbBadge.textContent = 'OFFLINE'; fbBadge.className = 'header-fb off'; }
-
 $('h-ver').textContent = 'v' + VER;
 
 function getOwner(){ return localStorage.getItem('void_owner') || '\u2014'; }
 function getUid(){ return localStorage.getItem('void_uid') || '\u2014'; }
 function getUidLog(){ try { return JSON.parse(localStorage.getItem('void_uid_log') || '[]'); } catch(e){ return []; } }
+function getUserLabel(uid){ return _userLabels[uid] || ''; }
+function getUserDisplay(uid){ var l = getUserLabel(uid); return l || uid; }
 
-function getUserLabel(uid){
-  return _userLabels[uid] || '';
-}
-
-function getUserDisplay(uid){
-  var label = getUserLabel(uid);
-  return label ? label : uid;
+function makeProxyUrl(target){
+  return CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=') + encodeURIComponent(target);
 }
 
 function timeAgo(ts){
@@ -392,12 +478,10 @@ function timeAgo(ts){
   if(s < 86400) return Math.floor(s/3600) + 'h ago';
   return Math.floor(s/86400) + 'd ago';
 }
-
 function formatTime(ts){
   if(!ts) return '';
   var d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString('en', {hour12:false, hour:'2-digit', minute:'2-digit'})
-    + ' ' + d.toLocaleDateString('en', {month:'short', day:'numeric'});
+  return d.toLocaleTimeString('en', {hour12:false, hour:'2-digit', minute:'2-digit'}) + ' ' + d.toLocaleDateString('en', {month:'short', day:'numeric'});
 }
 
 /* ──── Navigation ──── */
@@ -425,419 +509,390 @@ function refreshDashboard(){
 }
 refreshDashboard();
 
-$('btn-open-void').addEventListener('click', function(){
-  var base = location.href.replace(/[^/]*$/, '');
-  window.open(base + 'void.html', '_blank');
-});
-
+$('btn-open-void').addEventListener('click', function(){ window.open(location.href.replace(/[^/]*$/, '') + 'void.html', '_blank'); });
 $('btn-clear-data').addEventListener('click', function(){
   if(!confirm('Clear ALL Void data from localStorage?')) return;
-  ['void_uid', 'void_owner', 'void_uid_log', 'void_prefs'].forEach(function(k){ localStorage.removeItem(k); });
+  ['void_uid','void_owner','void_uid_log','void_prefs'].forEach(function(k){ localStorage.removeItem(k); });
   refreshDashboard();
 });
 
-/* ──── Update checker ──── */
+/* ──── Update ──── */
 $('btn-check-update').addEventListener('click', function(){
-  var btn = $('btn-check-update');
-  var status = $('update-status');
-  btn.disabled = true;
-  btn.textContent = 'Checking\u2026';
-  status.textContent = 'Fetching latest version from GitHub\u2026';
-  status.style.color = 'var(--sub)';
-
+  var btn = $('btn-check-update'), status = $('update-status');
+  btn.disabled = true; btn.textContent = 'Checking\u2026';
   fetch('https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html')
     .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function(html){
       var m = html.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
       var remote = m ? m[1] : '0.0.0';
-      var lp = VER.split('.').map(Number);
-      var rp = remote.split('.').map(Number);
-      var newer = rp[0] > lp[0] || (rp[0]===lp[0] && rp[1] > lp[1]) || (rp[0]===lp[0] && rp[1]===lp[1] && rp[2] > lp[2]);
+      var lp = VER.split('.').map(Number), rp = remote.split('.').map(Number);
+      var newer = rp[0]>lp[0]||(rp[0]===lp[0]&&rp[1]>lp[1])||(rp[0]===lp[0]&&rp[1]===lp[1]&&rp[2]>lp[2]);
       if(newer){
-        status.innerHTML = '<span style="color:#ff5f8f;font-weight:700;">v' + remote + ' available!</span> Downloading\u2026';
-        var blob = new Blob([html], { type: 'text/html' });
-        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void.html';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
-        status.innerHTML = '<span style="color:#34d399;">\u2714 Downloaded v' + remote + '</span>';
-      } else {
-        status.innerHTML = '<span style="color:#34d399;">\u2714 Latest version (v' + VER + ')</span>';
-      }
+        status.innerHTML = '<span style="color:#ff5f8f;font-weight:700;">v'+remote+' available!</span>';
+        var blob = new Blob([html],{type:'text/html'}); var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'void.html';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        status.innerHTML = '<span style="color:#34d399;">\u2714 Downloaded v'+remote+'</span>';
+      } else { status.innerHTML = '<span style="color:#34d399;">\u2714 Latest (v'+VER+')</span>'; }
       btn.disabled = false; btn.textContent = 'Check for Update';
-    })
-    .catch(function(err){
-      status.innerHTML = '<span style="color:#ff5f8f;">Failed: ' + err.message + '</span>';
-      btn.disabled = false; btn.textContent = 'Check for Update';
-    });
+    }).catch(function(err){ status.innerHTML = '<span style="color:#ff5f8f;">Failed: '+err.message+'</span>'; btn.disabled = false; btn.textContent = 'Check for Update'; });
 });
 
-/* ──── Firestore real-time user list ──── */
+/* ──── Users ──── */
 function startLabelEdit(el, uid){
   var current = getUserLabel(uid);
-  var inp = document.createElement('input');
-  inp.type = 'text';
-  inp.className = 'uid-label-input';
-  inp.value = current;
-  inp.placeholder = 'name\u2026';
-  el.replaceWith(inp);
-  inp.focus();
-  inp.select();
-
+  var inp = document.createElement('input'); inp.type = 'text'; inp.className = 'uid-label-input'; inp.value = current; inp.placeholder = 'name\u2026';
+  el.replaceWith(inp); inp.focus(); inp.select();
   function save(){
     var val = inp.value.trim();
-    if(_db){
-      _db.collection('users').doc(uid).update({ label: val }).catch(function(){});
-    }
+    if(_db) _db.collection('users').doc(uid).update({ label: val }).catch(function(){});
     _userLabels[uid] = val;
-    var span = document.createElement('span');
-    span.className = 'uid-label' + (val ? '' : ' empty');
-    span.textContent = val || 'add label';
-    span.addEventListener('click', function(){ startLabelEdit(span, uid); });
-    inp.replaceWith(span);
+    var span = document.createElement('span'); span.className = 'uid-label' + (val ? '' : ' empty'); span.textContent = val || 'add label';
+    span.addEventListener('click', function(){ startLabelEdit(span, uid); }); inp.replaceWith(span);
   }
-
   inp.addEventListener('blur', save);
-  inp.addEventListener('keydown', function(e){
-    if(e.key === 'Enter') inp.blur();
-    if(e.key === 'Escape'){ inp.value = current; inp.blur(); }
-  });
+  inp.addEventListener('keydown', function(e){ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=current; inp.blur(); } });
 }
 
 function renderFirestoreUsers(){
-  var list = $('fb-uid-list');
-  list.innerHTML = '';
-  var owner = getOwner();
-
-  if(!_fbOk){
-    list.innerHTML = '<div class="empty-state">Firebase not connected.</div>';
-    return;
-  }
-  if(_allUsers.length === 0){
-    list.innerHTML = '<div class="empty-state">No users registered yet. Open void.html to register.</div>';
-    return;
-  }
-
-  _allUsers.sort(function(a, b){
-    var at = a.lastSeen ? (a.lastSeen.toMillis ? a.lastSeen.toMillis() : 0) : 0;
-    var bt = b.lastSeen ? (b.lastSeen.toMillis ? b.lastSeen.toMillis() : 0) : 0;
-    return bt - at;
-  });
-
+  var list = $('fb-uid-list'); list.innerHTML = ''; var owner = getOwner();
+  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
+  if(!_allUsers.length){ list.innerHTML = '<div class="empty-state">No users yet. Open void.html.</div>'; return; }
+  _allUsers.sort(function(a,b){ return (b.lastSeen&&b.lastSeen.toMillis?b.lastSeen.toMillis():0)-(a.lastSeen&&a.lastSeen.toMillis?a.lastSeen.toMillis():0); });
   _allUsers.forEach(function(u){
-    var row = document.createElement('div');
-    row.className = 'uid-row' + (u.banned ? ' banned' : '');
-
-    var dot = document.createElement('span');
-    dot.className = 'uid-dot ' + (u.banned ? 'banned' : 'active');
-    row.appendChild(dot);
-
-    var id = document.createElement('span');
-    id.className = 'uid-id';
-    id.textContent = u.uid;
-    row.appendChild(id);
-
-    var label = document.createElement('span');
-    var lbl = getUserLabel(u.uid);
-    label.className = 'uid-label' + (lbl ? '' : ' empty');
-    label.textContent = lbl || 'add label';
-    label.addEventListener('click', function(){ startLabelEdit(label, u.uid); });
-    row.appendChild(label);
-
-    var meta = document.createElement('span');
-    meta.className = 'uid-meta';
-    var parts = [];
-    if(u.deviceId) parts.push(u.deviceId);
-    if(u.screenRes) parts.push(u.screenRes);
-    if(u.lastSeen) parts.push('seen ' + timeAgo(u.lastSeen));
-    meta.textContent = parts.join(' \u00b7 ');
-    meta.title = u.userAgent || '';
-    row.appendChild(meta);
-
-    if(u.uid === owner){
-      var tag = document.createElement('span');
-      tag.className = 'uid-tag owner-tag';
-      tag.textContent = 'OWNER';
-      row.appendChild(tag);
-    }
+    var row = document.createElement('div'); row.className = 'uid-row'+(u.banned?' banned':'');
+    var dot = document.createElement('span'); dot.className = 'uid-dot '+(u.banned?'banned':'active'); row.appendChild(dot);
+    var id = document.createElement('span'); id.className = 'uid-id'; id.textContent = u.uid; row.appendChild(id);
+    var label = document.createElement('span'); var lbl = getUserLabel(u.uid);
+    label.className = 'uid-label'+(lbl?'':' empty'); label.textContent = lbl||'add label';
+    label.addEventListener('click', function(){ startLabelEdit(label, u.uid); }); row.appendChild(label);
+    var meta = document.createElement('span'); meta.className = 'uid-meta';
+    var parts = []; if(u.deviceId) parts.push(u.deviceId); if(u.screenRes) parts.push(u.screenRes); if(u.lastSeen) parts.push('seen '+timeAgo(u.lastSeen));
+    meta.textContent = parts.join(' \u00b7 '); meta.title = u.userAgent||''; row.appendChild(meta);
+    if(u.uid===owner){ var tag = document.createElement('span'); tag.className = 'uid-tag owner-tag'; tag.textContent = 'OWNER'; row.appendChild(tag); }
+    if(u.banned){ var bt = document.createElement('span'); bt.className = 'uid-tag banned-tag'; bt.textContent = 'BANNED'; row.appendChild(bt); }
+    var actions = document.createElement('span'); actions.className = 'uid-actions';
     if(u.banned){
-      var btag = document.createElement('span');
-      btag.className = 'uid-tag banned-tag';
-      btag.textContent = 'BANNED';
-      row.appendChild(btag);
-    }
-
-    var actions = document.createElement('span');
-    actions.className = 'uid-actions';
-    if(u.banned){
-      var unban = document.createElement('button');
-      unban.className = 'btn btn-success btn-sm';
-      unban.textContent = 'Unban';
-      unban.addEventListener('click', function(){ toggleBan(u.uid, false); });
-      actions.appendChild(unban);
+      var ub = document.createElement('button'); ub.className = 'btn btn-success btn-sm'; ub.textContent = 'Unban';
+      ub.addEventListener('click', function(){ toggleBan(u.uid,false); }); actions.appendChild(ub);
     } else {
-      var ban = document.createElement('button');
-      ban.className = 'btn btn-danger btn-sm';
-      ban.textContent = 'Ban';
-      ban.addEventListener('click', function(){ toggleBan(u.uid, true); });
-      actions.appendChild(ban);
+      var bn = document.createElement('button'); bn.className = 'btn btn-danger btn-sm'; bn.textContent = 'Ban';
+      bn.addEventListener('click', function(){ toggleBan(u.uid,true); }); actions.appendChild(bn);
     }
-    row.appendChild(actions);
-
-    list.appendChild(row);
+    row.appendChild(actions); list.appendChild(row);
   });
-  refreshDashboard();
-  updateHistoryFilterDropdown();
+  refreshDashboard(); updateHistoryFilterDropdown();
 }
 
 function toggleBan(uid, banned){
   if(!_db) return;
-  if(banned && !confirm('Ban user ' + uid + '?')) return;
-  _db.collection('users').doc(uid).update({ banned: banned }).catch(function(e){ alert('Error: ' + e.message); });
+  if(banned && !confirm('Ban user '+uid+'?')) return;
+  _db.collection('users').doc(uid).update({ banned: banned }).catch(function(e){ alert('Error: '+e.message); });
 }
 
 if(_fbOk){
   _db.collection('users').onSnapshot(function(snap){
-    _allUsers = [];
-    _userLabels = {};
-    snap.forEach(function(doc){
-      var d = doc.data();
-      _allUsers.push(d);
-      if(d.label) _userLabels[d.uid] = d.label;
-    });
-    renderFirestoreUsers();
-    refreshDashboard();
-  }, function(err){
-    $('fb-uid-list').innerHTML = '<div class="empty-state" style="color:var(--accent2);">Firestore error: ' + err.message + '</div>';
+    _allUsers = []; _userLabels = {};
+    snap.forEach(function(doc){ var d = doc.data(); _allUsers.push(d); if(d.label) _userLabels[d.uid] = d.label; });
+    renderFirestoreUsers(); refreshDashboard();
   });
 }
 
 $('btn-manual-ban').addEventListener('click', function(){
-  var uid = $('manual-ban-uid').value.trim();
-  if(!uid || !_db) return;
+  var uid = $('manual-ban-uid').value.trim(); if(!uid||!_db) return;
   _db.collection('users').doc(uid).get().then(function(doc){
-    if(doc.exists) return _db.collection('users').doc(uid).update({ banned: true });
-    else return _db.collection('users').doc(uid).set({ uid: uid, banned: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastSeen: null, deviceId: 'manual', userAgent: 'manual ban', screenRes: '', label: '' });
-  }).then(function(){ $('manual-ban-uid').value = ''; }).catch(function(e){ alert('Error: ' + e.message); });
+    if(doc.exists) return _db.collection('users').doc(uid).update({banned:true});
+    return _db.collection('users').doc(uid).set({uid:uid,banned:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),lastSeen:null,deviceId:'manual',userAgent:'manual ban',screenRes:'',label:''});
+  }).then(function(){ $('manual-ban-uid').value=''; }).catch(function(e){ alert(e.message); });
 });
-
 $('btn-manual-unban').addEventListener('click', function(){
-  var uid = $('manual-ban-uid').value.trim();
-  if(!uid || !_db) return;
-  _db.collection('users').doc(uid).update({ banned: false }).then(function(){ $('manual-ban-uid').value = ''; }).catch(function(e){ alert('Error: ' + e.message); });
+  var uid = $('manual-ban-uid').value.trim(); if(!uid||!_db) return;
+  _db.collection('users').doc(uid).update({banned:false}).then(function(){ $('manual-ban-uid').value=''; }).catch(function(e){ alert(e.message); });
 });
 
-/* ──── Search History ──── */
+/* ──── History ──── */
 function updateHistoryFilterDropdown(){
-  var sel = $('history-filter-user');
-  var current = sel.value;
+  var sel = $('history-filter-user'), cur = sel.value;
   sel.innerHTML = '<option value="">All Users</option>';
-  _allUsers.forEach(function(u){
-    var opt = document.createElement('option');
-    opt.value = u.uid;
-    var lbl = getUserLabel(u.uid);
-    opt.textContent = lbl ? lbl + ' (' + u.uid + ')' : u.uid;
-    sel.appendChild(opt);
-  });
-  sel.value = current;
+  _allUsers.forEach(function(u){ var o = document.createElement('option'); o.value = u.uid; var l = getUserLabel(u.uid); o.textContent = l?l+' ('+u.uid+')':u.uid; sel.appendChild(o); });
+  sel.value = cur;
 }
-
 function renderHistory(){
-  var list = $('history-list');
-  list.innerHTML = '';
-  var filterUid = $('history-filter-user').value;
-
-  if(!_fbOk){
-    list.innerHTML = '<div class="empty-state">Firebase not connected.</div>';
-    return;
-  }
-
-  var filtered = filterUid ? _allSearches.filter(function(s){ return s.uid === filterUid; }) : _allSearches;
-
-  if(filtered.length === 0){
-    list.innerHTML = '<div class="empty-state">No search history yet.</div>';
-    return;
-  }
-
+  var list = $('history-list'); list.innerHTML = ''; var f = $('history-filter-user').value;
+  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
+  var filtered = f ? _allSearches.filter(function(s){ return s.uid===f; }) : _allSearches;
+  if(!filtered.length){ list.innerHTML = '<div class="empty-state">No search history yet.</div>'; return; }
   filtered.forEach(function(s){
-    var row = document.createElement('div');
-    row.className = 'history-row';
-
-    var time = document.createElement('span');
-    time.className = 'h-time';
-    time.textContent = formatTime(s.timestamp);
-    row.appendChild(time);
-
-    var user = document.createElement('span');
-    user.className = 'h-user';
-    user.textContent = getUserDisplay(s.uid);
-    user.title = s.uid;
-    row.appendChild(user);
-
-    var url = document.createElement('span');
-    url.className = 'h-url';
-    url.textContent = s.url || '';
-    url.title = s.url || '';
-    row.appendChild(url);
-
-    if(s.query && s.query !== s.url){
-      var q = document.createElement('span');
-      q.className = 'h-query';
-      q.textContent = '\u201c' + s.query + '\u201d';
-      row.appendChild(q);
-    }
-
+    var row = document.createElement('div'); row.className = 'history-row';
+    var time = document.createElement('span'); time.className = 'h-time'; time.textContent = formatTime(s.timestamp); row.appendChild(time);
+    var user = document.createElement('span'); user.className = 'h-user'; user.textContent = getUserDisplay(s.uid); user.title = s.uid; row.appendChild(user);
+    var url = document.createElement('span'); url.className = 'h-url'; url.textContent = s.url||''; url.title = s.url||''; row.appendChild(url);
+    if(s.query&&s.query!==s.url){ var q = document.createElement('span'); q.className = 'h-query'; q.textContent = '\u201c'+s.query+'\u201d'; row.appendChild(q); }
     list.appendChild(row);
   });
 }
-
 $('history-filter-user').addEventListener('change', renderHistory);
-
 if(_fbOk){
-  _db.collection('searches').orderBy('timestamp', 'desc').limit(200).onSnapshot(function(snap){
-    _allSearches = [];
-    snap.forEach(function(doc){ _allSearches.push(doc.data()); });
-    renderHistory();
-    refreshDashboard();
-  }, function(err){
-    $('history-list').innerHTML = '<div class="empty-state" style="color:var(--accent2);">Error: ' + err.message + '</div>';
+  _db.collection('searches').orderBy('timestamp','desc').limit(200).onSnapshot(function(snap){
+    _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); }); renderHistory(); refreshDashboard();
   });
 }
-
 $('btn-history-export').addEventListener('click', function(){
-  var lines = ['Void Search History Export', '='.repeat(50), ''];
-  _allSearches.forEach(function(s){
-    var ts = s.timestamp ? (s.timestamp.toDate ? s.timestamp.toDate().toISOString() : '') : '';
-    lines.push(ts + '  ' + getUserDisplay(s.uid) + '  ' + (s.url || '') + (s.query && s.query !== s.url ? '  query="' + s.query + '"' : ''));
-  });
-  var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void-history-export.txt';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  var lines = ['Void Search History','='.repeat(50),''];
+  _allSearches.forEach(function(s){ var ts = s.timestamp?(s.timestamp.toDate?s.timestamp.toDate().toISOString():''):''; lines.push(ts+'  '+getUserDisplay(s.uid)+'  '+(s.url||'')); });
+  var blob = new Blob([lines.join('\n')],{type:'text/plain'}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void-history.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 });
-
 $('btn-history-clear').addEventListener('click', function(){
-  if(!confirm('Delete ALL search history from Firestore? This cannot be undone.')) return;
-  if(!_db) return;
-  _db.collection('searches').get().then(function(snap){
-    var batch = _db.batch();
-    var count = 0;
-    snap.forEach(function(doc){
-      batch.delete(doc.ref);
-      count++;
-      if(count >= 400){
-        batch.commit();
-        batch = _db.batch();
-        count = 0;
-      }
-    });
-    if(count > 0) return batch.commit();
-  }).catch(function(e){ alert('Error: ' + e.message); });
+  if(!confirm('Delete ALL search history?')||!_db) return;
+  _db.collection('searches').get().then(function(snap){ var b = _db.batch(), c = 0;
+    snap.forEach(function(doc){ b.delete(doc.ref); c++; if(c>=400){ b.commit(); b = _db.batch(); c = 0; } });
+    if(c>0) return b.commit();
+  }).catch(function(e){ alert(e.message); });
 });
 
-/* ──── Debug ──── */
-var debugEl = $('debug-console');
-function dlog(msg, cls){
-  var line = document.createElement('div');
-  line.className = 'd-line' + (cls ? ' d-' + cls : '');
-  var ts = new Date().toLocaleTimeString('en', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit', fractionalSecondDigits: 3});
-  line.textContent = ts + '  ' + msg;
-  debugEl.appendChild(line);
-  if(debugEl.children.length > 500) debugEl.removeChild(debugEl.firstChild);
-  debugEl.scrollTop = debugEl.scrollHeight;
-}
-
-$('btn-debug-clear').addEventListener('click', function(){ debugEl.innerHTML = ''; });
-
-$('btn-debug-go').addEventListener('click', function(){
-  var url = $('debug-url').value.trim();
+/* ──── Test Proxy (Live Preview) ──── */
+$('btn-proxy-load').addEventListener('click', function(){
+  var url = $('proxy-test-url').value.trim();
   if(!url) return;
   if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  var proxyUrl = CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=') + encodeURIComponent(url);
-  dlog('TARGET: ' + url, 'info');
-  dlog('PROXY:  ' + proxyUrl, 'info');
-  dlog('Fetching\u2026', 'nav');
-  var start = performance.now();
-  fetch(proxyUrl)
-    .then(function(r){
-      var elapsed = (performance.now() - start).toFixed(0);
-      dlog('HTTP ' + r.status + ' ' + r.statusText + '  (' + elapsed + 'ms)', r.ok ? 'resp' : 'err');
-      dlog('Content-Type: ' + (r.headers.get('content-type') || '(none)'), 'info');
-      return r.text().then(function(body){
-        dlog('Body size: ' + body.length + ' chars', 'info');
-        dlog('Body (first 300): ' + body.substring(0, 300) + (body.length > 300 ? '\u2026' : ''), 'info');
-        var low = body.slice(0, 4000).toLowerCase();
-        if(low.includes('cloudflare') && (low.includes('challenge') || low.includes('captcha')))
-          dlog('\u26a0 Cloudflare block page detected!', 'err');
-        else if(low.includes('access denied') && body.length < 2000)
-          dlog('\u26a0 Access denied page', 'err');
-        else
-          dlog('\u2713 Response looks valid', 'resp');
-        dlog('\u2500'.repeat(50), 'info');
+  var proxyUrl = makeProxyUrl(url);
+  var bar = $('proxy-preview-bar');
+  var frame = $('proxy-preview-frame');
+  var headersEl = $('proxy-headers');
+
+  bar.style.display = 'flex';
+  frame.style.display = 'block';
+  $('proxy-preview-status').textContent = 'Loading ' + url + '\u2026';
+  headersEl.innerHTML = '<p style="color:var(--muted);font-size:.72rem;">Loading\u2026</p>';
+
+  fetch(proxyUrl).then(function(resp){
+    var headerRows = [];
+    resp.headers.forEach(function(val, key){ headerRows.push({key:key, val:val}); });
+    var ht = '<table class="headers-table"><tr><th>Header</th><th>Value</th></tr>';
+    headerRows.forEach(function(h){ ht += '<tr><td>'+h.key+'</td><td>'+h.val+'</td></tr>'; });
+    ht += '</table>';
+    headersEl.innerHTML = ht;
+
+    return resp.text().then(function(html){
+      html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
+      html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+
+      var base = '<base href="'+url.replace(/"/g,'&quot;')+'">';
+      if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + base);
+      else html = '<head>'+base+'</head>' + html;
+
+      var proxyBase = CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=');
+      html = html.replace(/(<(?:img|video|audio|source|embed)\s[^>]*?\bsrc\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, src, post){
+        return pre + proxyBase + encodeURIComponent(src) + post;
       });
-    })
-    .catch(function(err){
-      dlog('FAILED (' + (performance.now() - start).toFixed(0) + 'ms): ' + err.message, 'err');
-      dlog('\u2500'.repeat(50), 'info');
+      html = html.replace(/(<link\s[^>]*?\bhref\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, href, post){
+        return pre + proxyBase + encodeURIComponent(href) + post;
+      });
+      html = html.replace(/(<script\s[^>]*?\bsrc\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, src, post){
+        return pre + proxyBase + encodeURIComponent(src) + post;
+      });
+
+      var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+      frame.src = URL.createObjectURL(blob);
+      $('proxy-preview-status').textContent = '\u2713 ' + url + '  (' + resp.status + ')';
+      $('proxy-preview-status').style.color = resp.ok ? 'var(--green)' : 'var(--accent2)';
     });
+  }).catch(function(err){
+    $('proxy-preview-status').textContent = '\u2717 Failed: ' + err.message;
+    $('proxy-preview-status').style.color = 'var(--accent2)';
+    headersEl.innerHTML = '<p style="color:var(--accent2);font-size:.72rem;">'+err.message+'</p>';
+  });
+});
+$('proxy-test-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-proxy-load').click(); });
+$('btn-proxy-clear').addEventListener('click', function(){
+  $('proxy-preview-bar').style.display = 'none';
+  $('proxy-preview-frame').style.display = 'none';
+  $('proxy-preview-frame').removeAttribute('src');
+  $('proxy-headers').innerHTML = '';
 });
 
-$('debug-url').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('btn-debug-go').click(); });
-
-/* ──── Tools ──── */
-$('tool-cors-url').value = CORS_PROXY;
-
-$('btn-save-cors').addEventListener('click', function(){
-  var url = $('tool-cors-url').value.trim();
+/* ──── Ping Test ──── */
+$('btn-ping').addEventListener('click', function(){
+  var url = $('ping-url').value.trim();
   if(!url) return;
-  try {
-    var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
-    p.corsProxy = url;
-    localStorage.setItem('void_prefs', JSON.stringify(p));
-    CORS_PROXY = url;
-    alert('Saved. void.html will use this proxy on next load.');
-  } catch(e){ alert('Error: ' + e.message); }
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var btn = $('btn-ping');
+  btn.disabled = true; btn.textContent = 'Running\u2026';
+  var results = $('ping-results');
+  results.innerHTML = '<p style="font-size:.72rem;color:var(--muted);">Running 5 pings\u2026</p>';
+  var times = [];
+  var count = 0;
+  function ping(){
+    var start = performance.now();
+    fetch(makeProxyUrl(url), {method:'HEAD',mode:'cors'}).then(function(r){
+      times.push(performance.now() - start);
+    }).catch(function(){
+      times.push(-1);
+    }).finally(function(){
+      count++;
+      if(count < 5) setTimeout(ping, 200);
+      else showPingResults();
+    });
+  }
+  function showPingResults(){
+    var valid = times.filter(function(t){ return t >= 0; });
+    var avg = valid.length ? (valid.reduce(function(a,b){ return a+b; },0)/valid.length) : 0;
+    var mn = valid.length ? Math.min.apply(null, valid) : 0;
+    var mx = valid.length ? Math.max.apply(null, valid) : 0;
+    var lost = times.length - valid.length;
+    results.innerHTML =
+      '<div class="ping-stat"><div class="ps-label">Avg</div><div class="ps-value" style="color:var(--green);">'+avg.toFixed(0)+'ms</div></div>' +
+      '<div class="ping-stat"><div class="ps-label">Min</div><div class="ps-value" style="color:var(--accent);">'+mn.toFixed(0)+'ms</div></div>' +
+      '<div class="ping-stat"><div class="ps-label">Max</div><div class="ps-value" style="color:var(--yellow);">'+mx.toFixed(0)+'ms</div></div>' +
+      '<div class="ping-stat"><div class="ps-label">Lost</div><div class="ps-value" style="color:'+(lost?'var(--accent2)':'var(--green)')+';">'+lost+'/5</div></div>' +
+      '<div class="ping-stat"><div class="ps-label">All</div><div class="ps-value" style="font-size:.7rem;color:var(--sub);">'+times.map(function(t){ return t<0?'fail':t.toFixed(0)+'ms'; }).join(', ')+'</div></div>';
+    btn.disabled = false; btn.textContent = 'Run Ping Test';
+  }
+  ping();
+});
+
+/* ──── Debug Console ──── */
+var debugEl = $('debug-console');
+function dlog(msg, cls){
+  var line = document.createElement('div'); line.className = 'd-line'+(cls?' d-'+cls:'');
+  var ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:3});
+  line.textContent = ts+'  '+msg; debugEl.appendChild(line);
+  if(debugEl.children.length>500) debugEl.removeChild(debugEl.firstChild);
+  debugEl.scrollTop = debugEl.scrollHeight;
+}
+$('btn-debug-clear').addEventListener('click', function(){ debugEl.innerHTML = ''; });
+$('btn-debug-go').addEventListener('click', function(){
+  var url = $('debug-url').value.trim(); if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
+  var proxyUrl = makeProxyUrl(url);
+  dlog('TARGET: '+url,'info'); dlog('PROXY:  '+proxyUrl,'info'); dlog('Fetching\u2026','nav');
+  var start = performance.now();
+  fetch(proxyUrl).then(function(r){
+    var elapsed = (performance.now()-start).toFixed(0);
+    dlog('HTTP '+r.status+' '+r.statusText+'  ('+elapsed+'ms)', r.ok?'resp':'err');
+    dlog('Content-Type: '+(r.headers.get('content-type')||'(none)'),'info');
+    dlog('Content-Length: '+(r.headers.get('content-length')||'?'),'info');
+    var allH = []; r.headers.forEach(function(v,k){ allH.push(k+': '+v); });
+    dlog('Headers: '+allH.join(' | '),'fetch');
+    return r.text().then(function(body){
+      dlog('Body size: '+body.length+' chars','info');
+      dlog('Body (first 300): '+body.substring(0,300)+(body.length>300?'\u2026':''),'info');
+      var low = body.slice(0,4000).toLowerCase();
+      if(low.includes('cloudflare')&&(low.includes('challenge')||low.includes('captcha'))) dlog('\u26a0 Cloudflare block page!','err');
+      else if(low.includes('access denied')&&body.length<2000) dlog('\u26a0 Access denied page','err');
+      else dlog('\u2713 Response valid','resp');
+      dlog('\u2500'.repeat(50),'info');
+    });
+  }).catch(function(err){
+    dlog('FAILED ('+(performance.now()-start).toFixed(0)+'ms): '+err.message,'err');
+    dlog('\u2500'.repeat(50),'info');
+  });
+});
+$('debug-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-debug-go').click(); });
+
+/* ──── Dev Tools ──── */
+
+// Proxy URL Builder
+$('btn-dt-proxy-build').addEventListener('click', function(){
+  var url = $('dt-proxy-input').value.trim();
+  if(!url){ $('dt-proxy-output').textContent = ''; return; }
+  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
+  $('dt-proxy-output').textContent = makeProxyUrl(url);
+});
+$('dt-proxy-input').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-dt-proxy-build').click(); });
+$('dt-proxy-output').addEventListener('click', function(){
+  if(!this.textContent) return;
+  navigator.clipboard.writeText(this.textContent).then(function(){ $('dt-proxy-output').style.borderColor = 'var(--green)'; setTimeout(function(){ $('dt-proxy-output').style.borderColor = ''; },800); });
+});
+
+// URL Encode/Decode
+$('btn-url-encode').addEventListener('click', function(){
+  $('dt-url-output').textContent = encodeURIComponent($('dt-url-input').value);
+});
+$('btn-url-decode').addEventListener('click', function(){
+  try { $('dt-url-output').textContent = decodeURIComponent($('dt-url-input').value); }
+  catch(e){ $('dt-url-output').textContent = 'Error: '+e.message; }
+});
+
+// Base64 Encode/Decode
+$('btn-b64-encode').addEventListener('click', function(){
+  try { $('dt-b64-output').textContent = btoa(unescape(encodeURIComponent($('dt-b64-input').value))); }
+  catch(e){ $('dt-b64-output').textContent = 'Error: '+e.message; }
+});
+$('btn-b64-decode').addEventListener('click', function(){
+  try { $('dt-b64-output').textContent = decodeURIComponent(escape(atob($('dt-b64-input').value.trim()))); }
+  catch(e){ $('dt-b64-output').textContent = 'Error: '+e.message; }
+});
+
+// JSON Formatter
+$('btn-json-format').addEventListener('click', function(){
+  try { $('dt-json-output').textContent = JSON.stringify(JSON.parse($('dt-json-input').value), null, 2); }
+  catch(e){ $('dt-json-output').textContent = 'Error: '+e.message; }
+});
+$('btn-json-minify').addEventListener('click', function(){
+  try { $('dt-json-output').textContent = JSON.stringify(JSON.parse($('dt-json-input').value)); }
+  catch(e){ $('dt-json-output').textContent = 'Error: '+e.message; }
+});
+
+// HTTP Header Inspector
+$('btn-dt-headers').addEventListener('click', function(){
+  var url = $('dt-headers-url').value.trim(); if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
+  var el = $('dt-headers-result');
+  el.innerHTML = '<p style="color:var(--muted);font-size:.72rem;">Fetching\u2026</p>';
+  var start = performance.now();
+  fetch(makeProxyUrl(url)).then(function(resp){
+    var elapsed = (performance.now()-start).toFixed(0);
+    var rows = [];
+    resp.headers.forEach(function(val, key){ rows.push({key:key, val:val}); });
+    var html = '<p style="font-size:.68rem;color:var(--sub);margin-bottom:8px;">HTTP '+resp.status+' '+resp.statusText+' &middot; '+elapsed+'ms &middot; '+rows.length+' headers</p>';
+    html += '<table class="headers-table"><tr><th>Header</th><th>Value</th></tr>';
+    rows.forEach(function(h){ html += '<tr><td>'+h.key+'</td><td>'+h.val.replace(/</g,'&lt;')+'</td></tr>'; });
+    html += '</table>';
+    el.innerHTML = html;
+  }).catch(function(err){
+    el.innerHTML = '<p style="color:var(--accent2);font-size:.72rem;">'+err.message+'</p>';
+  });
+});
+$('dt-headers-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-dt-headers').click(); });
+
+// Copy on click for all tool-output
+document.querySelectorAll('.tool-output').forEach(function(el){
+  el.addEventListener('click', function(){
+    if(!el.textContent) return;
+    navigator.clipboard.writeText(el.textContent).then(function(){ el.style.borderColor='var(--green)'; setTimeout(function(){ el.style.borderColor=''; },800); });
+  });
+});
+
+/* ──── Settings ──── */
+$('tool-cors-url').value = CORS_PROXY;
+$('btn-save-cors').addEventListener('click', function(){
+  var url = $('tool-cors-url').value.trim(); if(!url) return;
+  try { var p = JSON.parse(localStorage.getItem('void_prefs')||'{}'); p.corsProxy = url; localStorage.setItem('void_prefs',JSON.stringify(p)); CORS_PROXY = url; alert('Saved.'); } catch(e){ alert(e.message); }
 });
 
 function refreshLS(){
-  var viewer = $('ls-viewer');
-  viewer.innerHTML = '';
+  var viewer = $('ls-viewer'); viewer.innerHTML = '';
   var keys = [];
-  for(var i = 0; i < localStorage.length; i++){
-    var k = localStorage.key(i);
-    if(k.startsWith('void')) keys.push(k);
-  }
+  for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(k.startsWith('void')) keys.push(k); }
   keys.sort();
-  if(keys.length === 0){
-    viewer.innerHTML = '<div class="d-line d-info">No void_* keys in localStorage.</div>';
-    return;
-  }
+  if(!keys.length){ viewer.innerHTML = '<div class="d-line d-info">No void_* keys.</div>'; return; }
   keys.forEach(function(k){
-    var v = localStorage.getItem(k);
-    var line = document.createElement('div');
-    line.className = 'd-line';
-    line.innerHTML = '<span style="color:#7c6aff">' + k + '</span> <span style="color:#464660">=</span> <span style="color:#9a9bb8">' + (v.length > 120 ? v.substring(0,120) + '\u2026' : v) + '</span>';
+    var v = localStorage.getItem(k); var line = document.createElement('div'); line.className = 'd-line';
+    line.innerHTML = '<span style="color:#7c6aff">'+k+'</span> <span style="color:#464660">=</span> <span style="color:#9a9bb8">'+(v.length>120?v.substring(0,120)+'\u2026':v)+'</span>';
     viewer.appendChild(line);
   });
 }
-
 $('btn-refresh-ls').addEventListener('click', refreshLS);
-
 $('btn-reset-owner').addEventListener('click', function(){
   if(!confirm('Reset the owner ID?')) return;
-  localStorage.removeItem('void_owner');
-  refreshDashboard();
-  refreshLS();
+  localStorage.removeItem('void_owner'); refreshDashboard(); refreshLS();
 });
-
 $('btn-nuke').addEventListener('click', function(){
-  if(!confirm('Delete ALL Void data? This cannot be undone.')) return;
-  if(!confirm('Really?')) return;
-  var keys = [];
-  for(var i = 0; i < localStorage.length; i++){
-    var k = localStorage.key(i);
-    if(k.startsWith('void')) keys.push(k);
-  }
-  keys.forEach(function(k){ localStorage.removeItem(k); });
-  refreshDashboard();
-  refreshLS();
+  if(!confirm('Delete ALL Void data?')||!confirm('Really?')) return;
+  var keys = []; for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(k.startsWith('void')) keys.push(k); }
+  keys.forEach(function(k){ localStorage.removeItem(k); }); refreshDashboard(); refreshLS();
 });
 
 })();
