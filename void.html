@@ -824,7 +824,6 @@
     <div class="br-tool-sep"></div>
     <button class="br-tool-btn" id="brt-bookmark" title="Bookmark this page">&#9734; Bookmark</button>
     <button class="br-tool-btn" id="brt-js" title="Inject JavaScript">JS</button>
-    <button class="br-tool-btn" id="brt-adblock" title="Toggle ad blocking">Ads: ON</button>
     <div class="br-tool-sep"></div>
     <button class="br-tool-btn" id="brt-eruda" title="Toggle Eruda console">Eruda</button>
   </div>
@@ -1380,12 +1379,6 @@ function clientRewrite(html, baseUrl){
   var cp = getActiveCorsBase();
   var eruda = $('opt-eruda') && $('opt-eruda').checked;
 
-  if(_adBlockEnabled){
-    html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|analytics|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
-    html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
-    html = html.replace(/<iframe[^>]*src\s*=\s*["'][^"']*(ads|doubleclick|googlesyndication)[^"']*["'][^>]*>[\s\S]*?<\/iframe>/gi, '');
-  }
-
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
@@ -1889,14 +1882,10 @@ $('btn-clear-hist').addEventListener('click', function(){
 renderHistory();
 
 /* ──────────── Browser Toolbar ──────────── */
-var _adBlockEnabled = false;
-
 function updateToolbar(){
   var m = getMode();
   $('brt-mode').textContent = m.charAt(0).toUpperCase() + m.slice(1);
   $('brt-eruda').classList.toggle('active', $('opt-eruda') && $('opt-eruda').checked);
-  $('brt-adblock').textContent = 'Ads: ' + (_adBlockEnabled ? 'OFF' : 'ON');
-  $('brt-adblock').classList.toggle('active', _adBlockEnabled);
   if(currentUrl) $('brt-bookmark').innerHTML = (isBookmarked(currentUrl) ? '&#9733;' : '&#9734;') + ' Bookmark';
 }
 
@@ -1947,12 +1936,6 @@ $('br-js-run').addEventListener('click', function(){
 $('br-js-close').addEventListener('click', function(){
   $('br-js-panel').classList.remove('show');
   $('brt-js').classList.remove('active');
-});
-
-$('brt-adblock').addEventListener('click', function(){
-  _adBlockEnabled = !_adBlockEnabled;
-  updateToolbar();
-  toast('Ad blocking: ' + (_adBlockEnabled ? 'ON' : 'OFF'));
 });
 
 $('brt-eruda').addEventListener('click', function(){
