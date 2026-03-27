@@ -1468,28 +1468,10 @@ function clientRewrite(html, baseUrl){
 
 function renderInIframe(html){
   cleanBlobUrl();
-  var outerHtml = '<!DOCTYPE html><html><head>'
-    + '<style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style>'
-    + '</head><body>'
-    + '<iframe id="f" style="width:100%;height:100%;border:none" '
-    + 'sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" '
-    + 'allow="fullscreen;autoplay;payment;encrypted-media;picture-in-picture"></iframe>'
-    + '<scr' + 'ipt>'
-    + 'window.addEventListener("message",function(e){'
-    + 'if(e.data&&e.data.type==="void_inner_html"){'
-    + 'var b=new Blob([e.data.html],{type:"text/html;charset=utf-8"});'
-    + 'document.getElementById("f").src=URL.createObjectURL(b);'
-    + '}'
-    + '});'
-    + '</scr' + 'ipt></body></html>';
-  var outerBlob = new Blob([outerHtml], { type: 'text/html;charset=utf-8' });
-  _lastBlobUrl = URL.createObjectURL(outerBlob);
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  _lastBlobUrl = URL.createObjectURL(blob);
   $('br-iframe').removeAttribute('srcdoc');
   $('br-iframe').src = _lastBlobUrl;
-  $('br-iframe').onload = function(){
-    $('br-iframe').contentWindow.postMessage({ type: 'void_inner_html', html: html }, '*');
-    $('br-iframe').onload = null;
-  };
 }
 
 function fetchWithTimeout(url, opts, ms){
