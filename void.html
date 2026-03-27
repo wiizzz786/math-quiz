@@ -1018,6 +1018,39 @@ function _clientInjection(){
   try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
   try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
 
+  /* ── Intercept navigation via document.location / window.location setter ── */
+  try {
+    var _realLoc = window.location;
+    var _locHandler = {
+      set: function(target, prop, value){
+        if(prop === 'href' || prop === 'pathname' || prop === 'search' || prop === 'hash'){
+          var full = (prop === 'href') ? value : target.href;
+          if(prop !== 'href'){
+            try { var u = new URL(target.href); u[prop] = value; full = u.href; } catch(e){}
+          }
+          var a = _abs(full);
+          if(_shouldProxy(a)){ _nav(a); return true; }
+        }
+        target[prop] = value;
+        return true;
+      },
+      get: function(target, prop){
+        var v = target[prop];
+        return typeof v === 'function' ? v.bind(target) : v;
+      }
+    };
+    if(typeof Proxy !== 'undefined'){
+      try {
+        var _pLoc = new Proxy(_realLoc, _locHandler);
+        Object.defineProperty(window, 'location', { get: function(){ return _pLoc; }, set: function(v){
+          var a = _abs(typeof v === 'string' ? v : String(v));
+          if(_shouldProxy(a)){ _nav(a); return; }
+          _realLoc.href = v;
+        }, configurable: true });
+      } catch(e){}
+    }
+  } catch(e){}
+
   /* ── Intercept location changes ── */
   try {
     var _origAssign = Location.prototype.assign;
@@ -1283,12 +1316,17 @@ function clientRewrite(html, baseUrl){
 
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
 
   html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
 
-  var headInsert = '<meta charset="UTF-8"><base href="' + escHtml(baseUrl) + '">';
+  html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+  html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
+
+  var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
+  var headInsert = '<meta charset="UTF-8"><base href="' + escHtml(baseUrl) + '">' + injection;
   if(/<head/i.test(html)){
     html = html.replace(/<head([^>]*)>/i, '<head$1>' + headInsert);
   } else if(/<html/i.test(html)){
@@ -1308,13 +1346,6 @@ function clientRewrite(html, baseUrl){
   html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi, function(m, pre, q, css){
     return pre + 'style=' + q + rewriteCssUrls(css, baseUrl, cp) + q;
   });
-
-  var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
-  if(/<\/head>/i.test(html)){
-    html = html.replace(/<\/head>/i, injection + '</head>');
-  } else {
-    html = injection + html;
-  }
 
   return html;
 }
@@ -1353,10 +1384,14 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
   function rewrite(html, base){
     html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
     html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
-    var hi = '<meta charset="UTF-8"><base href="' + escH(base) + '">';
+    html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
+    var inj = buildInj(base);
+    var hi = '<meta charset="UTF-8"><base href="' + escH(base) + '">' + inj;
     if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
     else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
     else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
@@ -1366,9 +1401,6 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       function(m,a,css){ return '<style'+a+'>' + rwCss(css,base) + '</style>'; });
     html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi,
       function(m,pre,q,css){ return pre+'style='+q + rwCss(css,base)+q; });
-    var inj = buildInj(base);
-    if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, inj + '</head>');
-    else html = inj + html;
     return html;
   }
 
