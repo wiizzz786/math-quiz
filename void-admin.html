@@ -270,7 +270,7 @@
     <!-- Users -->
     <div class="panel" id="p-users">
       <div class="card">
-        <div class="card-title"><span class="live-dot"></span>Firestore Users (Real-time)</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="users-live-dot"></span>Firestore Users</span><span id="users-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-users" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
         <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Click a label to rename a user.</p>
         <div class="uid-list" id="fb-uid-list"></div>
       </div>
@@ -287,7 +287,7 @@
     <!-- History -->
     <div class="panel" id="p-history">
       <div class="card">
-        <div class="card-title"><span class="live-dot"></span>Search History (Real-time)</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="history-live-dot"></span>Search History</span><span id="history-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-history" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
         <div class="history-filters">
           <select id="history-filter-user"><option value="">All Users</option></select>
           <button class="btn btn-ghost btn-sm" id="btn-history-export">Export</button>
@@ -590,13 +590,43 @@ function toggleBan(uid, banned){
   _db.collection('users').doc(uid).update({ banned: banned }).catch(function(e){ alert('Error: '+e.message); });
 }
 
-if(_fbOk){
-  _db.collection('users').onSnapshot(function(snap){
+function fetchUsers(){
+  if(!_fbOk || !_db) return;
+  $('users-status').textContent = 'loading\u2026';
+  $('users-status').style.color = 'var(--muted)';
+  _db.collection('users').get().then(function(snap){
     _allUsers = []; _userLabels = {};
     snap.forEach(function(doc){ var d = doc.data(); _allUsers.push(d); if(d.label) _userLabels[d.uid] = d.label; });
     renderFirestoreUsers(); refreshDashboard();
+    $('users-status').textContent = _allUsers.length + ' users \u00b7 ' + new Date().toLocaleTimeString();
+    $('users-status').style.color = 'var(--green)';
+  }).catch(function(err){
+    $('users-status').textContent = 'error: ' + err.message;
+    $('users-status').style.color = 'var(--accent2)';
   });
 }
+
+var _usersRealtime = false;
+if(_fbOk){
+  try {
+    _db.collection('users').onSnapshot(function(snap){
+      _usersRealtime = true;
+      _allUsers = []; _userLabels = {};
+      snap.forEach(function(doc){ var d = doc.data(); _allUsers.push(d); if(d.label) _userLabels[d.uid] = d.label; });
+      renderFirestoreUsers(); refreshDashboard();
+      $('users-status').textContent = 'live \u00b7 ' + _allUsers.length + ' users';
+      $('users-status').style.color = 'var(--green)';
+    }, function(err){
+      _usersRealtime = false;
+      $('users-status').textContent = 'realtime failed \u2014 use Refresh';
+      $('users-status').style.color = 'var(--accent2)';
+      if($('users-live-dot')) $('users-live-dot').style.background = 'var(--accent2)';
+      fetchUsers();
+    });
+  } catch(e){ fetchUsers(); }
+}
+
+$('btn-refresh-users').addEventListener('click', fetchUsers);
 
 $('btn-manual-ban').addEventListener('click', function(){
   var uid = $('manual-ban-uid').value.trim(); if(!uid||!_db) return;
@@ -632,11 +662,54 @@ function renderHistory(){
   });
 }
 $('history-filter-user').addEventListener('change', renderHistory);
-if(_fbOk){
-  _db.collection('searches').orderBy('timestamp','desc').limit(200).onSnapshot(function(snap){
-    _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); }); renderHistory(); refreshDashboard();
+
+function fetchHistory(){
+  if(!_fbOk || !_db) return;
+  $('history-status').textContent = 'loading\u2026';
+  $('history-status').style.color = 'var(--muted)';
+  _db.collection('searches').orderBy('timestamp','desc').limit(200).get().then(function(snap){
+    _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); });
+    renderHistory(); refreshDashboard();
+    $('history-status').textContent = _allSearches.length + ' entries \u00b7 ' + new Date().toLocaleTimeString();
+    $('history-status').style.color = 'var(--green)';
+  }).catch(function(err){
+    $('history-status').textContent = 'error: ' + err.message;
+    $('history-status').style.color = 'var(--accent2)';
+    if(err.message && err.message.indexOf('index') >= 0){
+      $('history-status').innerHTML = 'needs index \u2014 <a href="' + (err.message.match(/https:\/\/[^\s]+/)||[''])[0] + '" target="_blank" style="color:var(--accent);text-decoration:underline;">create it</a>, then Refresh';
+    }
+    _db.collection('searches').limit(200).get().then(function(snap2){
+      _allSearches = []; snap2.forEach(function(doc){ _allSearches.push(doc.data()); });
+      _allSearches.sort(function(a,b){
+        var at = a.timestamp ? (a.timestamp.toMillis ? a.timestamp.toMillis() : 0) : 0;
+        var bt = b.timestamp ? (b.timestamp.toMillis ? b.timestamp.toMillis() : 0) : 0;
+        return bt - at;
+      });
+      renderHistory(); refreshDashboard();
+      $('history-status').textContent = _allSearches.length + ' entries (no index) \u00b7 ' + new Date().toLocaleTimeString();
+      $('history-status').style.color = 'var(--yellow)';
+    }).catch(function(){});
   });
 }
+
+var _historyRealtime = false;
+if(_fbOk){
+  try {
+    _db.collection('searches').orderBy('timestamp','desc').limit(200).onSnapshot(function(snap){
+      _historyRealtime = true;
+      _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); });
+      renderHistory(); refreshDashboard();
+      $('history-status').textContent = 'live \u00b7 ' + _allSearches.length + ' entries';
+      $('history-status').style.color = 'var(--green)';
+    }, function(err){
+      _historyRealtime = false;
+      if($('history-live-dot')) $('history-live-dot').style.background = 'var(--accent2)';
+      fetchHistory();
+    });
+  } catch(e){ fetchHistory(); }
+}
+
+$('btn-refresh-history').addEventListener('click', fetchHistory);
 $('btn-history-export').addEventListener('click', function(){
   var lines = ['Void Search History','='.repeat(50),''];
   _allSearches.forEach(function(s){ var ts = s.timestamp?(s.timestamp.toDate?s.timestamp.toDate().toISOString():''):''; lines.push(ts+'  '+getUserDisplay(s.uid)+'  '+(s.url||'')); });
