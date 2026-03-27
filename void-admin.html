@@ -335,7 +335,7 @@
     <div class="nav-sep"></div>
     <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Settings</span></div>
     <div class="nav-sep"></div>
-    <div class="nav-item" id="nav-open-void" style="color:var(--green);"><span class="nav-ico">&#9654;</span><span>Open Void</span></div>
+    <div class="nav-item" data-panel="void" style="color:var(--green);"><span class="nav-ico">&#9654;</span><span>Run Void</span></div>
   </div>
 
   <div class="content">
@@ -534,6 +534,13 @@
       </div>
     </div>
 
+    <!-- Run Void -->
+    <div class="panel" id="p-void">
+      <div class="card" style="padding:0;overflow:hidden;border-radius:12px;height:calc(100vh - 100px);">
+        <iframe id="void-iframe" style="width:100%;height:100%;border:none;background:#06060b;"></iframe>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -600,6 +607,10 @@ document.querySelectorAll('.nav-item').forEach(function(item){
     var panel = $('p-' + item.dataset.panel);
     if(panel) panel.classList.add('active');
     if(item.dataset.panel === 'tools') refreshLS();
+    if(item.dataset.panel === 'void'){
+      var vf = $('void-iframe');
+      if(vf && !vf.src) vf.src = location.href.replace(/[^/]*$/, '') + 'void.html';
+    }
   });
 });
 
@@ -1022,9 +1033,6 @@ if(_fbOk){
 
 $('btn-refresh-requests').addEventListener('click', fetchRequests);
 
-$('nav-open-void').addEventListener('click', function(){
-  window.open(location.href.replace(/[^/]*$/, '') + 'void.html', '_blank');
-});
 
 /* ──── Test Proxy (Live Preview) ──── */
 $('btn-proxy-load').addEventListener('click', function(){
