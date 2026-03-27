@@ -623,10 +623,7 @@
   <div class="browser-status" id="br-status">
     <span class="dot" id="br-dot"></span>
     <span id="br-status-text">Ready</span>
-    <span style="flex:1"></span>
-    <button id="br-debug-toggle" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:inherit;font-size:.55rem;padding:1px 6px;cursor:pointer;opacity:.6">Debug</button>
   </div>
-  <div id="br-debug" style="display:none;max-height:140px;overflow-y:auto;background:rgba(0,0,0,.95);border-top:1px solid var(--border);padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.6"></div>
 </div>
 
 <div class="settings-overlay" id="settings-overlay">
@@ -1503,40 +1500,12 @@ $('br-addr').addEventListener('keydown', function(e){
   }
 });
 
-/* ──────────── Debug panel ──────────── */
-var _debugOn = false;
-$('br-debug-toggle').addEventListener('click', function(){
-  _debugOn = !_debugOn;
-  $('br-debug').style.display = _debugOn ? '' : 'none';
-  this.style.opacity = _debugOn ? '1' : '.6';
-  this.style.color = _debugOn ? 'var(--green)' : 'var(--muted)';
-});
-function debugLog(msg){
-  if(!_debugOn) return;
-  var d = $('br-debug');
-  var line = document.createElement('div');
-  var ts = new Date().toLocaleTimeString('en', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  line.textContent = ts + ' ' + msg;
-  if(msg.indexOf('[err]') >= 0) line.style.color = '#ff5f8f';
-  else if(msg.indexOf('[fetch]') >= 0) line.style.color = '#7c6aff';
-  else if(msg.indexOf('[resp]') >= 0) line.style.color = '#34d399';
-  else if(msg.indexOf('[nav]') >= 0 || msg.indexOf('[loc]') >= 0) line.style.color = '#f0c040';
-  d.appendChild(line);
-  if(d.children.length > 200) d.removeChild(d.firstChild);
-  d.scrollTop = d.scrollHeight;
-}
-
 window.addEventListener('message', function(e){
   if(!e.data || typeof e.data !== 'object') return;
-  if(e.data.type === 'void_debug' && e.data.msg){
-    debugLog(e.data.msg);
-  }
   if(e.data.type === 'void_navigate' && e.data.url){
-    debugLog('[nav] ' + e.data.url);
     navigateClient(e.data.url, true);
   }
   if(e.data.type === 'void_post' && e.data.url){
-    debugLog('[post] ' + e.data.url);
     navigateClient(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
   }
   if(e.data.type === 'void_url' && e.data.url){
@@ -1550,7 +1519,6 @@ window.addEventListener('message', function(e){
     setLoading(false);
     sfxNav();
     $('br-iframe').classList.add('loaded');
-    debugLog('[loaded] page ready');
   }
 });
 
@@ -1672,6 +1640,11 @@ function initUID(){
     if(VOID_OWNER_META) VOID_OWNER_META.setAttribute('content', uid);
     localStorage.setItem('void_uid', uid);
     localStorage.setItem('void_owner', uid);
+    try {
+      var log = JSON.parse(localStorage.getItem('void_uid_log') || '[]');
+      if(log.indexOf(uid) === -1) log.push(uid);
+      localStorage.setItem('void_uid_log', JSON.stringify(log));
+    } catch(e){}
   } else {
     var myUid = localStorage.getItem('void_uid');
     if(!myUid){
