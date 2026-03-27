@@ -737,7 +737,7 @@
   <input type="range" class="music-vol" id="music-vol" min="0" max="100" value="25"/>
 </div>
 <audio id="ambient-audio" loop preload="none">
-  <source src="https://cdn.pixabay.com/audio/2024/11/01/audio_3a1ebc2eca.mp3" type="audio/mpeg"/>
+  <source src="https://cdn.freesafemusic.com/audio/jnk0.mp3" type="audio/mpeg"/>
 </audio>
 <div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
 
@@ -806,11 +806,20 @@ var currentUrl = '';
 var _audioCtx = null;
 function getAudio(){
   if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(_audioCtx.state === 'suspended') _audioCtx.resume();
   return _audioCtx;
 }
+function _unlockAudio(){
+  if(_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+}
+document.addEventListener('click', _unlockAudio, { once: false });
+document.addEventListener('keydown', _unlockAudio, { once: false });
+document.addEventListener('touchstart', _unlockAudio, { once: false });
+
 function playTone(freq, dur, type, vol){
   try {
     var ctx = getAudio();
+    if(ctx.state === 'suspended') return;
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.type = type || 'sine';
