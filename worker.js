@@ -34,10 +34,17 @@ function validate(target) {
 
 function buildHeaders(request) {
   var fwd = new Headers();
-  var STRIP = new Set(['host','origin','cf-connecting-ip','cf-ipcountry','cf-ray','cf-visitor','x-forwarded-for','x-real-ip','cookie','x-forwarded-proto']);
+  var STRIP = new Set(['host','origin','cf-connecting-ip','cf-ipcountry','cf-ray','cf-visitor','x-forwarded-for','x-real-ip','x-forwarded-proto']);
   for (var pair of request.headers) {
     if (!STRIP.has(pair[0].toLowerCase())) fwd.set(pair[0], pair[1]);
   }
+
+  var voidCookie = request.headers.get('x-void-cookie');
+  if (voidCookie) {
+    fwd.set('Cookie', voidCookie);
+    fwd.delete('x-void-cookie');
+  }
+
   if (!fwd.has('user-agent')) {
     fwd.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   }
@@ -46,7 +53,13 @@ function buildHeaders(request) {
 }
 
 function cleanResponseHeaders(headers, finalUrl, ct) {
-  var resp = new Headers(headers);
+  var resp = new Headers();
+  for (var pair of headers) {
+    var key = pair[0].toLowerCase();
+    if (key === 'set-cookie') continue;
+    resp.set(pair[0], pair[1]);
+  }
+
   for (var k of Object.keys(CORS_HEADERS)) resp.set(k, CORS_HEADERS[k]);
 
   var remove = ['content-security-policy','content-security-policy-report-only',
@@ -55,11 +68,22 @@ function cleanResponseHeaders(headers, finalUrl, ct) {
     'cross-origin-embedder-policy','cross-origin-resource-policy'];
   for (var h of remove) resp.delete(h);
 
+  var cookies = headers.getAll ? headers.getAll('set-cookie') : [];
+  if (!cookies.length) {
+    var sc = headers.get('set-cookie');
+    if (sc) cookies = [sc];
+  }
+  if (cookies.length) {
+    resp.set('X-Void-Set-Cookie', JSON.stringify(cookies));
+  }
+
   resp.set('Cache-Control', cachePolicy(ct, finalUrl));
   resp.set('X-Void-Final-URL', finalUrl);
   resp.set('Timing-Allow-Origin', '*');
   return resp;
 }
+
+var _cookieJar = {};
 
 export default {
   async fetch(request, env, ctx) {
@@ -92,6 +116,7 @@ export default {
       var finalUrl = decoded;
       var upstream;
       var hops = 0;
+      var collectedCookies = [];
 
       while (hops < MAX_REDIRECTS) {
         upstream = await fetch(finalUrl, {
@@ -101,11 +126,25 @@ export default {
           redirect: 'manual'
         });
 
+        var sc = upstream.headers.get('set-cookie');
+        if (sc) collectedCookies.push(sc);
+        var scAll = upstream.headers.getAll ? upstream.headers.getAll('set-cookie') : [];
+        if (scAll.length) collectedCookies.push(...scAll);
+
         if (upstream.status >= 300 && upstream.status < 400) {
           var loc = upstream.headers.get('location');
           if (!loc) break;
           try { finalUrl = new URL(loc, finalUrl).href; } catch { break; }
           fwdHeaders.set('Referer', new URL(finalUrl).origin + '/');
+
+          if (collectedCookies.length) {
+            var cookieStr = collectedCookies.map(function(c) {
+              return c.split(';')[0];
+            }).join('; ');
+            var existing = fwdHeaders.get('Cookie');
+            fwdHeaders.set('Cookie', existing ? existing + '; ' + cookieStr : cookieStr);
+          }
+
           hops++;
           continue;
         }
@@ -114,6 +153,13 @@ export default {
 
       var ct = (upstream.headers.get('content-type') || '').toLowerCase();
       var respHeaders = cleanResponseHeaders(upstream.headers, finalUrl, ct);
+
+      if (collectedCookies.length) {
+        var existing = respHeaders.get('X-Void-Set-Cookie');
+        var arr = existing ? JSON.parse(existing) : [];
+        arr.push(...collectedCookies);
+        respHeaders.set('X-Void-Set-Cookie', JSON.stringify(arr));
+      }
 
       if (hops > 0) {
         respHeaders.set('X-Void-Redirects', String(hops));

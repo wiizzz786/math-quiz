@@ -997,6 +997,46 @@ function _clientInjection(){
   var _eruda = '%%ERUDA%%';
   var _cur = _b;
 
+  /* ── Cookie jar ── */
+  var _cookieJar = {};
+  try { _cookieJar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
+  function _saveCookies(){ try { localStorage.setItem('void_cookies', JSON.stringify(_cookieJar)); } catch(e){} }
+  function _getDomain(url){ try { return new URL(url).hostname; } catch(e){ return ''; } }
+  function _getCookiesFor(url){
+    var domain = _getDomain(url);
+    if(!domain) return '';
+    var parts = [];
+    for(var d in _cookieJar){
+      if(domain === d || domain.endsWith('.' + d)){
+        for(var name in _cookieJar[d]){
+          parts.push(name + '=' + _cookieJar[d][name]);
+        }
+      }
+    }
+    return parts.join('; ');
+  }
+  function _parseSetCookies(headerVal, url){
+    if(!headerVal) return;
+    var cookies;
+    try { cookies = JSON.parse(headerVal); } catch(e){ cookies = [headerVal]; }
+    var domain = _getDomain(url);
+    cookies.forEach(function(c){
+      var parts = c.split(';');
+      var nv = parts[0].trim().split('=');
+      if(nv.length < 2) return;
+      var name = nv[0].trim();
+      var val = nv.slice(1).join('=').trim();
+      var cDomain = domain;
+      parts.forEach(function(p){
+        var kv = p.trim().split('=');
+        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
+      });
+      if(!_cookieJar[cDomain]) _cookieJar[cDomain] = {};
+      _cookieJar[cDomain][name] = val;
+    });
+    _saveCookies();
+  }
+
   function _abs(u){
     try { return new URL(u, _cur).href; } catch(e){ return u; }
   }
@@ -1140,21 +1180,36 @@ function _clientInjection(){
   var _of = window.fetch;
   window.fetch = function(u, o){
     o = o || {};
+    var origUrl = '';
     if(typeof u === 'string'){
       var resolved = _abs(u);
       if(_shouldProxy(resolved)){
         _dbg('fetch', (o.method || 'GET') + ' ' + resolved);
+        origUrl = resolved;
         u = _proxied(resolved);
+        if(!o.headers) o.headers = {};
+        var ck = _getCookiesFor(resolved);
+        if(ck){
+          if(o.headers instanceof Headers) o.headers.set('X-Void-Cookie', ck);
+          else o.headers['X-Void-Cookie'] = ck;
+        }
       }
     } else if(u && typeof u === 'object' && u.url){
       var resolved = _abs(u.url);
       if(_shouldProxy(resolved)){
         _dbg('fetch', (u.method || 'GET') + ' ' + resolved);
-        u = new Request(_proxied(resolved), u);
+        origUrl = resolved;
+        var h = new Headers(u.headers);
+        var ck = _getCookiesFor(resolved);
+        if(ck) h.set('X-Void-Cookie', ck);
+        u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: u.mode, credentials: u.credentials });
       }
     }
+    var _ou = origUrl;
     return _of.call(this, u, o).then(function(r){
       _dbg('resp', r.status + ' ' + r.url.substring(0, 80));
+      var sc = r.headers.get('x-void-set-cookie');
+      if(sc && _ou) _parseSetCookies(sc, _ou);
       return r;
     }).catch(function(e){
       _dbg('err', e.message);
@@ -1164,16 +1219,31 @@ function _clientInjection(){
 
   /* ── XMLHttpRequest override ── */
   var _xo = XMLHttpRequest.prototype.open;
+  var _xsr = XMLHttpRequest.prototype.setRequestHeader;
   XMLHttpRequest.prototype.open = function(){
     var args = Array.prototype.slice.call(arguments);
+    this._voidOrigUrl = '';
     if(typeof args[1] === 'string'){
       var resolved = _abs(args[1]);
       if(_shouldProxy(resolved)){
         _dbg('xhr', (args[0] || 'GET') + ' ' + resolved);
+        this._voidOrigUrl = resolved;
         args[1] = _proxied(resolved);
       }
     }
-    return _xo.apply(this, args);
+    var result = _xo.apply(this, args);
+    if(this._voidOrigUrl){
+      var ck = _getCookiesFor(this._voidOrigUrl);
+      if(ck) try { _xsr.call(this, 'X-Void-Cookie', ck); } catch(e){}
+    }
+    var self = this;
+    this.addEventListener('load', function(){
+      try {
+        var sc = self.getResponseHeader('x-void-set-cookie');
+        if(sc && self._voidOrigUrl) _parseSetCookies(sc, self._voidOrigUrl);
+      } catch(e){}
+    });
+    return result;
   };
 
   /* ── window.open override ── */
@@ -1456,12 +1526,44 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     document.open(); document.write(html); document.close();
   }
 
+  function _getCk(u){
+    try {
+      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+      var d = ''; try { d = new URL(u).hostname; } catch(e){}
+      if(!d) return '';
+      var p = [];
+      for(var k in jar){ if(d === k || d.endsWith('.'+k)){ for(var n in jar[k]) p.push(n+'='+jar[k][n]); } }
+      return p.join('; ');
+    } catch(e){ return ''; }
+  }
+  function _storeCk(resp, u){
+    var sc = resp.headers.get('x-void-set-cookie'); if(!sc) return;
+    try {
+      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+      var d = ''; try { d = new URL(u).hostname; } catch(e){}
+      var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
+      cookies.forEach(function(c){
+        var parts = c.split(';'); var nv = parts[0].trim().split('=');
+        if(nv.length < 2) return;
+        var nm = nv[0].trim(), vl = nv.slice(1).join('=').trim(), cd = d;
+        parts.forEach(function(p){ var kv = p.trim().split('='); if(kv[0].trim().toLowerCase()==='domain'&&kv[1]) cd=kv[1].trim().replace(/^\./,''); });
+        if(!jar[cd]) jar[cd] = {}; jar[cd][nm] = vl;
+      });
+      localStorage.setItem('void_cookies', JSON.stringify(jar));
+    } catch(e){}
+  }
+
   async function nav(url, push, postOpts){
     var ld = document.getElementById('_vld'); if(ld) ld.className = 'on';
     try {
       var fo = undefined;
       if(postOpts) fo = { method: 'POST', headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' }, body: postOpts.body };
+      if(!fo) fo = {};
+      if(!fo.headers) fo.headers = {};
+      var ck = _getCk(url);
+      if(ck) fo.headers['X-Void-Cookie'] = ck;
       var r = await fetch(makeCors(url), fo);
+      _storeCk(r, url);
       var text = await r.text();
       var ct = (r.headers.get('content-type') || '').toLowerCase();
       var fin = r.headers.get('x-void-final-url') || url;
@@ -1607,7 +1709,52 @@ function fetchWithTimeout(url, opts, ms){
 
 probeBackends();
 
+function _getVoidCookies(url){
+  try {
+    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    if(!domain) return '';
+    var parts = [];
+    for(var d in jar){
+      if(domain === d || domain.endsWith('.' + d)){
+        for(var name in jar[d]) parts.push(name + '=' + jar[d][name]);
+      }
+    }
+    return parts.join('; ');
+  } catch(e){ return ''; }
+}
+function _storeVoidCookies(resp, url){
+  var sc = resp.headers.get('x-void-set-cookie');
+  if(!sc) return;
+  try {
+    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
+    cookies.forEach(function(c){
+      var parts = c.split(';'); var nv = parts[0].trim().split('=');
+      if(nv.length < 2) return;
+      var name = nv[0].trim(), val = nv.slice(1).join('=').trim(), cDomain = domain;
+      parts.forEach(function(p){
+        var kv = p.trim().split('=');
+        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
+      });
+      if(!jar[cDomain]) jar[cDomain] = {};
+      jar[cDomain][name] = val;
+    });
+    localStorage.setItem('void_cookies', JSON.stringify(jar));
+  } catch(e){}
+}
+function _addCookieHeaders(fetchOpts, targetUrl){
+  var ck = _getVoidCookies(targetUrl);
+  if(!ck) return fetchOpts;
+  if(!fetchOpts) fetchOpts = {};
+  if(!fetchOpts.headers) fetchOpts.headers = {};
+  fetchOpts.headers['X-Void-Cookie'] = ck;
+  return fetchOpts;
+}
+
 async function clientFetch(targetUrl, fetchOpts){
+  fetchOpts = _addCookieHeaders(fetchOpts, targetUrl);
   var custom = getCustomCorsProxy();
   if(custom){
     var proxyUrl = custom.includes('?') ? custom + encodeURIComponent(targetUrl) : custom + '?url=' + encodeURIComponent(targetUrl);
@@ -1616,6 +1763,7 @@ async function clientFetch(targetUrl, fetchOpts){
       try {
         var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 20000);
         if(!resp.ok) throw new Error('HTTP ' + resp.status);
+        _storeVoidCookies(resp, targetUrl);
         var ct = (resp.headers.get('content-type') || '').toLowerCase();
         var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
         var buf = await resp.arrayBuffer();
@@ -1648,6 +1796,7 @@ async function clientFetch(targetUrl, fetchOpts){
       var proxyUrl = be.fn(targetUrl);
       var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 15000);
       if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
+      _storeVoidCookies(resp, targetUrl);
 
       var body, ct, finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
       if(be.type === 'json'){
