@@ -18,11 +18,41 @@
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
-    body { display: flex; flex-direction: column; overflow: hidden; }
+    body { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bg .wavy-grad {
+      position: absolute; inset: -20%;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(124,106,255,.18) 40%, transparent 70%),
+        linear-gradient(260deg, transparent 0%, rgba(255,95,143,.12) 35%, transparent 70%),
+        linear-gradient(380deg, transparent 0%, rgba(52,211,153,.08) 40%, transparent 75%);
+      background-size: 150% 150%;
+      animation: wavy-drift 30s linear infinite;
+      filter: blur(50px);
+      opacity: 0.9;
+    }
+    @keyframes wavy-drift { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+    @media (prefers-reduced-motion: reduce) { .bg .wavy-grad { animation: none; } }
+    .bg .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .bg .noise-grad {
+      position: absolute; inset: -15%;
+      background:
+        radial-gradient(ellipse 70% 50% at 25% 35%, rgba(124,106,255,.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 70% at 75% 65%, rgba(255,95,143,.08) 0%, transparent 50%);
+      opacity: 0.9;
+    }
 
     .header {
       display: flex; align-items: center; gap: 12px; padding: 12px 20px;
       border-bottom: 1px solid var(--border); background: rgba(6,6,11,.97); flex-shrink: 0;
+      position: relative; z-index: 1;
     }
     .header-logo {
       font-size: 1.2rem; font-weight: 900; letter-spacing: -.04em;
@@ -38,7 +68,7 @@
     .header-fb.off { background: rgba(255,95,143,.1); color: var(--accent2); }
     .header-ver { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted); margin-left: auto; }
 
-    .main { flex: 1; display: flex; overflow: hidden; }
+    .main { flex: 1; display: flex; overflow: hidden; position: relative; z-index: 1; }
     .sidebar {
       width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
       background: rgba(255,255,255,.01); display: flex; flex-direction: column; overflow-y: auto;
@@ -220,6 +250,12 @@
   </style>
 </head>
 <body>
+
+<div class="bg">
+  <div class="wavy-grad"></div>
+  <div class="noise-grad"></div>
+  <div class="grid"></div>
+</div>
 
 <div class="header">
   <span class="header-logo">void</span>
