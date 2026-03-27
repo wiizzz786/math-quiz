@@ -1096,7 +1096,26 @@ function _clientInjection(){
     return true;
   }
   var _top = window.top || window.parent;
-  function _nav(url){ _top.postMessage({ type: 'void_navigate', url: url }, '*'); }
+  var _navHandled = false;
+  function _nav(url){
+    _navHandled = false;
+    _top.postMessage({ type: 'void_navigate', url: url }, '*');
+    setTimeout(function(){
+      if(!_navHandled){
+        _dbg('nav-fallback', url);
+        var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
+        var fo = {};
+        var ck = _getCookiesFor(url);
+        if(ck) fo.headers = { 'X-Void-Cookie': ck };
+        window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
+          _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
+        }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
+      }
+    }, 200);
+  }
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'void_nav_ack') _navHandled = true;
+  });
   function _updateBase(url){ _cur = url; _top.postMessage({ type: 'void_url', url: url }, '*'); }
 
   /* ── Expose real reload for Home button ── */
@@ -1150,11 +1169,14 @@ function _clientInjection(){
     if(typeof Proxy !== 'undefined'){
       try {
         var _pLoc = new Proxy(_realLoc, _locHandler);
-        Object.defineProperty(window, 'location', { get: function(){ return _pLoc; }, set: function(v){
+        var _locGetSet = { get: function(){ return _pLoc; }, set: function(v){
           var a = _abs(typeof v === 'string' ? v : String(v));
           if(_shouldProxy(a)){ _nav(a); return; }
           _realLoc.href = v;
-        }, configurable: true });
+        }, configurable: true };
+        Object.defineProperty(window, 'location', _locGetSet);
+        try { Object.defineProperty(document, 'location', _locGetSet); } catch(e){}
+        try { Object.defineProperty(Document.prototype, 'location', _locGetSet); } catch(e){}
       } catch(e){}
     }
   } catch(e){}
@@ -1202,18 +1224,22 @@ function _clientInjection(){
 
   /* ── Link clicks ── */
   document.addEventListener('click', function(e){
-    var a = e.target;
-    while(a && a.tagName !== 'A') a = a.parentElement;
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href === '#' || href.startsWith('javascript:') || href.startsWith('data:') || href.startsWith('mailto:')) return;
-    if(href.startsWith('#')){ return; }
-    var abs = _abs(href);
-    if(!_shouldProxy(abs)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    _nav(abs);
+    var el = e.target;
+    var a = null;
+    while(el){
+      if(el.tagName === 'A'){ a = el; break; }
+      el = el.parentElement;
+    }
+    if(a){
+      var href = a.getAttribute('href');
+      if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/.test(href)) return;
+      var abs = _abs(href);
+      if(!_shouldProxy(abs)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      _nav(abs);
+    }
   }, true);
 
   /* ── Form submissions (GET + POST) ── */
@@ -1400,6 +1426,22 @@ function _clientInjection(){
   document.writeln = function(s){ if(!_docLoaded) return _origWriteln(s); };
   if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
   else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
+
+  /* ── Navigation API intercept (modern browsers) ── */
+  if(window.navigation && window.navigation.addEventListener){
+    try {
+      window.navigation.addEventListener('navigate', function(e){
+        var dest = e.destination && e.destination.url;
+        if(!dest) return;
+        if(dest.indexOf(_cp) === 0) return;
+        var a = _abs(dest);
+        if(_shouldProxy(a)){
+          e.preventDefault();
+          _nav(a);
+        }
+      });
+    } catch(e){}
+  }
 
   /* ── Catch unintended real navigation ── */
   window.addEventListener('beforeunload', function(e){
@@ -1759,8 +1801,19 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
 
   window.addEventListener('message', function(e){
     if(!e.data || typeof e.data !== 'object') return;
-    if(e.data.type === 'void_navigate' && e.data.url) nav(e.data.url, true);
-    if(e.data.type === 'void_post' && e.data.url) nav(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
+    if(e.data.type === 'void_navigate' && e.data.url){
+      window.postMessage({ type: 'void_nav_ack' }, '*');
+      nav(e.data.url, true);
+    }
+    if(e.data.type === 'void_post' && e.data.url){
+      window.postMessage({ type: 'void_nav_ack' }, '*');
+      nav(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
+    }
+    if(e.data.type === 'void_raw_render' && e.data.html){
+      var fin = e.data.url || _curUrl;
+      if(e.data.url){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(fin); _navIdx = _navHist.length - 1; }
+      render(rewrite(e.data.html, fin), fin);
+    }
     if(e.data.type === 'void_url' && e.data.url){ _curUrl = e.data.url; var ai = document.getElementById('_va'); if(ai) ai.value = e.data.url; }
     if(e.data.type === 'void_title' && e.data.title) document.title = e.data.title;
     if(e.data.type === 'void_loaded'){ var ld = document.getElementById('_vld'); if(ld) ld.className = ''; }
