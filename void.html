@@ -1077,19 +1077,23 @@ function _clientInjection(){
   function _nav(url){ _top.postMessage({ type: 'void_navigate', url: url }, '*'); }
   function _updateBase(url){ _cur = url; _top.postMessage({ type: 'void_url', url: url }, '*'); }
 
+  /* ── Expose real reload for Home button ── */
+  window.__voidRealReload = function(){ _realLoc.reload(); };
+
   /* ── Spoof iframe detection ── */
   try { Object.defineProperty(window, 'top', { get: function(){ return window; }, configurable: true }); } catch(e){}
   try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
   try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
 
-  /* ── Spoof document properties to match proxied site ── */
+  /* ── Spoof document + window properties to match proxied site ── */
   try {
-    var _pu = new URL(_cur);
     Object.defineProperty(document, 'URL', { get: function(){ return _cur; }, configurable: true });
     Object.defineProperty(document, 'documentURI', { get: function(){ return _cur; }, configurable: true });
     Object.defineProperty(document, 'referrer', { get: function(){ return ''; }, configurable: true });
     Object.defineProperty(document, 'domain', { get: function(){ try { return new URL(_cur).hostname; } catch(e){ return ''; } }, set: function(){}, configurable: true });
   } catch(e){}
+  try { Object.defineProperty(window, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(self, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
 
   /* ── Intercept navigation via document.location / window.location setter ── */
   try {
@@ -1116,7 +1120,7 @@ function _clientInjection(){
         if(prop === 'valueOf') return function(){ return _cur; };
         if(prop === 'replace') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.replace(url); };
         if(prop === 'assign') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.assign(url); };
-        if(prop === 'reload') return function(){ _realLoc.reload(); };
+        if(prop === 'reload') return function(){ _nav(_cur); };
         var v = target[prop];
         return typeof v === 'function' ? v.bind(target) : v;
       }
@@ -1302,15 +1306,15 @@ function _clientInjection(){
   var _hps = history.pushState;
   var _hrs = history.replaceState;
   history.pushState = function(state, title, url){
-    _hps.apply(this, arguments);
     if(url){ _updateBase(_abs(url)); }
+    try { _hps.call(this, state, title, url); } catch(e){}
   };
   history.replaceState = function(state, title, url){
-    _hrs.apply(this, arguments);
     if(url){ _updateBase(_abs(url)); }
+    try { _hrs.call(this, state, title, url); } catch(e){}
   };
   window.addEventListener('popstate', function(){
-    _updateBase(location.href === 'about:srcdoc' ? _cur : _abs(location.href));
+    _updateBase(_cur);
   });
 
   /* ── Iframe src interception ── */
@@ -1656,7 +1660,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
   var $vjs = document.getElementById('_vjs');
   var $vjr = document.getElementById('_vjr');
   var $vjx = document.getElementById('_vjx');
-  if($vh) $vh.onclick = function(){ location.reload(); };
+  if($vh) $vh.onclick = function(){ if(window.__voidRealReload) window.__voidRealReload(); else location.href = '/'; };
   if($vb) $vb.onclick = function(){ if(_navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); } };
   if($vf) $vf.onclick = function(){ if(_navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); } };
   if($vr) $vr.onclick = function(){ nav(_curUrl, false); };
