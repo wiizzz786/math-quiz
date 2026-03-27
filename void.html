@@ -733,13 +733,38 @@ function sfxBootDone(){
 
 /* ──────────── CORS Proxy backends ──────────── */
 var _workingBackendIdx = 0;
+var _backendLatencies = {};
+var _probePromise = null;
 
 var CORS_BACKENDS = [
+  { name: 'void-worker', fn: function(u){ return 'https://void-proxy.aadizzz786.workers.dev/?url=' + encodeURIComponent(u); }, corsBase: 'https://void-proxy.aadizzz786.workers.dev/?url=', type: 'raw' },
   { name: 'allorigins',  fn: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); }, corsBase: 'https://api.allorigins.win/raw?url=',    type: 'json' },
   { name: 'cors.lol',    fn: function(u){ return 'https://api.cors.lol/?url=' + encodeURIComponent(u); },          corsBase: 'https://api.cors.lol/?url=',              type: 'raw' },
   { name: 'codetabs',    fn: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }, corsBase: 'https://api.codetabs.com/v1/proxy?quest=', type: 'raw' },
   { name: 'corsproxy',   fn: function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },          corsBase: 'https://corsproxy.io/?url=',              type: 'raw' },
 ];
+
+function probeBackends(){
+  if(_probePromise) return _probePromise;
+  var testUrl = 'https://httpbin.org/status/200';
+  _probePromise = Promise.allSettled(CORS_BACKENDS.map(function(be, idx){
+    var t0 = performance.now();
+    return fetchWithTimeout(be.fn(testUrl), {method:'HEAD'}, 6000).then(function(r){
+      var ms = Math.round(performance.now() - t0);
+      _backendLatencies[idx] = ms;
+      return { idx: idx, ms: ms, ok: r.ok };
+    });
+  })).then(function(results){
+    var best = null;
+    results.forEach(function(r){
+      if(r.status === 'fulfilled' && r.value.ok){
+        if(!best || r.value.ms < best.ms) best = r.value;
+      }
+    });
+    if(best) _workingBackendIdx = best.idx;
+  });
+  return _probePromise;
+}
 
 function getCustomCorsProxy(){
   var v = ($('cors-proxy-url') && $('cors-proxy-url').value.trim()) || '';
@@ -790,6 +815,14 @@ var _lastBlobUrl = null;
 function cleanBlobUrl(){
   if(_lastBlobUrl){ URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
 }
+
+try {
+  var link = document.createElement('link');
+  link.rel = 'preconnect';
+  link.href = 'https://void-proxy.aadizzz786.workers.dev';
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+} catch(e){}
 
 /* ──────────── Search Engines ──────────── */
 var SEARCH = {
@@ -1190,34 +1223,57 @@ function renderInIframe(html){
 
 function fetchWithTimeout(url, opts, ms){
   var ctrl = new AbortController();
-  opts = opts || {};
+  opts = Object.assign({}, opts || {});
   opts.signal = ctrl.signal;
-  var timer = setTimeout(function(){ ctrl.abort(); }, ms || 15000);
+  var timer = setTimeout(function(){ ctrl.abort(); }, ms || 20000);
   return fetch(url, opts).finally(function(){ clearTimeout(timer); });
 }
+
+probeBackends();
 
 async function clientFetch(targetUrl, fetchOpts){
   var custom = getCustomCorsProxy();
   if(custom){
     var proxyUrl = custom.includes('?') ? custom + encodeURIComponent(targetUrl) : custom + '?url=' + encodeURIComponent(targetUrl);
-    var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 15000);
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    var ct = (resp.headers.get('content-type') || '').toLowerCase();
-    var buf = await resp.arrayBuffer();
-    var body = decodeBody(buf, resp.headers);
-    if(looksLikeBlockPage(body)) throw new Error('CORS proxy returned a block page');
-    return { body: body, contentType: ct, ok: true };
+    var lastErr;
+    for(var retry = 0; retry < 2; retry++){
+      try {
+        var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 20000);
+        if(!resp.ok) throw new Error('HTTP ' + resp.status);
+        var ct = (resp.headers.get('content-type') || '').toLowerCase();
+        var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
+        var buf = await resp.arrayBuffer();
+        var body = decodeBody(buf, resp.headers);
+        if(looksLikeBlockPage(body)) throw new Error('CORS proxy returned a block page');
+        return { body: body, contentType: ct, ok: true, finalUrl: finalUrl };
+      } catch(e){
+        lastErr = e;
+        if(retry === 0) await new Promise(function(r){ setTimeout(r, 500); });
+      }
+    }
+    throw lastErr;
   }
 
+  if(_probePromise) await _probePromise;
+
+  var order = [];
+  for(var k = 0; k < CORS_BACKENDS.length; k++) order.push(k);
+  order.sort(function(a,b){
+    var la = _backendLatencies[a] || 9999;
+    var lb = _backendLatencies[b] || 9999;
+    return la - lb;
+  });
+
   var errors = [];
-  for(var i = 0; i < CORS_BACKENDS.length; i++){
+  for(var j = 0; j < order.length; j++){
+    var i = order[j];
     var be = CORS_BACKENDS[i];
     try {
       var proxyUrl = be.fn(targetUrl);
-      var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 12000);
+      var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 15000);
       if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
 
-      var body, ct;
+      var body, ct, finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
       if(be.type === 'json'){
         ct = 'text/html';
         var json = await resp.json();
@@ -1232,7 +1288,7 @@ async function clientFetch(targetUrl, fetchOpts){
       if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
 
       _workingBackendIdx = i;
-      return { body: body, contentType: ct, ok: true };
+      return { body: body, contentType: ct, ok: true, finalUrl: finalUrl };
     } catch(e){
       errors.push(e.message);
     }
@@ -1297,23 +1353,32 @@ async function navigateClient(targetUrl, pushHist, postOpts){
     }
     var result = await clientFetch(targetUrl, fetchOpts);
     var ct = result.contentType;
+    var resolvedUrl = result.finalUrl || targetUrl;
+
+    if(resolvedUrl !== targetUrl){
+      currentUrl = resolvedUrl;
+      $('br-addr').value = resolvedUrl;
+    }
 
     if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && result.body.length > 0 && result.body.trim().charAt(0) === '<')){
-      renderInIframe(clientRewrite(result.body, targetUrl));
+      renderInIframe(clientRewrite(result.body, resolvedUrl));
     } else if(ct.indexOf('image/') >= 0){
-      renderInIframe('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(targetUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>');
+      renderInIframe('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>');
       setLoading(false);
     } else if(ct.indexOf('application/json') >= 0){
       renderInIframe('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>');
       setLoading(false);
+    } else if(ct.indexOf('application/pdf') >= 0){
+      renderInIframe('<!DOCTYPE html><html><body style="margin:0"><embed src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh"></body></html>');
+      setLoading(false);
     } else {
-      renderInIframe(clientRewrite(result.body, targetUrl));
+      renderInIframe(clientRewrite(result.body, resolvedUrl));
     }
   } catch(proxyErr){
     setLoading(false);
     sfxError();
     hideBrowser();
-    toast('Failed to load — check your CORS proxy URL');
+    toast('Failed to load — ' + (proxyErr.message || 'check your CORS proxy URL'));
   }
 }
 
@@ -1329,19 +1394,34 @@ function buildServerProxyUrl(targetUrl){
   return base.replace(/\/+$/,'') + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
 }
 
+function xorEncode(url, key){
+  key = key || 2;
+  var result = '';
+  for(var i = 0; i < url.length; i++){
+    result += String.fromCharCode(url.charCodeAt(i) ^ key);
+  }
+  return btoa(result);
+}
+
 function buildExternalUrl(targetUrl){
   var m = getMode();
   if(m === 'uv'){
     var uv = ($('uv-backend') && $('uv-backend').value.trim()) || '';
     if(!uv){ toast('Enter your UV backend URL'); return null; }
-    var sep = uv.indexOf('?') >= 0 ? '&' : '?';
-    return uv.replace(/\/+$/,'') + sep + 'url=' + encodeURIComponent(targetUrl);
+    var base = uv.replace(/\/+$/, '');
+    if(base.includes('/service/') || base.endsWith('/service')){
+      return base.replace(/\/+$/, '') + '/' + xorEncode(targetUrl);
+    }
+    return base + '/service/' + xorEncode(targetUrl);
   }
   if(m === 'scramjet'){
     var sj = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
     if(!sj){ toast('Enter your Scramjet backend URL'); return null; }
-    var sep2 = sj.indexOf('?') >= 0 ? '&' : '?';
-    return sj.replace(/\/+$/,'') + sep2 + 'url=' + encodeURIComponent(targetUrl);
+    var sjBase = sj.replace(/\/+$/, '');
+    if(sjBase.includes('/service/') || sjBase.endsWith('/service')){
+      return sjBase.replace(/\/+$/, '') + '/' + encodeURIComponent(targetUrl);
+    }
+    return sjBase + '/service/' + encodeURIComponent(targetUrl);
   }
   return null;
 }

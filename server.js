@@ -14,9 +14,37 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 16, timeout: 30000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 16, timeout: 30000 });
+
+const _resourceCache = new Map();
+const CACHE_MAX_SIZE = 200;
+const CACHE_TTL_MS = 300000;
+
+function cacheGet(key) {
+  const entry = _resourceCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { _resourceCache.delete(key); return null; }
+  return entry;
+}
+
+function cacheSet(key, ct, body) {
+  if (body.length > 2 * 1024 * 1024) return;
+  if (_resourceCache.size >= CACHE_MAX_SIZE) {
+    const oldest = _resourceCache.keys().next().value;
+    _resourceCache.delete(oldest);
+  }
+  _resourceCache.set(key, { ct, body, ts: Date.now() });
+}
+
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(express.json({ limit: "50mb" }));
-app.use(express.static(join(__dirname, "public")));
+app.use(express.raw({ type: "*/*", limit: "50mb" }));
+app.use(express.static(join(__dirname, "public"), {
+  maxAge: "1h",
+  etag: true,
+  lastModified: true,
+}));
 
 /* ═══════════════════════════════════════════
    URL encoding / decoding helpers
@@ -443,6 +471,7 @@ async function handleProxy(req, res) {
       method: req.method,
       headers,
       redirect: "manual",
+      signal: AbortSignal.timeout(25000),
     };
 
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && req.body) {
@@ -459,6 +488,15 @@ async function handleProxy(req, res) {
       } else {
         fetchOpts.body = req.body;
         if (ct) fetchOpts.headers["content-type"] = ct;
+      }
+    }
+
+    if (req.method === "GET") {
+      const cached = cacheGet("p:" + targetUrl);
+      if (cached && cached.ct && !cached.ct.includes("text/html")) {
+        res.set("content-type", cached.ct);
+        res.set("X-Void-Cache", "HIT");
+        return res.send(cached.body);
       }
     }
 
@@ -502,23 +540,30 @@ async function handleProxy(req, res) {
       return;
     }
 
-    // CSS → rewrite url()
     if (ct.includes("text/css")) {
       const text = await response.text();
-      res.type("text/css; charset=utf-8").send(rewriteCss(text, targetUrl));
+      const rewritten = rewriteCss(text, targetUrl);
+      cacheSet("p:" + targetUrl, "text/css; charset=utf-8", rewritten);
+      res.type("text/css; charset=utf-8").send(rewritten);
       return;
     }
 
     if (ct.includes("javascript") || ct.includes("ecmascript")) {
       const text = await response.text();
-      res.type(ct).send(rewriteJsUrls(text, targetUrl, "/p/"));
+      const rewritten = rewriteJsUrls(text, targetUrl, "/p/");
+      cacheSet("p:" + targetUrl, ct, rewritten);
+      res.type(ct).send(rewritten);
       return;
     }
 
-    // Everything else → stream passthrough
     res.set("content-type", ct);
     const cl = response.headers.get("content-length");
     if (cl) res.set("content-length", cl);
+
+    if (/\/(image|font|woff|ttf|otf|png|jpg|jpeg|gif|webp|avif|svg|ico|mp4|webm|mp3)/i.test(ct)) {
+      res.set("Cache-Control", "public, max-age=86400");
+    }
+
     if (response.body && typeof Readable.fromWeb === "function") {
       try {
         Readable.fromWeb(response.body).pipe(res);
@@ -526,6 +571,7 @@ async function handleProxy(req, res) {
       } catch {}
     }
     const buf = Buffer.from(await response.arrayBuffer());
+    if (buf.length < 2 * 1024 * 1024) cacheSet("p:" + targetUrl, ct, buf);
     res.send(buf);
   } catch (err) {
     const isLogOrAnalytics = /\.(google|googleapis|gstatic)\.com\/(log|analytics|collect|gen_204)/i.test(targetUrl) || /\/(log|analytics|collect|beacon|ping)(\?|&|$)/i.test(targetUrl);
@@ -1037,6 +1083,7 @@ function requestWithNode(targetUrl, opts, redirectCount = 0) {
       method: opts.method || "GET",
       headers: opts.headers || {},
       rejectUnauthorized: true,
+      agent: isHttps ? httpsAgent : httpAgent,
     };
     const req = lib.request(reqOpts, (res) => {
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && redirectCount < EXPERIMENTAL_MAX_REDIRECTS) {
