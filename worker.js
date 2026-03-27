@@ -85,6 +85,33 @@ function cleanResponseHeaders(headers, finalUrl, ct) {
 
 var _cookieJar = {};
 
+function rewriteCss(css, baseUrl, proxyBase) {
+  css = css.replace(/@import\s+url\(\s*(['"]?)((?!data:)[^)'"]+)\1\s*\)/gi, function(m, q, rawUrl) {
+    try {
+      var abs = new URL(rawUrl.trim(), baseUrl).href;
+      if (!/^https?:\/\//i.test(abs)) return m;
+      return '@import url(' + q + proxyBase + '?url=' + encodeURIComponent(abs) + q + ')';
+    } catch(e) { return m; }
+  });
+  css = css.replace(/@import\s+(['"])([^'"]+)\1/gi, function(m, q, rawUrl) {
+    try {
+      var abs = new URL(rawUrl.trim(), baseUrl).href;
+      if (!/^https?:\/\//i.test(abs)) return m;
+      return '@import ' + q + proxyBase + '?url=' + encodeURIComponent(abs) + q;
+    } catch(e) { return m; }
+  });
+  css = css.replace(/url\(\s*(['"]?)((?!data:|blob:|#)[^)'"]+)\1\s*\)/gi, function(m, q, rawUrl) {
+    rawUrl = rawUrl.trim();
+    if (/^(data:|blob:|#)/i.test(rawUrl)) return m;
+    try {
+      var abs = new URL(rawUrl, baseUrl).href;
+      if (!/^https?:\/\//i.test(abs)) return m;
+      return 'url(' + q + proxyBase + '?url=' + encodeURIComponent(abs) + q + ')';
+    } catch(e) { return m; }
+  });
+  return css;
+}
+
 export default {
   async fetch(request, env, ctx) {
     var url = new URL(request.url);
@@ -175,6 +202,17 @@ export default {
 
       if (hops > 0) {
         respHeaders.set('X-Void-Redirects', String(hops));
+      }
+
+      if (ct.indexOf('text/css') >= 0) {
+        var cssText = await upstream.text();
+        var proxyBase = url.origin + url.pathname;
+        cssText = rewriteCss(cssText, finalUrl, proxyBase);
+        return new Response(cssText, {
+          status: upstream.status,
+          statusText: upstream.statusText,
+          headers: respHeaders
+        });
       }
 
       return new Response(upstream.body, {

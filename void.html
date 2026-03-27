@@ -1305,6 +1305,10 @@ function _clientInjection(){
     return _of.call(this, u, o).then(function(r){
       var sc = r.headers.get('x-void-set-cookie');
       if(sc && _ou) _parseSetCookies(sc, _ou);
+      if(_ou){
+        var _fin = r.headers.get('x-void-final-url') || _ou;
+        try { Object.defineProperty(r, 'url', { get: function(){ return _fin; }, configurable: true }); } catch(e){}
+      }
       return r;
     }).catch(function(e){
       _dbg('err', e.message);
@@ -1337,6 +1341,11 @@ function _clientInjection(){
       try {
         var sc = self.getResponseHeader('x-void-set-cookie');
         if(sc && self._voidOrigUrl) _parseSetCookies(sc, self._voidOrigUrl);
+        if(self._voidOrigUrl){
+          var _fin = null;
+          try { _fin = self.getResponseHeader('x-void-final-url'); } catch(e){}
+          try { Object.defineProperty(self, 'responseURL', { get: function(){ return _fin || self._voidOrigUrl; }, configurable: true }); } catch(e){}
+        }
       } catch(e){}
     });
     return result;
@@ -1413,6 +1422,134 @@ function _clientInjection(){
     });
   }
 
+  /* ── Proxy src/href property setters on element prototypes ── */
+  try {
+    var _scriptSrcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+    if(_scriptSrcDesc && _scriptSrcDesc.set){
+      Object.defineProperty(HTMLScriptElement.prototype, 'src', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _scriptSrcDesc.set.call(this, v);
+        },
+        get: _scriptSrcDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _linkHrefDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
+    if(_linkHrefDesc && _linkHrefDesc.set){
+      Object.defineProperty(HTMLLinkElement.prototype, 'href', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _linkHrefDesc.set.call(this, v);
+        },
+        get: _linkHrefDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _imgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+    if(_imgSrcDesc && _imgSrcDesc.set){
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _imgSrcDesc.set.call(this, v);
+        },
+        get: _imgSrcDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  var _mediaCls = ['HTMLVideoElement','HTMLAudioElement','HTMLSourceElement','HTMLEmbedElement'];
+  for(var _mi = 0; _mi < _mediaCls.length; _mi++){
+    (function(cls){
+      try {
+        var proto = window[cls] && window[cls].prototype;
+        if(!proto) return;
+        var desc = Object.getOwnPropertyDescriptor(proto, 'src');
+        if(desc && desc.set){
+          Object.defineProperty(proto, 'src', {
+            set: function(v){
+              if(v && typeof v === 'string'){
+                var a = _abs(v);
+                if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+              }
+              desc.set.call(this, v);
+            },
+            get: desc.get,
+            configurable: true
+          });
+        }
+      } catch(e){}
+    })(_mediaCls[_mi]);
+  }
+
+  /* ── Element.setAttribute override ── */
+  var _origSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name, value){
+    if(value && typeof value === 'string'){
+      var n = name.toLowerCase();
+      var tag = this.tagName;
+      if(n === 'src' && (tag === 'SCRIPT' || tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE' || tag === 'EMBED' || tag === 'IFRAME')){
+        var a = _abs(value);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
+      } else if(n === 'href' && tag === 'LINK'){
+        var a = _abs(value);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
+      } else if(n === 'srcset'){
+        value = _rewriteSrcset(value);
+      }
+    }
+    return _origSetAttribute.call(this, name, value);
+  };
+
+  /* ── Worker/SharedWorker proxy ── */
+  var _OrigWorker = window.Worker;
+  if(_OrigWorker){
+    window.Worker = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
+      }
+      return opts ? new _OrigWorker(url, opts) : new _OrigWorker(url);
+    };
+    window.Worker.prototype = _OrigWorker.prototype;
+  }
+  var _OrigSharedWorker = window.SharedWorker;
+  if(_OrigSharedWorker){
+    window.SharedWorker = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
+      }
+      return opts ? new _OrigSharedWorker(url, opts) : new _OrigSharedWorker(url);
+    };
+    window.SharedWorker.prototype = _OrigSharedWorker.prototype;
+  }
+
+  /* ── navigator.sendBeacon override ── */
+  if(navigator.sendBeacon){
+    var _origBeacon = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = function(url, data){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a)) url = _proxied(a);
+      }
+      return _origBeacon(url, data);
+    };
+  }
+
   /* ── Block ServiceWorker registration ── */
   if(navigator.serviceWorker){
     navigator.serviceWorker.register = function(){ return Promise.reject(new Error('blocked by proxy')); };
@@ -1457,7 +1594,7 @@ function _clientInjection(){
         if(n.nodeType !== 1) continue;
         _rewriteNode(n);
         if(n.querySelectorAll){
-          var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href]');
+          var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src]');
           for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
         }
       }
@@ -1482,6 +1619,10 @@ function _clientInjection(){
     if(tag === 'LINK' && el.getAttribute('href')){
       var lh = el.getAttribute('href');
       if(_shouldProxy(lh) && lh.indexOf(_cp) === -1) el.setAttribute('href', _proxied(lh));
+    }
+    if(tag === 'SCRIPT' && el.getAttribute('src')){
+      var scs = el.getAttribute('src');
+      if(_shouldProxy(scs) && scs.indexOf(_cp) === -1) el.setAttribute('src', _proxied(scs));
     }
   }
 
