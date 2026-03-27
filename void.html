@@ -436,6 +436,38 @@
     }
 
     /* ── Ban screen ── */
+    .void-msg-overlay {
+      position: fixed; inset: 0; z-index: 99998;
+      background: rgba(6,6,11,.7); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .3s; pointer-events: none;
+    }
+    .void-msg-overlay.show { opacity: 1; pointer-events: auto; }
+    .void-msg-box {
+      background: var(--card); border: 1px solid rgba(124,106,255,.25);
+      border-radius: 16px; padding: 2rem 2.5rem; max-width: 420px; width: 90%;
+      text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,.5);
+      transform: scale(.9); transition: transform .3s;
+    }
+    .void-msg-overlay.show .void-msg-box { transform: scale(1); }
+    .void-msg-from {
+      font-size: .6rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: .6rem;
+    }
+    .void-msg-text {
+      font-size: .92rem; color: var(--text); line-height: 1.7; margin-bottom: 1.2rem;
+      word-break: break-word;
+    }
+    .void-msg-time { font-size: .65rem; color: var(--muted); margin-bottom: 1rem; }
+    .void-msg-ok {
+      padding: .6rem 2rem; border-radius: 10px; border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-family: inherit; font-weight: 700; font-size: .8rem;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(124,106,255,.3);
+      transition: transform .15s;
+    }
+    .void-msg-ok:hover { transform: translateY(-1px); }
+
     .ban-screen {
       position: fixed; inset: 0; z-index: 99999;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1937,6 +1969,40 @@ $('settings-upd-btn').addEventListener('click', function(){
 });
 
 /* ──────────── User ID init ──────────── */
+function showAdminMessage(text, timestamp, docId){
+  var existing = document.querySelector('.void-msg-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+
+  var overlay = document.createElement('div');
+  overlay.className = 'void-msg-overlay';
+  var timeStr = '';
+  if(timestamp && timestamp.toDate) {
+    var d = timestamp.toDate();
+    timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  }
+  overlay.innerHTML = '<div class="void-msg-box">'
+    + '<div class="void-msg-from">Message from Admin</div>'
+    + '<div class="void-msg-text">' + (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>'
+    + (timeStr ? '<div class="void-msg-time">' + timeStr + '</div>' : '')
+    + '<button class="void-msg-ok">OK</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.classList.add('show'); });
+
+  overlay.querySelector('.void-msg-ok').addEventListener('click', function(){
+    overlay.classList.remove('show');
+    setTimeout(function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
+    if(_db && docId){
+      _db.collection('messages').doc(docId).update({ read: true }).catch(function(){});
+    }
+  });
+  overlay.addEventListener('click', function(e){
+    if(e.target === overlay){
+      overlay.querySelector('.void-msg-ok').click();
+    }
+  });
+}
+
 var _activeUid = initUID();
 var _fbBanCheck = _activeUid ? firebaseRegister(_activeUid) : Promise.resolve(true);
 
@@ -1973,6 +2039,20 @@ if(landing) landing.style.opacity = '0';
             showBanScreen('ADMIN');
           }
         }, function(){});
+
+        setInterval(function(){
+          _db.collection('users').doc(_activeUid).update({
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+          }).catch(function(){});
+        }, 30000);
+
+        _db.collection('messages').where('uid','==',_activeUid).where('read','==',false)
+          .onSnapshot(function(snap){
+            snap.forEach(function(doc){
+              var d = doc.data();
+              showAdminMessage(d.text, d.timestamp, doc.id);
+            });
+          }, function(){});
       }
     });
   }

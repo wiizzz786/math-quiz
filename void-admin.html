@@ -156,6 +156,49 @@
     .req-row .req-meta { font-size: .62rem; color: var(--muted); flex: 1; }
     .req-row .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
+    .uid-online { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,.3); }
+    .uid-online.online { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,.5); }
+    .uid-online.offline { background: var(--muted); opacity: .4; }
+    .uid-online.banned { background: var(--accent2); }
+
+    .btn-msg {
+      padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(124,106,255,.2);
+      background: rgba(124,106,255,.08); color: var(--accent); font-size: .58rem;
+      font-weight: 700; cursor: pointer; transition: all .15s; flex-shrink: 0;
+    }
+    .btn-msg:hover { background: rgba(124,106,255,.2); }
+
+    .msg-modal-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(6,6,11,.7); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .25s; pointer-events: none;
+    }
+    .msg-modal-overlay.show { opacity: 1; pointer-events: auto; }
+    .msg-modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem 2rem; max-width: 440px; width: 90%;
+      box-shadow: 0 16px 60px rgba(0,0,0,.5);
+      transform: scale(.92); transition: transform .25s;
+    }
+    .msg-modal-overlay.show .msg-modal { transform: scale(1); }
+    .msg-modal-title {
+      font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: .8rem;
+    }
+    .msg-modal-to {
+      font-size: .72rem; color: var(--text); margin-bottom: .8rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .msg-modal textarea {
+      width: 100%; min-height: 90px; padding: 10px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); font-family: inherit; font-size: .8rem;
+      resize: vertical; box-sizing: border-box;
+    }
+    .msg-modal textarea:focus { outline: none; border-color: var(--accent); }
+    .msg-modal-actions { display: flex; gap: 8px; margin-top: .8rem; justify-content: flex-end; }
+
     .history-list { display: flex; flex-direction: column; gap: 4px; }
     .history-row {
       display: flex; align-items: center; gap: 10px; padding: 8px 14px;
@@ -303,6 +346,7 @@
         <div class="stat"><div class="stat-label">Version</div><div class="stat-value purple" id="d-version">&mdash;</div></div>
         <div class="stat"><div class="stat-label">Owner ID</div><div class="stat-value green" id="d-owner">&mdash;</div></div>
         <div class="stat"><div class="stat-label">Firestore Users</div><div class="stat-value yellow" id="d-fb-total">&mdash;</div></div>
+        <div class="stat"><div class="stat-label">Online Now</div><div class="stat-value green" id="d-fb-online">0</div></div>
         <div class="stat"><div class="stat-label">Banned</div><div class="stat-value pink" id="d-fb-banned">0</div></div>
         <div class="stat"><div class="stat-label">Total Searches</div><div class="stat-value purple" id="d-fb-searches">&mdash;</div></div>
         <div class="stat"><div class="stat-label">Local UIDs</div><div class="stat-value" id="d-total">0</div></div>
@@ -565,6 +609,11 @@ function refreshDashboard(){
   $('d-owner').textContent = getOwner();
   $('d-total').textContent = getUidLog().length;
   $('d-fb-total').textContent = _allUsers.length || '\u2014';
+  var now = Date.now();
+  var onlineCount = _allUsers.filter(function(u){
+    return !u.banned && u.lastSeen && u.lastSeen.toMillis && (now - u.lastSeen.toMillis()) < 60000;
+  }).length;
+  $('d-fb-online').textContent = onlineCount;
   $('d-fb-banned').textContent = _allUsers.filter(function(u){ return u.banned; }).length;
   $('d-fb-searches').textContent = _allSearches.length || '\u2014';
   $('nav-user-count').textContent = _allUsers.length;
@@ -622,19 +671,41 @@ function renderFirestoreUsers(){
   if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
   if(!_allUsers.length){ list.innerHTML = '<div class="empty-state">No users yet. Open void.html.</div>'; return; }
   _allUsers.sort(function(a,b){ return (b.lastSeen&&b.lastSeen.toMillis?b.lastSeen.toMillis():0)-(a.lastSeen&&a.lastSeen.toMillis?a.lastSeen.toMillis():0); });
+  var now = Date.now();
   _allUsers.forEach(function(u){
     var row = document.createElement('div'); row.className = 'uid-row'+(u.banned?' banned':'');
-    var dot = document.createElement('span'); dot.className = 'uid-dot '+(u.banned?'banned':'active'); row.appendChild(dot);
+
+    var isOnline = false;
+    if(u.lastSeen && u.lastSeen.toMillis){
+      isOnline = (now - u.lastSeen.toMillis()) < 60000;
+    }
+    var onDot = document.createElement('span');
+    onDot.className = 'uid-online ' + (u.banned ? 'banned' : (isOnline ? 'online' : 'offline'));
+    onDot.title = u.banned ? 'Banned' : (isOnline ? 'Online now' : 'Offline');
+    row.appendChild(onDot);
+
     var id = document.createElement('span'); id.className = 'uid-id'; id.textContent = u.uid; row.appendChild(id);
     var label = document.createElement('span'); var lbl = getUserLabel(u.uid);
     label.className = 'uid-label'+(lbl?'':' empty'); label.textContent = lbl||'add label';
     label.addEventListener('click', function(){ startLabelEdit(label, u.uid); }); row.appendChild(label);
+
+    if(isOnline && !u.banned){
+      var liveTag = document.createElement('span'); liveTag.className = 'uid-tag'; liveTag.style.cssText = 'background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);font-size:.5rem;';
+      liveTag.textContent = 'LIVE'; row.appendChild(liveTag);
+    }
+
     var meta = document.createElement('span'); meta.className = 'uid-meta';
     var parts = []; if(u.deviceId) parts.push(u.deviceId); if(u.screenRes) parts.push(u.screenRes); if(u.lastSeen) parts.push('seen '+timeAgo(u.lastSeen));
     meta.textContent = parts.join(' \u00b7 '); meta.title = u.userAgent||''; row.appendChild(meta);
     if(u.uid===owner){ var tag = document.createElement('span'); tag.className = 'uid-tag owner-tag'; tag.textContent = 'OWNER'; row.appendChild(tag); }
     if(u.banned){ var bt = document.createElement('span'); bt.className = 'uid-tag banned-tag'; bt.textContent = 'BANNED'; row.appendChild(bt); }
     var actions = document.createElement('span'); actions.className = 'uid-actions';
+
+    var msg = document.createElement('button'); msg.className = 'btn-msg'; msg.textContent = 'MSG';
+    msg.title = 'Send message to this user';
+    msg.addEventListener('click', function(){ openSendMessage(u.uid); });
+    actions.appendChild(msg);
+
     if(u.banned){
       var ub = document.createElement('button'); ub.className = 'btn btn-success btn-sm'; ub.textContent = 'Unban';
       ub.addEventListener('click', function(){ toggleBan(u.uid,false); }); actions.appendChild(ub);
@@ -663,6 +734,61 @@ function deleteUser(uid){
   _db.collection('users').doc(uid).delete().then(function(){
     _db.collection('requests').doc(uid).delete().catch(function(){});
   }).catch(function(e){ alert('Error: '+e.message); });
+}
+
+function openSendMessage(uid){
+  var existing = document.querySelector('.msg-modal-overlay');
+  if(existing) existing.parentNode.removeChild(existing);
+
+  var lbl = getUserLabel(uid);
+  var displayName = lbl ? lbl + ' (' + uid + ')' : uid;
+
+  var overlay = document.createElement('div');
+  overlay.className = 'msg-modal-overlay';
+  overlay.innerHTML = '<div class="msg-modal">'
+    + '<div class="msg-modal-title">Send Message</div>'
+    + '<div class="msg-modal-to">To: ' + displayName.replace(/</g,'&lt;') + '</div>'
+    + '<textarea id="msg-text" placeholder="Type your message\u2026"></textarea>'
+    + '<div class="msg-modal-actions">'
+    + '<button class="btn btn-ghost btn-sm" id="msg-cancel">Cancel</button>'
+    + '<button class="btn btn-primary btn-sm" id="msg-send">Send</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.classList.add('show'); });
+  overlay.querySelector('#msg-text').focus();
+
+  function close(){
+    overlay.classList.remove('show');
+    setTimeout(function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 250);
+  }
+
+  overlay.querySelector('#msg-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
+
+  overlay.querySelector('#msg-send').addEventListener('click', function(){
+    var text = overlay.querySelector('#msg-text').value.trim();
+    if(!text) return;
+    if(!_db) { alert('Firebase not connected'); return; }
+    var sendBtn = overlay.querySelector('#msg-send');
+    sendBtn.disabled = true; sendBtn.textContent = 'Sending\u2026';
+    _db.collection('messages').add({
+      uid: uid,
+      text: text,
+      read: false,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(){
+      close();
+    }).catch(function(e){
+      alert('Error: ' + e.message);
+      sendBtn.disabled = false; sendBtn.textContent = 'Send';
+    });
+  });
+
+  overlay.querySelector('#msg-text').addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+      overlay.querySelector('#msg-send').click();
+    }
+  });
 }
 
 function fetchUsers(){
