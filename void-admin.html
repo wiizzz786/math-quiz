@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Void Admin</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ff5f8f'/%3E%3Cstop offset='100%25' stop-color='%237c6aff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
     :root {
       --bg: #06060b; --surface: rgba(255,255,255,.022); --surface2: rgba(255,255,255,.04);
       --border: rgba(255,255,255,.055); --border2: rgba(255,255,255,.1);
-      --accent: #7c6aff; --accent2: #ff5f8f; --green: #34d399;
+      --accent: #7c6aff; --accent2: #ff5f8f; --green: #34d399; --yellow: #f0c040;
       --text: #eef0f8; --sub: #9a9bb8; --muted: #464660; --dim: #2a2a3d;
       --rad: 16px; --rad-sm: 10px;
     }
@@ -31,6 +33,12 @@
       padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700;
       letter-spacing: .08em; background: rgba(255,95,143,.15); color: var(--accent2);
     }
+    .header-fb {
+      padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700;
+      letter-spacing: .06em;
+    }
+    .header-fb.on { background: rgba(52,211,153,.15); color: var(--green); }
+    .header-fb.off { background: rgba(255,95,143,.1); color: var(--accent2); }
     .header-ver { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted); margin-left: auto; }
 
     .main { flex: 1; display: flex; overflow: hidden; }
@@ -73,22 +81,29 @@
     .stat-value.green { color: var(--green); }
     .stat-value.pink { color: var(--accent2); }
     .stat-value.purple { color: var(--accent); }
+    .stat-value.yellow { color: var(--yellow); }
 
     .uid-list { display: flex; flex-direction: column; gap: 6px; }
     .uid-row {
       display: flex; align-items: center; gap: 10px; padding: 10px 14px;
       border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--text);
+      font-size: .75rem; color: var(--text); transition: border-color .2s;
     }
+    .uid-row:hover { border-color: var(--border2); }
+    .uid-row.banned { border-color: rgba(255,95,143,.3); background: rgba(255,95,143,.04); }
     .uid-row .uid-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .uid-row .uid-dot.owner { background: var(--green); }
-    .uid-row .uid-dot.other { background: var(--accent); }
-    .uid-row .uid-tag {
-      margin-left: auto; font-size: .55rem; font-weight: 700; padding: 2px 7px;
-      border-radius: 5px; font-family: 'Inter', sans-serif; letter-spacing: .05em;
+    .uid-row .uid-dot.active { background: var(--green); }
+    .uid-row .uid-dot.banned { background: var(--accent2); }
+    .uid-id { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 140px; }
+    .uid-meta { font-size: .62rem; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uid-tag {
+      font-size: .52rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 5px; font-family: 'Inter', sans-serif; letter-spacing: .05em; flex-shrink: 0;
     }
     .uid-tag.owner-tag { background: rgba(52,211,153,.15); color: var(--green); }
-    .uid-tag.current-tag { background: rgba(124,106,255,.15); color: var(--accent); }
+    .uid-tag.banned-tag { background: rgba(255,95,143,.15); color: var(--accent2); }
+    .uid-tag.online-tag { background: rgba(124,106,255,.15); color: var(--accent); }
+    .uid-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
     .debug-console {
       background: #0a0a12; border: 1px solid var(--border); border-radius: var(--rad-sm);
@@ -102,14 +117,11 @@
     .debug-console .d-nav { color: #f0c040; }
     .debug-console .d-info { color: var(--sub); }
 
-    .debug-bar {
-      display: flex; gap: 8px; margin-bottom: 10px; align-items: center;
-    }
+    .debug-bar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
     .debug-url {
       flex: 1; padding: 8px 12px; border-radius: 8px;
       background: var(--dim); border: 1px solid var(--border);
-      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .78rem;
-      outline: none;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .78rem; outline: none;
     }
     .debug-url:focus { border-color: var(--accent); }
 
@@ -118,39 +130,32 @@
       font-family: inherit; font-weight: 700; font-size: .78rem;
       cursor: pointer; transition: all .15s;
     }
+    .btn-sm { padding: 4px 10px; font-size: .65rem; border-radius: 6px; }
     .btn-primary {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: #fff; box-shadow: 0 2px 12px rgba(124,106,255,.25);
     }
     .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,106,255,.4); }
     .btn-primary:active { transform: scale(.97); }
-    .btn-danger {
-      background: rgba(255,95,143,.12); color: var(--accent2); border: 1px solid rgba(255,95,143,.2);
-    }
+    .btn-danger { background: rgba(255,95,143,.12); color: var(--accent2); border: 1px solid rgba(255,95,143,.2); }
     .btn-danger:hover { background: rgba(255,95,143,.25); }
-    .btn-ghost {
-      background: var(--surface); color: var(--sub); border: 1px solid var(--border);
-    }
+    .btn-success { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .btn-success:hover { background: rgba(52,211,153,.25); }
+    .btn-ghost { background: var(--surface); color: var(--sub); border: 1px solid var(--border); }
     .btn-ghost:hover { background: var(--surface2); color: var(--text); }
     .btn:disabled { opacity: .5; cursor: default; transform: none; }
 
     .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-
     .empty-state { text-align: center; padding: 2rem; color: var(--muted); font-size: .85rem; }
-
-    .toggle-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 0; border-bottom: 1px solid var(--border);
-    }
-    .toggle-row:last-child { border-bottom: none; }
-    .toggle-label { font-size: .82rem; font-weight: 600; color: var(--sub); }
-    .toggle-desc { font-size: .65rem; color: var(--muted); margin-top: 2px; }
+    .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse-live 2s ease infinite; }
+    @keyframes pulse-live { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
     @media (max-width: 700px) {
       .sidebar { width: 52px; }
       .nav-item span:not(.nav-ico) { display: none; }
       .nav-item { justify-content: center; padding: 12px 8px; }
       .content { padding: 16px; }
+      .uid-meta { display: none; }
     }
   </style>
 </head>
@@ -159,13 +164,14 @@
 <div class="header">
   <span class="header-logo">void</span>
   <span class="header-tag">ADMIN</span>
+  <span class="header-fb" id="h-fb">FIREBASE</span>
   <span class="header-ver" id="h-ver"></span>
 </div>
 
 <div class="main">
   <div class="sidebar">
     <div class="nav-item active" data-panel="dashboard"><span class="nav-ico">&#9632;</span><span>Dashboard</span></div>
-    <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>User IDs</span></div>
+    <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>Users</span></div>
     <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug Proxy</span></div>
     <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Tools</span></div>
   </div>
@@ -188,7 +194,15 @@
           <div class="stat-value pink" id="d-uid">—</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total UIDs</div>
+          <div class="stat-label">Firestore Users</div>
+          <div class="stat-value yellow" id="d-fb-total">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Banned</div>
+          <div class="stat-value pink" id="d-fb-banned">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Local UIDs</div>
           <div class="stat-value" id="d-total">0</div>
         </div>
       </div>
@@ -197,7 +211,7 @@
         <div class="actions">
           <button class="btn btn-primary" id="btn-check-update">Check for Update</button>
           <button class="btn btn-ghost" id="btn-open-void">Open void.html</button>
-          <button class="btn btn-danger" id="btn-clear-data">Clear All Data</button>
+          <button class="btn btn-danger" id="btn-clear-data">Clear All Local Data</button>
         </div>
       </div>
       <div class="card">
@@ -209,22 +223,25 @@
     <!-- Users -->
     <div class="panel" id="p-users">
       <div class="card">
-        <div class="card-title">All User IDs</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">User IDs generated on this device. Owner ID gets set when void.html first opens.</p>
-        <div class="uid-list" id="uid-list"></div>
+        <div class="card-title"><span class="live-dot"></span>Firestore Users (Real-time)</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">All users registered via void.html across all devices. Updates in real-time.</p>
+        <div class="uid-list" id="fb-uid-list"></div>
       </div>
       <div class="card">
-        <div class="card-title">Add Manual UID to Log</div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" class="debug-url" id="manual-uid" placeholder="XXXX-XXXX-XXXX" style="max-width:240px"/>
-          <button class="btn btn-ghost" id="btn-add-uid">Add</button>
+        <div class="card-title">Local UID Log</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">UIDs stored in this browser's localStorage.</p>
+        <div class="uid-list" id="local-uid-list"></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn-export-uids">Export UIDs</button>
+          <button class="btn btn-danger btn-sm" id="btn-clear-uids">Clear Local Log</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Actions</div>
-        <div class="actions">
-          <button class="btn btn-danger" id="btn-clear-uids">Clear UID Log</button>
-          <button class="btn btn-ghost" id="btn-export-uids">Export UIDs</button>
+        <div class="card-title">Ban by UID</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="debug-url" id="manual-ban-uid" placeholder="XXXX-XXXX-XXXX" style="max-width:240px"/>
+          <button class="btn btn-danger btn-sm" id="btn-manual-ban">Ban</button>
+          <button class="btn btn-success btn-sm" id="btn-manual-unban">Unban</button>
         </div>
       </div>
     </div>
@@ -278,23 +295,48 @@
 
 var $ = function(id){ return document.getElementById(id); };
 var CORS_PROXY = 'https://void-proxy.aadizzz786.workers.dev';
+var VER = '1.0.0';
+var _db = null;
+var _fbOk = false;
+var _allUsers = [];
 
-function getVersion(){
-  try {
-    var p = localStorage.getItem('void_prefs');
-    if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; }
-  } catch(e){}
-  return '1.0.0';
-}
+try {
+  var p = localStorage.getItem('void_prefs');
+  if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; }
+} catch(e){}
+
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyBmZLCV_KSP-lDroPDkqOMtdi4re_GKtdw",
+    authDomain: "void-93d14.firebaseapp.com",
+    projectId: "void-93d14",
+    storageBucket: "void-93d14.firebasestorage.app",
+    messagingSenderId: "745528020435",
+    appId: "1:745528020435:web:10c66751991c7c766bb326"
+  });
+  _db = firebase.firestore();
+  _fbOk = true;
+} catch(e){}
+
+var fbBadge = $('h-fb');
+if(_fbOk){ fbBadge.textContent = 'FIRESTORE ✓'; fbBadge.className = 'header-fb on'; }
+else { fbBadge.textContent = 'OFFLINE'; fbBadge.className = 'header-fb off'; }
+
+$('h-ver').textContent = 'v' + VER;
 
 function getOwner(){ return localStorage.getItem('void_owner') || '—'; }
 function getUid(){ return localStorage.getItem('void_uid') || '—'; }
-function getUidLog(){
-  try { return JSON.parse(localStorage.getItem('void_uid_log') || '[]'); } catch(e){ return []; }
-}
+function getUidLog(){ try { return JSON.parse(localStorage.getItem('void_uid_log') || '[]'); } catch(e){ return []; } }
 
-var VER = getVersion();
-$('h-ver').textContent = 'v' + VER;
+function timeAgo(ts){
+  if(!ts) return 'never';
+  var d = ts.toDate ? ts.toDate() : new Date(ts);
+  var s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if(s < 60) return s + 's ago';
+  if(s < 3600) return Math.floor(s/60) + 'm ago';
+  if(s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
 
 /* ──── Navigation ──── */
 document.querySelectorAll('.nav-item').forEach(function(item){
@@ -304,7 +346,7 @@ document.querySelectorAll('.nav-item').forEach(function(item){
     item.classList.add('active');
     var panel = $('p-' + item.dataset.panel);
     if(panel) panel.classList.add('active');
-    if(item.dataset.panel === 'users') renderUsers();
+    if(item.dataset.panel === 'users') renderLocalUsers();
     if(item.dataset.panel === 'tools') refreshLS();
   });
 });
@@ -315,6 +357,8 @@ function refreshDashboard(){
   $('d-owner').textContent = getOwner();
   $('d-uid').textContent = getUid();
   $('d-total').textContent = getUidLog().length;
+  $('d-fb-total').textContent = _allUsers.length || '—';
+  $('d-fb-banned').textContent = _allUsers.filter(function(u){ return u.banned; }).length;
 }
 refreshDashboard();
 
@@ -327,7 +371,6 @@ $('btn-clear-data').addEventListener('click', function(){
   if(!confirm('Clear ALL Void data from localStorage?')) return;
   ['void_uid', 'void_owner', 'void_uid_log', 'void_prefs'].forEach(function(k){ localStorage.removeItem(k); });
   refreshDashboard();
-  alert('Cleared.');
 });
 
 /* ──── Update checker ──── */
@@ -347,18 +390,14 @@ $('btn-check-update').addEventListener('click', function(){
       var lp = VER.split('.').map(Number);
       var rp = remote.split('.').map(Number);
       var newer = rp[0] > lp[0] || (rp[0]===lp[0] && rp[1] > lp[1]) || (rp[0]===lp[0] && rp[1]===lp[1] && rp[2] > lp[2]);
-
       if(newer){
         status.innerHTML = '<span style="color:#ff5f8f;font-weight:700;">v' + remote + ' available!</span> Downloading…';
         var blob = new Blob([html], { type: 'text/html' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'void.html';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void.html';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
         status.innerHTML = '<span style="color:#34d399;">&#10004; Downloaded v' + remote + '</span>';
       } else {
-        status.innerHTML = '<span style="color:#34d399;">&#10004; You\'re on the latest version (v' + VER + ')</span>';
+        status.innerHTML = '<span style="color:#34d399;">&#10004; Latest version (v' + VER + ')</span>';
       }
       btn.disabled = false; btn.textContent = 'Check for Update';
     })
@@ -368,16 +407,112 @@ $('btn-check-update').addEventListener('click', function(){
     });
 });
 
-/* ──── Users ──── */
-function renderUsers(){
-  var list = $('uid-list');
+/* ──── Firestore real-time user list ──── */
+function renderFirestoreUsers(){
+  var list = $('fb-uid-list');
+  list.innerHTML = '';
+  var owner = getOwner();
+
+  if(!_fbOk){
+    list.innerHTML = '<div class="empty-state">Firebase not connected. Check your config.</div>';
+    return;
+  }
+  if(_allUsers.length === 0){
+    list.innerHTML = '<div class="empty-state">No users registered yet. Open void.html to register.</div>';
+    return;
+  }
+
+  _allUsers.sort(function(a, b){
+    var at = a.lastSeen ? (a.lastSeen.toMillis ? a.lastSeen.toMillis() : 0) : 0;
+    var bt = b.lastSeen ? (b.lastSeen.toMillis ? b.lastSeen.toMillis() : 0) : 0;
+    return bt - at;
+  });
+
+  _allUsers.forEach(function(u){
+    var row = document.createElement('div');
+    row.className = 'uid-row' + (u.banned ? ' banned' : '');
+
+    var dot = document.createElement('span');
+    dot.className = 'uid-dot ' + (u.banned ? 'banned' : 'active');
+    row.appendChild(dot);
+
+    var id = document.createElement('span');
+    id.className = 'uid-id';
+    id.textContent = u.uid;
+    row.appendChild(id);
+
+    var meta = document.createElement('span');
+    meta.className = 'uid-meta';
+    var parts = [];
+    if(u.deviceId) parts.push(u.deviceId);
+    if(u.screenRes) parts.push(u.screenRes);
+    if(u.lastSeen) parts.push('seen ' + timeAgo(u.lastSeen));
+    meta.textContent = parts.join(' · ');
+    meta.title = u.userAgent || '';
+    row.appendChild(meta);
+
+    if(u.uid === owner){
+      var tag = document.createElement('span');
+      tag.className = 'uid-tag owner-tag';
+      tag.textContent = 'OWNER';
+      row.appendChild(tag);
+    }
+    if(u.banned){
+      var btag = document.createElement('span');
+      btag.className = 'uid-tag banned-tag';
+      btag.textContent = 'BANNED';
+      row.appendChild(btag);
+    }
+
+    var actions = document.createElement('span');
+    actions.className = 'uid-actions';
+    if(u.banned){
+      var unban = document.createElement('button');
+      unban.className = 'btn btn-success btn-sm';
+      unban.textContent = 'Unban';
+      unban.addEventListener('click', function(){ toggleBan(u.uid, false); });
+      actions.appendChild(unban);
+    } else {
+      var ban = document.createElement('button');
+      ban.className = 'btn btn-danger btn-sm';
+      ban.textContent = 'Ban';
+      ban.addEventListener('click', function(){ toggleBan(u.uid, true); });
+      actions.appendChild(ban);
+    }
+    row.appendChild(actions);
+
+    list.appendChild(row);
+  });
+  refreshDashboard();
+}
+
+function toggleBan(uid, banned){
+  if(!_db) return;
+  if(banned && !confirm('Ban user ' + uid + '? They will see "Access Denied" next time they open void.html.')) return;
+  _db.collection('users').doc(uid).update({ banned: banned }).then(function(){}).catch(function(e){ alert('Error: ' + e.message); });
+}
+
+if(_fbOk){
+  _db.collection('users').onSnapshot(function(snap){
+    _allUsers = [];
+    snap.forEach(function(doc){ _allUsers.push(doc.data()); });
+    renderFirestoreUsers();
+    refreshDashboard();
+  }, function(err){
+    $('fb-uid-list').innerHTML = '<div class="empty-state" style="color:var(--accent2);">Firestore error: ' + err.message + '</div>';
+  });
+}
+
+/* ──── Local users ──── */
+function renderLocalUsers(){
+  var list = $('local-uid-list');
   list.innerHTML = '';
   var log = getUidLog();
   var owner = getOwner();
   var current = getUid();
 
   if(log.length === 0){
-    list.innerHTML = '<div class="empty-state">No user IDs recorded yet. Open void.html to generate one.</div>';
+    list.innerHTML = '<div class="empty-state">No local UIDs recorded.</div>';
     return;
   }
 
@@ -385,9 +520,10 @@ function renderUsers(){
     var row = document.createElement('div');
     row.className = 'uid-row';
     var dot = document.createElement('span');
-    dot.className = 'uid-dot ' + (uid === owner ? 'owner' : 'other');
+    dot.className = 'uid-dot ' + (uid === owner ? 'active' : 'active');
     row.appendChild(dot);
     var text = document.createElement('span');
+    text.className = 'uid-id';
     text.textContent = uid;
     row.appendChild(text);
     if(uid === owner){
@@ -398,7 +534,7 @@ function renderUsers(){
     }
     if(uid === current && uid !== owner){
       var tag2 = document.createElement('span');
-      tag2.className = 'uid-tag current-tag';
+      tag2.className = 'uid-tag online-tag';
       tag2.textContent = 'CURRENT';
       row.appendChild(tag2);
     }
@@ -406,38 +542,50 @@ function renderUsers(){
   });
 }
 
-$('btn-add-uid').addEventListener('click', function(){
-  var v = $('manual-uid').value.trim();
-  if(!v) return;
-  var log = getUidLog();
-  if(log.indexOf(v) === -1) log.push(v);
-  localStorage.setItem('void_uid_log', JSON.stringify(log));
-  $('manual-uid').value = '';
-  renderUsers();
-  refreshDashboard();
+$('btn-manual-ban').addEventListener('click', function(){
+  var uid = $('manual-ban-uid').value.trim();
+  if(!uid || !_db) return;
+  _db.collection('users').doc(uid).get().then(function(doc){
+    if(doc.exists){
+      return _db.collection('users').doc(uid).update({ banned: true });
+    } else {
+      return _db.collection('users').doc(uid).set({ uid: uid, banned: true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastSeen: null, deviceId: 'manual', userAgent: 'manual ban', screenRes: '' });
+    }
+  }).then(function(){
+    $('manual-ban-uid').value = '';
+  }).catch(function(e){ alert('Error: ' + e.message); });
+});
+
+$('btn-manual-unban').addEventListener('click', function(){
+  var uid = $('manual-ban-uid').value.trim();
+  if(!uid || !_db) return;
+  _db.collection('users').doc(uid).update({ banned: false }).then(function(){
+    $('manual-ban-uid').value = '';
+  }).catch(function(e){ alert('Error: ' + e.message); });
 });
 
 $('btn-clear-uids').addEventListener('click', function(){
-  if(!confirm('Clear all UID log entries?')) return;
+  if(!confirm('Clear local UID log?')) return;
   localStorage.removeItem('void_uid_log');
-  renderUsers();
+  renderLocalUsers();
   refreshDashboard();
 });
 
 $('btn-export-uids').addEventListener('click', function(){
-  var log = getUidLog();
-  var text = 'Void User ID Log\n' + '='.repeat(30) + '\nOwner: ' + getOwner() + '\nCurrent: ' + getUid() + '\n\nAll IDs:\n' + log.join('\n');
-  var blob = new Blob([text], { type: 'text/plain' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'void-uids.txt';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
+  var lines = ['Void User ID Export', '='.repeat(40), 'Owner: ' + getOwner(), 'Current: ' + getUid(), '', '── Local UIDs ──'];
+  getUidLog().forEach(function(u){ lines.push(u); });
+  lines.push('', '── Firestore Users ──');
+  _allUsers.forEach(function(u){
+    var ls = u.lastSeen ? (u.lastSeen.toDate ? u.lastSeen.toDate().toISOString() : '') : 'never';
+    lines.push(u.uid + '  ' + (u.banned ? '[BANNED]' : '[active]') + '  device=' + (u.deviceId || '?') + '  seen=' + ls);
+  });
+  var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void-users-export.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
 });
 
 /* ──── Debug ──── */
 var debugEl = $('debug-console');
-
 function dlog(msg, cls){
   var line = document.createElement('div');
   line.className = 'd-line' + (cls ? ' d-' + cls : '');
@@ -454,50 +602,36 @@ $('btn-debug-go').addEventListener('click', function(){
   var url = $('debug-url').value.trim();
   if(!url) return;
   if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
   var proxyUrl = CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=') + encodeURIComponent(url);
   dlog('TARGET: ' + url, 'info');
   dlog('PROXY:  ' + proxyUrl, 'info');
   dlog('Fetching…', 'nav');
-
   var start = performance.now();
   fetch(proxyUrl)
     .then(function(r){
       var elapsed = (performance.now() - start).toFixed(0);
       dlog('HTTP ' + r.status + ' ' + r.statusText + '  (' + elapsed + 'ms)', r.ok ? 'resp' : 'err');
       dlog('Content-Type: ' + (r.headers.get('content-type') || '(none)'), 'info');
-      dlog('Content-Length: ' + (r.headers.get('content-length') || '(unknown)'), 'info');
       return r.text().then(function(body){
         dlog('Body size: ' + body.length + ' chars', 'info');
-        if(body.length < 500){
-          dlog('Body: ' + body.substring(0, 400), 'info');
-        } else {
-          dlog('Body (first 300): ' + body.substring(0, 300) + '…', 'info');
-        }
-        var isBlock = false;
+        dlog('Body (first 300): ' + body.substring(0, 300) + (body.length > 300 ? '…' : ''), 'info');
         var low = body.slice(0, 4000).toLowerCase();
-        if(low.includes('cloudflare') && (low.includes('challenge') || low.includes('captcha'))){
-          dlog('⚠ Looks like a Cloudflare block page!', 'err');
-          isBlock = true;
-        }
-        if(low.includes('access denied') && body.length < 2000){
-          dlog('⚠ Looks like an access denied page', 'err');
-          isBlock = true;
-        }
-        if(!isBlock) dlog('✓ Response looks valid', 'resp');
+        if(low.includes('cloudflare') && (low.includes('challenge') || low.includes('captcha')))
+          dlog('⚠ Cloudflare block page detected!', 'err');
+        else if(low.includes('access denied') && body.length < 2000)
+          dlog('⚠ Access denied page', 'err');
+        else
+          dlog('✓ Response looks valid', 'resp');
         dlog('─'.repeat(50), 'info');
       });
     })
     .catch(function(err){
-      var elapsed = (performance.now() - start).toFixed(0);
-      dlog('FAILED (' + elapsed + 'ms): ' + err.message, 'err');
+      dlog('FAILED (' + (performance.now() - start).toFixed(0) + 'ms): ' + err.message, 'err');
       dlog('─'.repeat(50), 'info');
     });
 });
 
-$('debug-url').addEventListener('keydown', function(e){
-  if(e.key === 'Enter') $('btn-debug-go').click();
-});
+$('debug-url').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('btn-debug-go').click(); });
 
 /* ──── Tools ──── */
 $('tool-cors-url').value = CORS_PROXY;
@@ -539,16 +673,15 @@ function refreshLS(){
 $('btn-refresh-ls').addEventListener('click', refreshLS);
 
 $('btn-reset-owner').addEventListener('click', function(){
-  if(!confirm('Reset the owner ID? This lets anyone use void.html on this device.')) return;
+  if(!confirm('Reset the owner ID?')) return;
   localStorage.removeItem('void_owner');
   refreshDashboard();
   refreshLS();
-  alert('Owner ID cleared.');
 });
 
 $('btn-nuke').addEventListener('click', function(){
-  if(!confirm('This will delete ALL Void data. Are you sure?')) return;
-  if(!confirm('Really? This cannot be undone.')) return;
+  if(!confirm('Delete ALL Void data? This cannot be undone.')) return;
+  if(!confirm('Really?')) return;
   var keys = [];
   for(var i = 0; i < localStorage.length; i++){
     var k = localStorage.key(i);
@@ -557,7 +690,6 @@ $('btn-nuke').addEventListener('click', function(){
   keys.forEach(function(k){ localStorage.removeItem(k); });
   refreshDashboard();
   refreshLS();
-  alert('Factory reset complete.');
 });
 
 })();

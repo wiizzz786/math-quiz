@@ -465,6 +465,8 @@
       .browser-addr { font-size: .68rem; padding: 6px 10px; }
     }
   </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -1615,6 +1617,62 @@ $('settings-overlay').addEventListener('click', function(e){
     sfxClose();
   }
 });
+/* ──────────── Firebase ──────────── */
+var _db = null;
+try {
+  if(window.firebase){
+    firebase.initializeApp({
+      apiKey: "AIzaSyBmZLCV_KSP-lDroPDkqOMtdi4re_GKtdw",
+      authDomain: "void-93d14.firebaseapp.com",
+      projectId: "void-93d14",
+      storageBucket: "void-93d14.firebasestorage.app",
+      messagingSenderId: "745528020435",
+      appId: "1:745528020435:web:10c66751991c7c766bb326"
+    });
+    _db = firebase.firestore();
+  }
+} catch(e){}
+
+function getDeviceId(){
+  var raw = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + (Intl.DateTimeFormat().resolvedOptions().timeZone || '') + '|' + navigator.language + '|' + (navigator.platform || '');
+  var hash = 0;
+  for(var i = 0; i < raw.length; i++){
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'dev_' + Math.abs(hash).toString(36);
+}
+
+function firebaseRegister(uid){
+  if(!_db) return Promise.resolve(false);
+  var ref = _db.collection('users').doc(uid);
+  var deviceId = getDeviceId();
+  return ref.get().then(function(doc){
+    if(doc.exists){
+      var data = doc.data();
+      if(data.banned) return true;
+      ref.update({
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        deviceId: deviceId,
+        userAgent: navigator.userAgent,
+        screenRes: screen.width + 'x' + screen.height
+      }).catch(function(){});
+      return false;
+    } else {
+      ref.set({
+        uid: uid,
+        deviceId: deviceId,
+        banned: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        userAgent: navigator.userAgent,
+        screenRes: screen.width + 'x' + screen.height
+      }).catch(function(){});
+      return false;
+    }
+  }).catch(function(){ return false; });
+}
+
 /* ──────────── Version & User ID ──────────── */
 var VOID_VERSION = (document.querySelector('meta[name="void-version"]') || {}).content || '0.0.0';
 var VOID_UID_META = document.querySelector('meta[name="void-uid"]');
@@ -1745,6 +1803,7 @@ $('settings-upd-btn').addEventListener('click', function(){
 
 /* ──────────── User ID init ──────────── */
 var _activeUid = initUID();
+var _fbBanCheck = _activeUid ? firebaseRegister(_activeUid) : Promise.resolve(true);
 
 /* ──────────── Boot sequence ──────────── */
 var landing = $('landing');
@@ -1753,16 +1812,31 @@ if(landing) landing.style.opacity = '0';
 (function runBoot(){
   if(!_activeUid) return;
   var screen = $('boot-screen');
-  var logo = $('boot-logo');
   var lines = $('boot-lines');
   var bar = $('boot-bar');
   var barWrap = $('boot-bar-wrap');
   var status = $('boot-status');
+
+  function finishBoot(){
+    _fbBanCheck.then(function(banned){
+      if(banned){
+        showBanScreen('ADMIN');
+        if(screen && screen.parentNode) screen.parentNode.removeChild(screen);
+        return;
+      }
+      if(screen) screen.classList.add('done');
+      if(landing) landing.style.opacity = '';
+      loadPrefs();
+      var _ag = new URLSearchParams(window.location.search).get('go');
+      if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
+      if(screen) setTimeout(function(){
+        if(screen.parentNode) screen.parentNode.removeChild(screen);
+      }, 500);
+    });
+  }
+
   if(!screen){
-    loadPrefs();
-    if(landing) landing.style.opacity = '';
-    var _ag = new URLSearchParams(window.location.search).get('go');
-    if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
+    finishBoot();
     return;
   }
 
@@ -1794,17 +1868,7 @@ if(landing) landing.style.opacity = '0';
   }, t);
   t += 250;
 
-  setTimeout(function(){
-    screen.classList.add('done');
-    if(landing) landing.style.opacity = '';
-    loadPrefs();
-    var _ag = new URLSearchParams(window.location.search).get('go');
-    if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
-  }, t);
-
-  setTimeout(function(){
-    if(screen.parentNode) screen.parentNode.removeChild(screen);
-  }, t + 500);
+  setTimeout(finishBoot, t);
 })();
 
 })();
