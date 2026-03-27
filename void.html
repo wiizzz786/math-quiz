@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <meta name="void-update-repo" content=""/>
+  <meta name="void-update-repo" content="wiizzz786/math-quiz"/>
   <title>Void</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
@@ -31,7 +31,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow: hidden; }
 
-    /* ── Background ── */
     .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
     .wavy-grad {
       position: absolute; inset: -20%;
@@ -48,9 +47,7 @@
       0% { background-position: 0% 0%; }
       100% { background-position: 100% 100%; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      .wavy-grad { animation: none; }
-    }
+    @media (prefers-reduced-motion: reduce) { .wavy-grad { animation: none; } }
     .bg .grid {
       position: absolute; inset: 0;
       background-image:
@@ -68,7 +65,6 @@
 
     .app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; }
 
-    /* ── Entrance animations ── */
     .brand, .card, .hint-row, .foot {
       opacity: 0; transform: translateY(18px);
       animation: enter .7s cubic-bezier(.16,1,.3,1) forwards;
@@ -79,7 +75,6 @@
     .foot     { animation-delay: .5s; }
     @keyframes enter { to { opacity: 1; transform: translateY(0); } }
 
-    /* ── Landing ── */
     .landing {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 2rem 1.5rem; gap: 1.5rem; overflow-y: auto;
@@ -87,7 +82,6 @@
     }
     .landing.hidden { opacity: 0; pointer-events: none; transform: scale(.97); position: absolute; inset: 0; }
 
-    /* ── Brand ── */
     .brand { text-align: center; }
     .brand .logo-text {
       font-size: clamp(4.5rem, 14vw, 8rem); font-weight: 900;
@@ -107,7 +101,6 @@
       text-transform: uppercase; color: var(--muted); margin-top: .6rem;
     }
 
-    /* ── Card ── */
     .card {
       width: 100%; max-width: 660px;
       background: linear-gradient(170deg, rgba(255,255,255,.028) 0%, rgba(255,255,255,.008) 100%);
@@ -122,7 +115,6 @@
         0 0 120px rgba(124,106,255,.035);
     }
 
-    /* ── Search bar ── */
     .search-wrap {
       display: flex; align-items: center; gap: 8px;
       background: rgba(0,0,0,.45);
@@ -156,12 +148,10 @@
     .go-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(124,106,255,.45), inset 0 1px 0 rgba(255,255,255,.15); background-position: 100% 50%; }
     .go-btn:active { transform: scale(.96) translateY(0); }
 
-    /* ── Section dividers ── */
     .section-hdr { display: flex; align-items: center; gap: 10px; margin-top: 1.5rem; margin-bottom: .7rem; }
     .section-hdr span { font-size: .6rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
     .section-hdr::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent 80%); }
 
-    /* ── Engine pills ── */
     .engines { display: flex; gap: 6px; flex-wrap: wrap; }
     .eng-btn {
       position: relative; display: flex; align-items: center; gap: 7px;
@@ -170,7 +160,8 @@
       font-family: inherit; font-size: .74rem; font-weight: 600;
       cursor: pointer; transition: all .2s ease; white-space: nowrap;
     }
-    .eng-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-1px); }
+    .eng-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-2px) scale(1.03); }
+    .eng-btn:active { transform: scale(.94); }
     .eng-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 20px rgba(124,106,255,.1); }
     .eng-btn .ico { width: 16px; height: 16px; border-radius: 3px; }
     .rec-badge {
@@ -181,7 +172,6 @@
       color: #000; box-shadow: 0 2px 8px rgba(52,211,153,.3);
     }
 
-    /* ── Toggle switches ── */
     .opts { display: flex; gap: 16px; flex-wrap: wrap; }
     .opt {
       display: flex; align-items: center; gap: 9px;
@@ -193,12 +183,12 @@
     .toggle-track {
       width: 36px; height: 20px; border-radius: 10px;
       background: var(--dim); border: 1px solid var(--border);
-      position: relative; transition: all .25s; flex-shrink: 0;
+      position: relative; transition: all .3s cubic-bezier(.16,1,.3,1); flex-shrink: 0;
     }
     .toggle-track::after {
       content: ''; position: absolute; top: 2px; left: 2px;
       width: 14px; height: 14px; border-radius: 50%;
-      background: var(--sub); transition: all .25s cubic-bezier(.34,1.56,.64,1);
+      background: var(--sub); transition: all .35s cubic-bezier(.34,1.56,.64,1);
     }
     .opt input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,106,255,.3); }
     .opt input:checked ~ .toggle-track::after { transform: translateX(16px); background: #fff; }
@@ -209,7 +199,6 @@
     .mode-hint { font-size: .65rem; color: var(--muted); margin-top: -4px; margin-bottom: 8px; line-height: 1.35; }
     .opts-backend { flex-direction: column; }
 
-    /* ── Quick links ── */
     .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
     .ql {
       display: flex; align-items: center; gap: 8px;
@@ -218,10 +207,10 @@
       font-family: inherit; font-size: .74rem; font-weight: 600;
       cursor: pointer; transition: all .2s ease; text-decoration: none;
     }
-    .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+    .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 28px rgba(0,0,0,.25); }
+    .ql:active { transform: scale(.95); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
     .ql img { width: 18px; height: 18px; border-radius: 4px; background: rgba(255,255,255,.05); }
 
-    /* ── Hint & footer ── */
     .hint-row {
       font-size: .62rem; color: var(--muted); letter-spacing: .02em;
       display: flex; align-items: center; gap: 6px;
@@ -239,68 +228,194 @@
     }
     .foot .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); opacity: .35; }
 
-    /* ── Browser (iframe mode) ── */
-    .browser {
-      position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
-      background: var(--bg); opacity: 0; pointer-events: none;
-      transition: opacity .25s ease;
-    }
-    .browser.active { opacity: 1; pointer-events: all; }
-    .toolbar {
-      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-      padding: 8px 12px; background: rgba(6,6,11,.96);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-    }
-    .tb-brand { font-weight: 800; font-size: 14px; color: var(--accent); margin-right: 8px; }
-    .tbtn {
-      background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--sub);
-      border-radius: 8px; padding: 8px 14px; font-size: .75rem; font-weight: 600;
-      cursor: pointer; transition: all .15s;
-    }
-    .tbtn:hover { background: rgba(255,255,255,.08); color: var(--text); }
-    .frame-wrap { flex: 1; position: relative; overflow: hidden; }
-    .frame-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
-
-    /* ── Toast ── */
-    .toast {
-      position: fixed; bottom: 1.5rem; left: 50%;
-      transform: translateX(-50%) translateY(12px);
-      background: rgba(10,10,18,.94); border: 1px solid var(--border);
-      backdrop-filter: blur(20px);
-      padding: .6rem 1.4rem; border-radius: var(--rad-sm);
-      font-size: .76rem; font-weight: 500; color: var(--sub);
-      z-index: 200; opacity: 0; transition: opacity .3s, transform .3s;
-      pointer-events: none;
-      box-shadow: 0 8px 30px rgba(0,0,0,.3);
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
     .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
     .mode-btn {
       padding: 6px 12px; border-radius: var(--rad-sm); font-size: .72rem; font-weight: 600;
       background: var(--surface); border: 1px solid var(--border); color: var(--sub);
-      cursor: pointer; transition: all .15s;
+      cursor: pointer; transition: all .25s cubic-bezier(.16,1,.3,1);
     }
-    .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; }
+    .mode-btn:hover { transform: translateY(-1px); }
+    .mode-btn:active { transform: scale(.94); }
+    .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 16px rgba(124,106,255,.15); }
     .mode-btn .tag { font-size: .6rem; opacity: .9; margin-left: 4px; }
-    .update-ctl { position: fixed; top: 12px; right: 12px; z-index: 9999; display: none; }
-    .update-ctl.visible { display: block; }
-    .update-btn {
-      padding: 8px 14px; border-radius: var(--rad-sm);
-      background: rgba(255,255,255,.04); color: var(--sub);
-      border: 1px solid rgba(255,255,255,.08); font-weight: 600; font-size: .8rem;
-      cursor: pointer;
-    }
-    .update-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
-    .update-btn:disabled { opacity: .7; cursor: wait; }
-    .iframe-overlay { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; background: var(--bg); }
-    .iframe-overlay.visible { display: flex; }
-    .iframe-close { align-self: flex-start; margin: 8px 12px; padding: 8px 14px; background: rgba(255,255,255,.06); border: 1px solid var(--border); color: var(--sub); border-radius: var(--rad-sm); font-size: .8rem; font-weight: 600; cursor: pointer; }
-    .iframe-wrap { flex: 1; position: relative; overflow: hidden; }
-    .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
 
-    /* ── Responsive ── */
+    /* ── Browser overlay ── */
+    .browser-overlay {
+      position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; background: var(--bg);
+      transform: translateY(100%); opacity: 0; pointer-events: none;
+      transition: transform .45s cubic-bezier(.16,1,.3,1), opacity .35s ease;
+    }
+    .browser-overlay.visible { transform: translateY(0); opacity: 1; pointer-events: all; }
+    .browser-bar {
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+      padding: 6px 10px; background: rgba(6,6,11,.97);
+      border-bottom: 1px solid var(--border);
+    }
+    .browser-nav-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: transparent; color: var(--sub); font-size: 16px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .2s cubic-bezier(.16,1,.3,1);
+    }
+    .browser-nav-btn:hover { background: var(--surface2); color: var(--text); transform: scale(1.1); }
+    .browser-nav-btn:active { transform: scale(.88); }
+    .browser-nav-btn:disabled { opacity: .25; cursor: default; transform: none; }
+    .browser-nav-btn:disabled:hover { background: transparent; color: var(--sub); transform: none; }
+    .browser-addr {
+      flex: 1; padding: 7px 14px; border-radius: 8px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      color: var(--sub); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+      outline: none; min-width: 0; transition: all .2s;
+    }
+    .browser-addr:focus { border-color: var(--accent); color: var(--text); background: rgba(0,0,0,.5); }
+    .browser-close {
+      padding: 6px 14px; border-radius: 8px; border: none;
+      background: rgba(255,95,143,.12); color: var(--accent2);
+      font-family: inherit; font-weight: 600; font-size: .75rem;
+      cursor: pointer; transition: all .2s cubic-bezier(.16,1,.3,1); white-space: nowrap;
+    }
+    .browser-close:hover { background: rgba(255,95,143,.25); transform: scale(1.05); }
+    .browser-close:active { transform: scale(.92); }
+    .browser-progress {
+      height: 2px; background: transparent; flex-shrink: 0; overflow: hidden;
+    }
+    .browser-progress.loading {
+      background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+      background-size: 200% 100%;
+      animation: progress-slide 1.2s linear infinite;
+    }
+    @keyframes progress-slide { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .browser-frame { flex: 1; position: relative; overflow: hidden; }
+    .browser-frame iframe {
+      width: 100%; height: 100%; border: none; display: block; background: #fff;
+      opacity: 0; transition: opacity .4s ease;
+    }
+    .browser-frame iframe.loaded { opacity: 1; }
+    .browser-status {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding: 4px 12px; background: rgba(6,6,11,.97);
+      border-top: 1px solid var(--border);
+      font-size: .6rem; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+    }
+    .browser-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .browser-status .dot.loading { background: var(--accent); animation: pulse-dot 1s ease infinite; }
+    .browser-status .dot.error { background: var(--accent2); }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      padding: 10px 22px; border-radius: 10px; background: rgba(0,0,0,.85);
+      border: 1px solid var(--border); color: var(--text); font-size: .78rem;
+      font-weight: 500; opacity: 0; pointer-events: none; z-index: 9999;
+      transition: all .3s cubic-bezier(.16,1,.3,1);
+      backdrop-filter: blur(12px);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Boot screen ── */
+    .boot-screen {
+      position: fixed; inset: 0; z-index: 10000;
+      background: #06060b;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1.2rem;
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .boot-screen.done { opacity: 0; pointer-events: none; transform: scale(1.05); }
+    .boot-logo {
+      font-size: 5rem; font-weight: 900; letter-spacing: -.06em;
+      background: linear-gradient(135deg, #fff, #a78bfa, #ff5f8f);
+      background-size: 300% 300%;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: boot-grad 1.5s ease infinite;
+      opacity: 0; transform: scale(.7);
+    }
+    .boot-logo { opacity: 1; transform: scale(1); animation: boot-pop .35s cubic-bezier(.16,1,.3,1) both; }
+    @keyframes boot-pop { from { opacity: 0; transform: scale(.7); } }
+    @keyframes boot-grad { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+    .boot-lines {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted);
+      opacity: 0;
+    }
+    .boot-lines.show { opacity: 1; transition: opacity .2s; }
+    .boot-line { opacity: 0; transform: translateY(6px); }
+    .boot-line.show { opacity: 1; transform: translateY(0); transition: all .15s cubic-bezier(.16,1,.3,1); }
+    .boot-bar-wrap {
+      width: 200px; height: 3px; border-radius: 3px;
+      background: rgba(255,255,255,.06); overflow: hidden;
+      opacity: 0;
+    }
+    .boot-bar-wrap.show { opacity: 1; transition: opacity .2s; }
+    .boot-bar {
+      height: 100%; width: 0; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .15s ease;
+    }
+    .boot-status {
+      font-family: 'JetBrains Mono', monospace; font-size: .55rem;
+      color: var(--green); letter-spacing: .08em; opacity: 0;
+    }
+    .boot-status.show { opacity: 1; transition: opacity .15s; }
+
+    /* ── Settings overlay ── */
+    .settings-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(6,6,11,.85); backdrop-filter: blur(20px);
+      opacity: 0; pointer-events: none; transition: opacity .3s ease;
+    }
+    .settings-overlay.visible { opacity: 1; pointer-events: all; }
+    .settings-card {
+      width: 100%; max-width: 460px;
+      background: linear-gradient(170deg, rgba(255,255,255,.035) 0%, rgba(255,255,255,.01) 100%);
+      border: 1px solid var(--border); border-radius: var(--rad); padding: 2rem;
+      backdrop-filter: blur(20px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 25px 80px -15px rgba(0,0,0,.55);
+      transform: translateY(20px) scale(.95); opacity: 0;
+      transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .3s;
+    }
+    .settings-overlay.visible .settings-card { transform: translateY(0) scale(1); opacity: 1; }
+    .settings-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .settings-title {
+      font-size: 1.4rem; font-weight: 800;
+      background: linear-gradient(135deg, #fff, #a78bfa, #ff5f8f);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .settings-x {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: rgba(255,255,255,.06); color: var(--sub); font-size: 16px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .settings-x:hover { background: rgba(255,95,143,.15); color: var(--accent2); transform: scale(1.1); }
+    .settings-sec { padding: 1rem 0; border-top: 1px solid var(--border); }
+    .settings-sec:first-of-type { border-top: none; padding-top: 0; }
+    .settings-sec-title {
+      font-size: .6rem; font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: .75rem;
+    }
+    .settings-upd-btn {
+      width: 100%; padding: .75rem 1.5rem;
+      background: linear-gradient(135deg, var(--accent), #9f8aff 50%, var(--accent2));
+      background-size: 200% 200%;
+      border: none; border-radius: 10px; color: #fff;
+      font-family: inherit; font-weight: 700; font-size: .85rem;
+      cursor: pointer; transition: all .2s;
+      box-shadow: 0 4px 20px rgba(124,106,255,.3);
+    }
+    .settings-upd-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,106,255,.45); background-position: 100% 50%; }
+    .settings-upd-btn:active { transform: scale(.97); }
+    .settings-upd-btn:disabled { opacity: .6; cursor: wait; transform: none; }
+    .settings-info { font-size: .72rem; color: var(--muted); margin-top: .6rem; line-height: 1.6; }
+    .settings-info a { color: var(--accent); text-decoration: none; }
+    .settings-info a:hover { text-decoration: underline; }
+    .settings-info code { padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,.06); color: #ff8f5f; font-size: .7rem; }
+    .s-kbd {
+      display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px;
+      background: rgba(255,255,255,.035); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .58rem; color: var(--sub);
+    }
+
     @media (max-width: 600px) {
       .card { padding: 1.5rem; border-radius: 16px; }
       .links { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
@@ -308,10 +423,25 @@
       .eng-btn { padding: 7px 11px; font-size: .7rem; }
       .opts { gap: 12px; }
       .brand .logo-text { filter: none; }
+      .browser-bar { gap: 4px; padding: 5px 6px; }
+      .browser-addr { font-size: .68rem; padding: 6px 10px; }
     }
   </style>
 </head>
 <body>
+
+<div class="boot-screen" id="boot-screen">
+  <div class="boot-logo" id="boot-logo">void</div>
+  <div class="boot-lines" id="boot-lines">
+    <div class="boot-line" id="bl-0">initializing proxy engine...</div>
+    <div class="boot-line" id="bl-1">loading CORS backends...</div>
+    <div class="boot-line" id="bl-2">injecting rewrite module...</div>
+    <div class="boot-line" id="bl-3">mounting browser frame...</div>
+    <div class="boot-line" id="bl-4">sound system online</div>
+  </div>
+  <div class="boot-bar-wrap" id="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+  <div class="boot-status" id="boot-status">READY</div>
+</div>
 
 <div class="bg">
   <div class="wavy-grad"></div>
@@ -320,7 +450,6 @@
 </div>
 
 <div class="app">
-
   <div class="landing" id="landing">
     <div class="brand">
       <h1 class="logo-text">void</h1>
@@ -334,19 +463,39 @@
         <button class="go-btn" id="go-btn">Browse</button>
       </div>
 
-      <div id="server-backend-wrap" class="opts opts-backend" style="display:none;margin-bottom:12px;">
+      <div class="section-hdr"><span>Proxy Mode</span></div>
+      <div class="mode-btns" id="mode-btns">
+        <button type="button" class="mode-btn active" data-m="client">Client-side <span class="tag">DEFAULT</span></button>
+        <button type="button" class="mode-btn" data-m="server">Server-side</button>
+        <button type="button" class="mode-btn" data-m="experimental">Experimental</button>
+        <button type="button" class="mode-btn" data-m="uv">UV</button>
+        <button type="button" class="mode-btn" data-m="scramjet">Scramjet</button>
+      </div>
+
+      <div id="cfg-client" style="display:none;">
+        <input type="hidden" id="cors-proxy-url" value="https://void-proxy.aadizzz786.workers.dev"/>
+      </div>
+
+      <div id="cfg-server" class="opts opts-backend" style="display:none;margin-top:10px;">
+        <p class="mode-hint">Requires a running Void proxy server.</p>
         <label class="opt opt-backend">
-          <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Void Server URL <span style="font-weight:400;color:var(--muted);">(required when opening this file directly)</span></span>
+          <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Void Server URL</span>
           <input type="url" id="server-backend" placeholder="http://localhost:8080" autocomplete="off"/>
         </label>
       </div>
 
-      <div class="section-hdr"><span>Proxy Mode</span></div>
-      <div class="mode-btns" id="mode-btns">
-        <button type="button" class="mode-btn active" data-m="server">Server-side <span class="tag">DEFAULT</span></button>
-        <button type="button" class="mode-btn" data-m="experimental">Experimental <span class="tag">CUSTOM</span></button>
-        <button type="button" class="mode-btn" data-m="uv">UV</button>
-        <button type="button" class="mode-btn" data-m="scramjet">Scramjet</button>
+      <div id="cfg-uv" class="opts opts-backend" style="display:none;margin-top:10px;">
+        <label class="opt opt-backend">
+          <span class="opt-label">UV backend URL</span>
+          <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
+        </label>
+      </div>
+
+      <div id="cfg-scramjet" class="opts opts-backend" style="display:none;margin-top:10px;">
+        <label class="opt opt-backend">
+          <span class="opt-label">Scramjet backend URL</span>
+          <input type="url" id="scramjet-backend" placeholder="https://your-scramjet.render.com" autocomplete="off"/>
+        </label>
       </div>
 
       <div class="section-hdr"><span>Search Engine</span></div>
@@ -369,45 +518,22 @@
         </button>
       </div>
 
-      <div class="section-hdr"><span>UV / Scramjet backends</span></div>
-      <p class="mode-hint">When using UV or Scramjet, set your hosted instance URL. Leave blank to use the current origin.</p>
-      <div class="opts opts-backend">
-        <label class="opt opt-backend">
-          <span class="opt-label">UV backend URL</span>
-          <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
-        </label>
-        <label class="opt opt-backend">
-          <span class="opt-label">Scramjet backend URL</span>
-          <input type="url" id="scramjet-backend" placeholder="https://your-scramjet.render.com" autocomplete="off"/>
-        </label>
-      </div>
-
       <div class="section-hdr"><span>Options</span></div>
       <div class="opts">
-        <label class="opt" title="Load in a double iframe (outer + inner) instead of same tab">
-          <input type="checkbox" id="opt-iframe"/>
+        <label class="opt" title="Open in a new tab instead">
+          <input type="checkbox" id="opt-newtab"/>
           <span class="toggle-track"></span>
-          Use iframe
+          New Tab
         </label>
         <label class="opt" title="Open in disguised about:blank tab">
           <input type="checkbox" id="opt-cloak"/>
           <span class="toggle-track"></span>
           Tab Cloak
         </label>
-        <label class="opt" title="Open in a new tab instead">
-          <input type="checkbox" id="opt-newtab"/>
+        <label class="opt" title="Inject Eruda mobile console">
+          <input type="checkbox" id="opt-eruda"/>
           <span class="toggle-track"></span>
-          New Tab
-        </label>
-        <label class="opt" title="Strip JavaScript from proxied pages">
-          <input type="checkbox" id="opt-nojs"/>
-          <span class="toggle-track"></span>
-          No scripts
-        </label>
-        <label class="opt" title="Strip images from proxied pages">
-          <input type="checkbox" id="opt-noimg"/>
-          <span class="toggle-track"></span>
-          No images
+          Eruda
         </label>
       </div>
 
@@ -429,251 +555,1085 @@
     </div>
 
     <div class="hint-row">
-      Press <kbd>Enter</kbd> to browse
+      Press <kbd>Enter</kbd> to browse &nbsp;&middot;&nbsp; Client-side mode needs no server
     </div>
 
     <div class="foot">
       <span>VOID</span>
       <span class="dot"></span>
-      <span>Single file</span>
+      <span>Single file &middot; No server required</span>
     </div>
   </div>
-
 </div>
 
 <div class="toast" id="toast"></div>
-<div id="iframe-overlay" class="iframe-overlay">
-  <button type="button" class="iframe-close" id="iframe-close">&#x2715; Close</button>
-  <div class="iframe-wrap"><iframe id="iframe-outer" title="Proxy"></iframe></div>
+
+<!-- Browser overlay with full chrome -->
+<div class="browser-overlay" id="browser-overlay">
+  <div class="browser-bar">
+    <button class="browser-nav-btn" id="br-back" title="Back (Alt+Left)" disabled>&#x2190;</button>
+    <button class="browser-nav-btn" id="br-fwd" title="Forward (Alt+Right)" disabled>&#x2192;</button>
+    <button class="browser-nav-btn" id="br-refresh" title="Refresh">&#x21BB;</button>
+    <input class="browser-addr" id="br-addr" type="text" placeholder="URL" spellcheck="false" autocomplete="off"/>
+    <button class="browser-close" id="br-close">&#x2715; Close</button>
+  </div>
+  <div class="browser-progress" id="br-progress"></div>
+  <div class="browser-frame">
+    <iframe id="br-iframe" title="Proxy"></iframe>
+  </div>
+  <div class="browser-status" id="br-status">
+    <span class="dot" id="br-dot"></span>
+    <span id="br-status-text">Ready</span>
+  </div>
 </div>
-<div id="update-ctl" class="update-ctl" aria-hidden="true">
-  <button type="button" class="update-btn" id="update-btn">Update</button>
+
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-card">
+    <div class="settings-hdr">
+      <span class="settings-title">Settings</span>
+      <button class="settings-x" id="settings-x">&#x2715;</button>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">Update</div>
+      <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
+      <p class="settings-info">Downloads the latest <code>void.html</code> from <a href="https://github.com/wiizzz786/math-quiz" target="_blank">GitHub</a>.</p>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">Keyboard Shortcuts</div>
+      <p class="settings-info">
+        <span class="s-kbd">Q</span> Settings &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Esc</span> Close &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Alt+&#x2190;</span> Back &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Alt+&#x2192;</span> Forward &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Ctrl+L</span> Address bar
+      </p>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">About</div>
+      <p class="settings-info">Void Proxy &mdash; Single-file client-side web proxy.<br>
+        Source: <a href="https://github.com/wiizzz786/math-quiz" target="_blank">wiizzz786/math-quiz</a>
+      </p>
+    </div>
+  </div>
 </div>
 
 <script>
 (function(){
-  var $ = function(id){ return document.getElementById(id); };
-  var input = $('url-input');
+'use strict';
 
-  var engine = 'brave';
-  var mode = 'server';
+var $ = function(id){ return document.getElementById(id); };
+var input = $('url-input');
 
-  function getMode() {
-    var active = document.querySelector('.mode-btn.active');
-    return (active && active.dataset.m) ? active.dataset.m : 'server';
+/* ──────────── State ──────────── */
+var engine = 'brave';
+var mode = 'client';
+var navHistory = [];
+var navIdx = -1;
+var currentUrl = '';
+var isLoading = false;
+
+/* ──────────── Sound engine (Web Audio API) ──────────── */
+var _audioCtx = null;
+function getAudio(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+function playTone(freq, dur, type, vol){
+  try {
+    var ctx = getAudio();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol || 0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (dur || 0.1));
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (dur || 0.1));
+  } catch(e){}
+}
+function sfxClick(){ playTone(800, 0.07, 'sine', 0.18); }
+function sfxNav(){ playTone(600, 0.09, 'sine', 0.15); setTimeout(function(){ playTone(900, 0.12, 'sine', 0.15); }, 60); }
+function sfxOpen(){ playTone(400, 0.12, 'sine', 0.14); setTimeout(function(){ playTone(600, 0.14, 'sine', 0.16); }, 80); setTimeout(function(){ playTone(900, 0.18, 'sine', 0.14); }, 160); }
+function sfxClose(){ playTone(700, 0.09, 'sine', 0.15); setTimeout(function(){ playTone(400, 0.14, 'sine', 0.12); }, 70); }
+function sfxError(){ playTone(300, 0.18, 'triangle', 0.2); setTimeout(function(){ playTone(200, 0.25, 'triangle', 0.16); }, 120); }
+function sfxToggle(){ playTone(1200, 0.05, 'sine', 0.14); }
+function sfxSuccess(){ playTone(523, 0.1, 'sine', 0.15); setTimeout(function(){ playTone(659, 0.1, 'sine', 0.15); }, 80); setTimeout(function(){ playTone(784, 0.15, 'sine', 0.14); }, 160); }
+
+function sfxBoot(){
+  var t = 0;
+  var notes = [
+    [261, 0.08, 'sine', 0.12],
+    [329, 0.08, 'sine', 0.13],
+    [392, 0.08, 'sine', 0.14],
+    [523, 0.1,  'sine', 0.15],
+    [659, 0.1,  'sine', 0.14],
+    [784, 0.15, 'sine', 0.16],
+    [1046,0.25, 'sine', 0.13],
+  ];
+  for(var i = 0; i < notes.length; i++){
+    (function(n, delay){
+      setTimeout(function(){ playTone(n[0], n[1], n[2], n[3]); }, delay);
+    })(notes[i], t);
+    t += 65;
   }
+}
 
-  var isFileProtocol = window.location.protocol === 'file:';
+function sfxBootTick(){ playTone(1400, 0.02, 'square', 0.06); }
+function sfxBootDone(){
+  playTone(523, 0.12, 'sine', 0.18);
+  setTimeout(function(){ playTone(784, 0.12, 'sine', 0.18); }, 80);
+  setTimeout(function(){ playTone(1046, 0.2, 'sine', 0.16); }, 160);
+  setTimeout(function(){ playTone(1318, 0.3, 'sine', 0.12); }, 260);
+}
 
-  function getServerBase() {
-    var custom = ($('server-backend') && $('server-backend').value.trim()) || '';
-    if (custom) return custom.replace(/\/+$/, '');
-    if (!isFileProtocol) return window.location.origin;
-    return '';
+/* ──────────── CORS Proxy backends ──────────── */
+var _workingBackendIdx = 0;
+
+var CORS_BACKENDS = [
+  { name: 'allorigins',  fn: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); }, corsBase: 'https://api.allorigins.win/raw?url=',    type: 'json' },
+  { name: 'cors.lol',    fn: function(u){ return 'https://api.cors.lol/?url=' + encodeURIComponent(u); },          corsBase: 'https://api.cors.lol/?url=',              type: 'raw' },
+  { name: 'codetabs',    fn: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }, corsBase: 'https://api.codetabs.com/v1/proxy?quest=', type: 'raw' },
+  { name: 'corsproxy',   fn: function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },          corsBase: 'https://corsproxy.io/?url=',              type: 'raw' },
+];
+
+function getCustomCorsProxy(){
+  var v = ($('cors-proxy-url') && $('cors-proxy-url').value.trim()) || '';
+  return v;
+}
+
+function getActiveCorsBase(){
+  var custom = getCustomCorsProxy();
+  if(custom) return custom;
+  return CORS_BACKENDS[_workingBackendIdx].corsBase;
+}
+
+function makeCorsUrl(targetUrl){
+  var base = getActiveCorsBase();
+  if(base.includes('?')) return base + encodeURIComponent(targetUrl);
+  return base + '?url=' + encodeURIComponent(targetUrl);
+}
+
+function looksLikeBlockPage(text){
+  if(!text || text.length < 50) return true;
+  var low = text.slice(0, 4000).toLowerCase();
+  if(low.includes('cloudflare') && (low.includes('challenge') || low.includes('blocked') || low.includes('captcha'))) return true;
+  if(low.includes('sorry, you have been blocked')) return true;
+  if(low.includes('attention required') && low.includes('cloudflare')) return true;
+  if(low.includes('access denied') && text.length < 2000) return true;
+  return false;
+}
+
+function detectCharset(headers, htmlBytes){
+  var ct = headers.get('content-type') || '';
+  var m = ct.match(/charset=([^\s;]+)/i);
+  if(m) return m[1].replace(/['"]/g,'');
+  var peek = new TextDecoder('ascii', { fatal: false }).decode(htmlBytes.slice(0, 4096));
+  var metaM = peek.match(/<meta[^>]*charset=["']?([^"'\s;>]+)/i);
+  if(metaM) return metaM[1];
+  var httpM = peek.match(/<meta[^>]*content=["'][^"']*charset=([^"'\s;]+)/i);
+  if(httpM) return httpM[1];
+  return 'utf-8';
+}
+
+function decodeBody(buf, headers){
+  var charset = detectCharset(headers, new Uint8Array(buf));
+  try { return new TextDecoder(charset, { fatal: false }).decode(buf); }
+  catch(e){ return new TextDecoder('utf-8', { fatal: false }).decode(buf); }
+}
+
+var _lastBlobUrl = null;
+function cleanBlobUrl(){
+  if(_lastBlobUrl){ URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
+}
+
+/* ──────────── Search Engines ──────────── */
+var SEARCH = {
+  brave:  function(q){ return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
+  google: function(q){ return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
+  ddg:    function(q){ return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); },
+  bing:   function(q){ return 'https://www.bing.com/search?q=' + encodeURIComponent(q); },
+  yahoo:  function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
+};
+
+function toUrl(raw){
+  raw = raw.trim();
+  if(!raw) return null;
+  if(/^https?:\/\//i.test(raw)) return raw;
+  if(raw.includes('.') && !raw.includes(' ')) return 'https://' + raw;
+  return SEARCH[engine](raw);
+}
+
+/* ──────────── Helpers ──────────── */
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3500);
+}
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getMode(){
+  var active = document.querySelector('.mode-btn.active');
+  return (active && active.dataset.m) ? active.dataset.m : 'client';
+}
+
+function getServerBase(){
+  return ($('server-backend') && $('server-backend').value.trim()) || '';
+}
+
+/* ──────────── Mode UI toggling ──────────── */
+function updateModeUI(){
+  var m = getMode();
+  $('cfg-client').style.display   = m === 'client' ? '' : 'none';
+  $('cfg-server').style.display   = (m === 'server' || m === 'experimental') ? '' : 'none';
+  $('cfg-uv').style.display       = m === 'uv' ? '' : 'none';
+  $('cfg-scramjet').style.display = m === 'scramjet' ? '' : 'none';
+}
+
+/* ──────────── Client-side proxy engine ──────────── */
+
+function _clientInjection(){
+  var _b = '%%BASE%%';
+  var _cp = '%%CORS%%';
+  var _eruda = '%%ERUDA%%';
+  var _cur = _b;
+
+  function _abs(u){
+    try { return new URL(u, _cur).href; } catch(e){ return u; }
   }
-
-  if (isFileProtocol) {
-    var wrap = $('server-backend-wrap');
-    if (wrap) wrap.style.display = '';
-    try {
-      var saved = JSON.parse(localStorage.getItem('void_prefs') || '{}');
-      if (saved.serverBackend && $('server-backend')) $('server-backend').value = saved.serverBackend;
-    } catch(e){}
+  function _proxied(u){
+    var abs = _abs(u);
+    if(!/^https?:\/\//i.test(abs)) return abs;
+    if(_cp.indexOf('?') >= 0) return _cp + encodeURIComponent(abs);
+    return _cp + '?url=' + encodeURIComponent(abs);
   }
+  function _shouldProxy(u){
+    return typeof u === 'string' && /^https?:\/\//i.test(u);
+  }
+  var _top = window.top || window.parent;
+  function _nav(url){ _top.postMessage({ type: 'void_navigate', url: url }, '*'); }
+  function _updateBase(url){ _cur = url; _top.postMessage({ type: 'void_url', url: url }, '*'); }
 
-  function buildProxyUrl(targetUrl) {
-    var base = getServerBase();
-    var m = getMode();
-    var uvBackend = ($('uv-backend') && $('uv-backend').value.trim()) || '';
-    var scramjetBackend = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
-    var q = 'url=' + encodeURIComponent(targetUrl);
-    if ($('opt-nojs') && $('opt-nojs').checked) q += '&nojs=1';
-    if ($('opt-noimg') && $('opt-noimg').checked) q += '&noimg=1';
-    if ($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
-    if (m === 'uv' && uvBackend) {
-      var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
-      return uvBackend.replace(/\/+$/, '') + sep + q;
+  /* ── Spoof iframe detection ── */
+  try { Object.defineProperty(window, 'top', { get: function(){ return window; }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
+
+  /* ── Intercept location changes ── */
+  try {
+    var _origAssign = Location.prototype.assign;
+    Location.prototype.assign = function(url){
+      var a = _abs(url);
+      if(_shouldProxy(a)){ _nav(a); return; }
+      _origAssign.call(this, url);
+    };
+    var _origReplace = Location.prototype.replace;
+    Location.prototype.replace = function(url){
+      var a = _abs(url);
+      if(_shouldProxy(a)){ _nav(a); return; }
+      _origReplace.call(this, url);
+    };
+  } catch(e){}
+  try {
+    var _locDesc = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    if(_locDesc && _locDesc.set){
+      Object.defineProperty(Location.prototype, 'href', {
+        set: function(v){
+          var a = _abs(v);
+          if(_shouldProxy(a)){ _nav(a); return; }
+          _locDesc.set.call(this, v);
+        },
+        get: _locDesc.get,
+        configurable: true
+      });
     }
-    if (m === 'scramjet' && scramjetBackend) {
-      var sep2 = scramjetBackend.indexOf('?') >= 0 ? '&' : '?';
-      return scramjetBackend.replace(/\/+$/, '') + sep2 + q;
-    }
-    if (!base) {
-      toast('Enter your Void server URL above (e.g. http://localhost:8080)');
-      return null;
-    }
-    return base + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
+  } catch(e){}
+
+  if(_eruda){
+    var es = document.createElement('script');
+    var _erudaCdn = 'https://cdn.jsdelivr.net/npm/eruda';
+    es.src = _cp ? _proxied(_erudaCdn) : _erudaCdn;
+    es.onload = function(){ if(window.eruda) eruda.init(); };
+    (document.head || document.documentElement).appendChild(es);
   }
 
-  var SEARCH = {
-    brave:  function(q){ return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
-    google: function(q){ return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
-    ddg:    function(q){ return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); },
-    bing:   function(q){ return 'https://www.bing.com/search?q=' + encodeURIComponent(q); },
-    yahoo:  function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
+  /* ── Link clicks ── */
+  document.addEventListener('click', function(e){
+    var a = e.target;
+    while(a && a.tagName !== 'A') a = a.parentElement;
+    if(!a) return;
+    var href = a.getAttribute('href');
+    if(!href || href === '#' || href.startsWith('javascript:') || href.startsWith('data:') || href.startsWith('mailto:')) return;
+    if(href.startsWith('#')){ return; }
+    var abs = _abs(href);
+    if(!_shouldProxy(abs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    _nav(abs);
+  }, true);
+
+  /* ── Form submissions (GET + POST) ── */
+  document.addEventListener('submit', function(e){
+    var f = e.target;
+    if(!f || f.tagName !== 'FORM') return;
+    e.preventDefault();
+    e.stopPropagation();
+    var action = f.getAttribute('action') || _cur;
+    var abs = _abs(action);
+    var method = (f.method || 'GET').toUpperCase();
+    if(method === 'GET'){
+      var qs = new URLSearchParams(new FormData(f)).toString();
+      var sep = abs.indexOf('?') >= 0 ? '&' : '?';
+      _nav(abs + sep + qs);
+    } else {
+      _top.postMessage({
+        type: 'void_post',
+        url: abs,
+        body: new URLSearchParams(new FormData(f)).toString(),
+        contentType: 'application/x-www-form-urlencoded'
+      }, '*');
+    }
+  }, true);
+
+  /* ── fetch override ── */
+  var _of = window.fetch;
+  window.fetch = function(u, o){
+    o = o || {};
+    if(typeof u === 'string' && _shouldProxy(u)){
+      u = _proxied(u);
+    } else if(u && typeof u === 'object' && u.url && _shouldProxy(u.url)){
+      u = new Request(_proxied(u.url), u);
+    }
+    return _of.call(this, u, o);
   };
 
-  document.querySelectorAll('.mode-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      mode = btn.dataset.m;
-      savePrefs();
-    });
-  });
-  document.querySelectorAll('.eng-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.eng-btn').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      engine = btn.dataset.e;
-      savePrefs();
-    });
-  });
-
-  function toUrl(raw){
-    raw = raw.trim();
-    if(!raw) return null;
-    if(/^https?:\/\//i.test(raw)) return raw;
-    if(raw.includes('.') && !raw.includes(' ')) return 'https://' + raw;
-    return SEARCH[engine](raw);
-  }
-
-  function toast(msg){
-    var t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(function(){ t.classList.remove('show'); }, 3000);
-  }
-
-  function openCloaked(proxyUrl){
-    var win = window.open(proxyUrl, '_blank');
-    if(!win){ toast('Pop-up blocked — allow pop-ups and try again'); return; }
-    toast('Opened in new tab');
-  }
-
-  function buildDoubleIframeSrcdoc(goUrl) {
-    var safe = goUrl.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return '<!DOCTYPE html><html><head><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none}</style></head><body><iframe src="' + safe + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay;payment"></iframe></body></html>';
-  }
-
-  function navigate(rawOrUrl){
-    var url = rawOrUrl.startsWith('http') ? rawOrUrl : toUrl(rawOrUrl);
-    if(!url) return;
-
-    var proxyUrl = buildProxyUrl(url);
-    if(!proxyUrl) return;
-
-    if($('opt-cloak').checked){
-      openCloaked(proxyUrl);
-      return;
+  /* ── XMLHttpRequest override ── */
+  var _xo = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(){
+    var args = Array.prototype.slice.call(arguments);
+    if(typeof args[1] === 'string' && _shouldProxy(args[1])){
+      args[1] = _proxied(args[1]);
     }
-    if($('opt-iframe') && $('opt-iframe').checked){
-      var outer = $('iframe-outer');
-      var overlay = $('iframe-overlay');
-      if(outer && overlay){ outer.srcdoc = buildDoubleIframeSrcdoc(proxyUrl); overlay.classList.add('visible'); }
-      return;
-    }
-    if($('opt-newtab').checked){
-      window.open(proxyUrl, '_blank');
-      return;
-    }
+    return _xo.apply(this, args);
+  };
 
-    window.location.href = proxyUrl;
-  }
+  /* ── window.open override ── */
+  var _wo = window.open;
+  window.open = function(u){
+    if(u && _shouldProxy(u)){ _nav(u); return null; }
+    return _wo.apply(this, arguments);
+  };
 
-  if($('iframe-close')){
-    $('iframe-close').addEventListener('click', function(){
-      var overlay = $('iframe-overlay');
-      var outer = $('iframe-outer');
-      if(overlay) overlay.classList.remove('visible');
-      if(outer) outer.srcdoc = '';
-    });
-  }
-
-  $('go-btn').addEventListener('click', function(){ navigate(input.value); });
-  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') navigate(input.value); });
-
-  document.querySelectorAll('.ql').forEach(function(el){
-    el.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      var targetUrl = el.dataset.url;
-      if (!targetUrl) return;
-      input.value = targetUrl;
-      navigate(targetUrl);
-    });
+  /* ── History API interception (SPAs) ── */
+  var _hps = history.pushState;
+  var _hrs = history.replaceState;
+  history.pushState = function(state, title, url){
+    _hps.apply(this, arguments);
+    if(url){ _updateBase(_abs(url)); }
+  };
+  history.replaceState = function(state, title, url){
+    _hrs.apply(this, arguments);
+    if(url){ _updateBase(_abs(url)); }
+  };
+  window.addEventListener('popstate', function(){
+    _updateBase(location.href === 'about:srcdoc' ? _cur : _abs(location.href));
   });
 
-  function savePrefs(){
-    try{
-      localStorage.setItem('void_prefs', JSON.stringify({
-        engine: engine,
-        mode: getMode(),
-        cloak: $('opt-cloak').checked,
-        newtab: $('opt-newtab').checked,
-        useIframe: $('opt-iframe') ? $('opt-iframe').checked : false,
-        nojs: $('opt-nojs') ? $('opt-nojs').checked : false,
-        noimg: $('opt-noimg') ? $('opt-noimg').checked : false,
-        serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
-        uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
-        scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
-      }));
-    }catch(e){}
+  /* ── Iframe src interception ── */
+  var _iframeDesc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
+  if(_iframeDesc && _iframeDesc.set){
+    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+      set: function(v){
+        if(v && _shouldProxy(v)) v = _proxied(v);
+        _iframeDesc.set.call(this, v);
+      },
+      get: _iframeDesc.get
+    });
   }
-  function loadPrefs(){
-    try{
-      var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
-      if(p.mode){
-        var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
-        if(mb){ mb.click(); mode = p.mode; }
+
+  /* ── Block ServiceWorker registration ── */
+  if(navigator.serviceWorker){
+    navigator.serviceWorker.register = function(){ return Promise.reject(new Error('blocked by proxy')); };
+  }
+
+  /* ── MutationObserver: rewrite dynamically added elements ── */
+  var _mo = new MutationObserver(function(muts){
+    for(var i = 0; i < muts.length; i++){
+      var added = muts[i].addedNodes;
+      for(var j = 0; j < added.length; j++){
+        var n = added[j];
+        if(n.nodeType !== 1) continue;
+        _rewriteNode(n);
+        if(n.querySelectorAll){
+          var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href]');
+          for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
+        }
       }
-      if(p.engine){
-        var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
-        if(btn) btn.click();
-      }
-      if(p.cloak) $('opt-cloak').checked = true;
-      if(p.newtab) $('opt-newtab').checked = true;
-      if(p.useIframe && $('opt-iframe')) $('opt-iframe').checked = true;
-      if(p.nojs && $('opt-nojs')) $('opt-nojs').checked = true;
-      if(p.noimg && $('opt-noimg')) $('opt-noimg').checked = true;
-      if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
-      if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
-      if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
-    }catch(e){}
-  }
-  loadPrefs();
-  if($('server-backend')) $('server-backend').addEventListener('input', savePrefs);
-  if($('uv-backend')) $('uv-backend').addEventListener('input', savePrefs);
-  if($('scramjet-backend')) $('scramjet-backend').addEventListener('input', savePrefs);
-  $('opt-cloak').addEventListener('change', savePrefs);
-  $('opt-newtab').addEventListener('change', savePrefs);
-  if($('opt-iframe')) $('opt-iframe').addEventListener('change', savePrefs);
-  if($('opt-nojs')) $('opt-nojs').addEventListener('change', savePrefs);
-  if($('opt-noimg')) $('opt-noimg').addEventListener('change', savePrefs);
-
-  var updateCtl = $('update-ctl');
-  var updateBtn = $('update-btn');
-  document.addEventListener('keydown', function(e){
-    if(e.shiftKey && (e.key === 'Escape' || e.code === 'Escape')){
-      e.preventDefault();
-      if(updateCtl) updateCtl.classList.toggle('visible');
     }
   });
-  if(updateBtn) updateBtn.addEventListener('click', function(){
-    var meta = document.querySelector('meta[name="void-update-repo"]');
-    var repo = meta && meta.getAttribute('content') && meta.getAttribute('content').trim();
-    if(!repo){ alert('Set <meta name="void-update-repo" content="user/repo"> to enable update.'); return; }
-    updateBtn.disabled = true;
-    updateBtn.textContent = 'Updating…';
-    var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g, '') + '/main/void.html';
-    fetch(rawUrl).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
-      .then(function(html){ document.open(); document.write(html); document.close(); })
-      .catch(function(err){
-        updateBtn.disabled = false;
-        updateBtn.textContent = 'Update';
-        alert('Update failed: ' + (err.message || 'Check repo and branch (main).'));
-      });
+  _mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  function _rewriteNode(el){
+    var tag = el.tagName;
+    if(!tag) return;
+    if((tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE') && el.getAttribute('src')){
+      var s = el.getAttribute('src');
+      if(_shouldProxy(s) && s.indexOf(_cp) === -1) el.setAttribute('src', _proxied(s));
+    }
+    if((tag === 'IMG' || tag === 'SOURCE') && el.getAttribute('srcset')){
+      el.setAttribute('srcset', _rewriteSrcset(el.getAttribute('srcset')));
+    }
+    if(tag === 'IFRAME' && el.getAttribute('src')){
+      var is = el.getAttribute('src');
+      if(_shouldProxy(is) && is.indexOf(_cp) === -1) el.setAttribute('src', _proxied(is));
+    }
+    if(tag === 'LINK' && el.getAttribute('href')){
+      var lh = el.getAttribute('href');
+      if(_shouldProxy(lh) && lh.indexOf(_cp) === -1) el.setAttribute('href', _proxied(lh));
+    }
+  }
+
+  function _rewriteSrcset(ss){
+    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
+      if(u.indexOf(_cp) !== -1) return u;
+      return _proxied(u);
+    });
+  }
+
+  /* ── Title reporting ── */
+  function reportTitle(){ _top.postMessage({ type: 'void_title', title: document.title }, '*'); }
+  reportTitle();
+  var titleEl = document.querySelector('title');
+  if(titleEl){
+    new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
+  }
+
+  _top.postMessage({ type: 'void_loaded' }, '*');
+}
+
+function buildInjection(baseUrl, corsProxy, eruda){
+  var src = '(' + _clientInjection.toString() + ')();';
+  src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
+  src = src.replace("'%%CORS%%'", JSON.stringify(corsProxy));
+  src = src.replace("'%%ERUDA%%'", eruda ? 'true' : 'false');
+  return src;
+}
+
+function rewriteCssUrls(css, baseUrl, corsBase){
+  if(!css) return css;
+  return css.replace(/url\(\s*(['"]?)((?!data:)[^)'"]+)\1\s*\)/gi, function(m, q, rawUrl){
+    rawUrl = rawUrl.trim();
+    if(rawUrl.indexOf(corsBase) !== -1) return m;
+    try {
+      var abs = new URL(rawUrl, baseUrl).href;
+      if(!/^https?:\/\//i.test(abs)) return m;
+      var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(abs) : corsBase + '?url=' + encodeURIComponent(abs);
+      return 'url(' + q + proxied + q + ')';
+    } catch(e){ return m; }
   });
+}
+
+function rewriteSrcset(ss, baseUrl, corsBase){
+  if(!ss) return ss;
+  return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
+    if(u.indexOf(corsBase) !== -1) return u;
+    var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(u) : corsBase + '?url=' + encodeURIComponent(u);
+    return proxied;
+  });
+}
+
+function clientRewrite(html, baseUrl){
+  var cp = getActiveCorsBase();
+  var eruda = $('opt-eruda') && $('opt-eruda').checked;
+
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
+
+  html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
+
+  var headInsert = '<meta charset="UTF-8"><base href="' + escHtml(baseUrl) + '">';
+  if(/<head/i.test(html)){
+    html = html.replace(/<head([^>]*)>/i, '<head$1>' + headInsert);
+  } else if(/<html/i.test(html)){
+    html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + headInsert + '</head>');
+  } else {
+    html = '<!DOCTYPE html><html><head>' + headInsert + '</head>' + html;
+  }
+
+  html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi, function(m, pre, attr, q, val){
+    return pre + attr + q + rewriteSrcset(val, baseUrl, cp) + q;
+  });
+
+  html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, function(m, attrs, css){
+    return '<style' + attrs + '>' + rewriteCssUrls(css, baseUrl, cp) + '</style>';
+  });
+
+  html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi, function(m, pre, q, css){
+    return pre + 'style=' + q + rewriteCssUrls(css, baseUrl, cp) + q;
+  });
+
+  var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
+  if(/<\/head>/i.test(html)){
+    html = html.replace(/<\/head>/i, injection + '</head>');
+  } else {
+    html = injection + html;
+  }
+
+  return html;
+}
+
+function renderInIframe(html){
+  cleanBlobUrl();
+  var outerHtml = '<!DOCTYPE html><html><head>'
+    + '<style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style>'
+    + '</head><body>'
+    + '<iframe id="f" style="width:100%;height:100%;border:none" '
+    + 'sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" '
+    + 'allow="fullscreen;autoplay;payment;encrypted-media;picture-in-picture"></iframe>'
+    + '<scr' + 'ipt>'
+    + 'window.addEventListener("message",function(e){'
+    + 'if(e.data&&e.data.type==="void_inner_html"){'
+    + 'var b=new Blob([e.data.html],{type:"text/html;charset=utf-8"});'
+    + 'document.getElementById("f").src=URL.createObjectURL(b);'
+    + '}'
+    + '});'
+    + '</scr' + 'ipt></body></html>';
+  var outerBlob = new Blob([outerHtml], { type: 'text/html;charset=utf-8' });
+  _lastBlobUrl = URL.createObjectURL(outerBlob);
+  $('br-iframe').removeAttribute('srcdoc');
+  $('br-iframe').src = _lastBlobUrl;
+  $('br-iframe').onload = function(){
+    $('br-iframe').contentWindow.postMessage({ type: 'void_inner_html', html: html }, '*');
+    $('br-iframe').onload = null;
+  };
+}
+
+function fetchWithTimeout(url, opts, ms){
+  var ctrl = new AbortController();
+  opts = opts || {};
+  opts.signal = ctrl.signal;
+  var timer = setTimeout(function(){ ctrl.abort(); }, ms || 15000);
+  return fetch(url, opts).finally(function(){ clearTimeout(timer); });
+}
+
+async function clientFetch(targetUrl, fetchOpts){
+  var custom = getCustomCorsProxy();
+  if(custom){
+    var proxyUrl = custom.includes('?') ? custom + encodeURIComponent(targetUrl) : custom + '?url=' + encodeURIComponent(targetUrl);
+    var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 15000);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    var ct = (resp.headers.get('content-type') || '').toLowerCase();
+    var buf = await resp.arrayBuffer();
+    var body = decodeBody(buf, resp.headers);
+    if(looksLikeBlockPage(body)) throw new Error('CORS proxy returned a block page');
+    return { body: body, contentType: ct, ok: true };
+  }
+
+  var errors = [];
+  for(var i = 0; i < CORS_BACKENDS.length; i++){
+    var be = CORS_BACKENDS[i];
+    try {
+      var proxyUrl = be.fn(targetUrl);
+      var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 12000);
+      if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
+
+      var body, ct;
+      if(be.type === 'json'){
+        ct = 'text/html';
+        var json = await resp.json();
+        body = json.contents;
+        if(!body && body !== '') throw new Error(be.name + ': empty response');
+      } else {
+        ct = (resp.headers.get('content-type') || '').toLowerCase();
+        var buf = await resp.arrayBuffer();
+        body = decodeBody(buf, resp.headers);
+      }
+
+      if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
+
+      _workingBackendIdx = i;
+      return { body: body, contentType: ct, ok: true };
+    } catch(e){
+      errors.push(e.message);
+    }
+  }
+  throw new Error('All CORS proxies failed:\n' + errors.join('\n'));
+}
+
+/* ──────────── Browser UI helpers ──────────── */
+
+function showBrowser(){
+  $('browser-overlay').classList.add('visible');
+  $('br-iframe').classList.remove('loaded');
+}
+function hideBrowser(){
+  $('browser-overlay').classList.remove('visible');
+  cleanBlobUrl();
+  $('br-iframe').removeAttribute('src');
+  $('br-iframe').removeAttribute('srcdoc');
+  currentUrl = '';
+  updateBrowserNav();
+}
+function setLoading(on){
+  isLoading = on;
+  $('br-progress').className = 'browser-progress' + (on ? ' loading' : '');
+  var dot = $('br-dot');
+  dot.className = 'dot' + (on ? ' loading' : '');
+  $('br-status-text').textContent = on ? 'Loading...' : 'Ready';
+}
+function setError(msg){
+  $('br-dot').className = 'dot error';
+  $('br-status-text').textContent = msg;
+}
+function updateBrowserNav(){
+  $('br-back').disabled = navIdx <= 0;
+  $('br-fwd').disabled = navIdx >= navHistory.length - 1;
+  $('br-addr').value = currentUrl;
+}
+
+/* ──────────── Navigation ──────────── */
+
+async function navigateClient(targetUrl, pushHist, postOpts){
+  showBrowser();
+  setLoading(true);
+  currentUrl = targetUrl;
+  $('br-addr').value = targetUrl;
+
+  if(pushHist !== false){
+    navHistory = navHistory.slice(0, navIdx + 1);
+    navHistory.push(targetUrl);
+    navIdx = navHistory.length - 1;
+  }
+  updateBrowserNav();
+
+  try {
+    var fetchOpts = undefined;
+    if(postOpts){
+      fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' },
+        body: postOpts.body
+      };
+    }
+    var result = await clientFetch(targetUrl, fetchOpts);
+    var ct = result.contentType;
+
+    if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && result.body.length > 0 && result.body.trim().charAt(0) === '<')){
+      renderInIframe(clientRewrite(result.body, targetUrl));
+    } else if(ct.indexOf('image/') >= 0){
+      renderInIframe('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(targetUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>');
+      setLoading(false);
+    } else if(ct.indexOf('application/json') >= 0){
+      renderInIframe('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>');
+      setLoading(false);
+    } else {
+      renderInIframe(clientRewrite(result.body, targetUrl));
+    }
+  } catch(proxyErr){
+    setLoading(false);
+    sfxError();
+    hideBrowser();
+    toast('Failed to load — check your CORS proxy URL');
+  }
+}
+
+function buildServerProxyUrl(targetUrl){
+  var base = getServerBase();
+  if(!base){
+    toast('Enter your Void server URL (e.g. http://localhost:8080)');
+    return null;
+  }
+  var m = getMode();
+  var q = 'url=' + encodeURIComponent(targetUrl);
+  if($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
+  return base.replace(/\/+$/,'') + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
+}
+
+function buildExternalUrl(targetUrl){
+  var m = getMode();
+  if(m === 'uv'){
+    var uv = ($('uv-backend') && $('uv-backend').value.trim()) || '';
+    if(!uv){ toast('Enter your UV backend URL'); return null; }
+    var sep = uv.indexOf('?') >= 0 ? '&' : '?';
+    return uv.replace(/\/+$/,'') + sep + 'url=' + encodeURIComponent(targetUrl);
+  }
+  if(m === 'scramjet'){
+    var sj = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
+    if(!sj){ toast('Enter your Scramjet backend URL'); return null; }
+    var sep2 = sj.indexOf('?') >= 0 ? '&' : '?';
+    return sj.replace(/\/+$/,'') + sep2 + 'url=' + encodeURIComponent(targetUrl);
+  }
+  return null;
+}
+
+function openCloaked(url){
+  var win = window.open('about:blank', '_blank');
+  if(!win){ toast('Pop-up blocked — allow pop-ups and try again'); return; }
+  win.document.open();
+  win.document.write('<!DOCTYPE html><html><head><title>Google Docs</title><link rel="icon" href="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico"><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src="' + url.replace(/"/g, '&quot;') + '"></iframe></body></html>');
+  win.document.close();
+  toast('Opened in cloaked tab');
+}
+
+async function navigate(rawOrUrl){
+  var url = rawOrUrl;
+  if(!/^https?:\/\//i.test(url)){
+    url = toUrl(rawOrUrl);
+  }
+  if(!url) return;
+
+  var m = getMode();
+
+  if(m === 'client'){
+    var _voidBase = location.href.split('?')[0];
+    if($('opt-cloak') && $('opt-cloak').checked){
+      openCloaked(_voidBase + '?go=' + encodeURIComponent(url));
+      return;
+    }
+    if($('opt-newtab') && $('opt-newtab').checked){
+      window.open(_voidBase + '?go=' + encodeURIComponent(url), '_blank');
+      return;
+    }
+    await navigateClient(url, true);
+    return;
+  }
+
+  var proxyUrl = null;
+  if(m === 'server' || m === 'experimental'){
+    proxyUrl = buildServerProxyUrl(url);
+  } else {
+    proxyUrl = buildExternalUrl(url);
+  }
+  if(!proxyUrl) return;
+
+  if($('opt-cloak') && $('opt-cloak').checked){
+    openCloaked(proxyUrl);
+    return;
+  }
+  if($('opt-newtab') && $('opt-newtab').checked){
+    window.open(proxyUrl, '_blank');
+    return;
+  }
+  window.location.href = proxyUrl;
+}
+
+/* ──────────── Event listeners ──────────── */
+
+document.querySelectorAll('.mode-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    sfxClick();
+    document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    mode = btn.dataset.m;
+    updateModeUI();
+    savePrefs();
+  });
+});
+
+document.querySelectorAll('.eng-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    sfxClick();
+    document.querySelectorAll('.eng-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    engine = btn.dataset.e;
+    savePrefs();
+  });
+});
+
+$('go-btn').addEventListener('click', function(){ navigate(input.value); });
+input.addEventListener('keydown', function(e){ if(e.key === 'Enter') navigate(input.value); });
+
+document.querySelectorAll('.ql').forEach(function(el){
+  el.addEventListener('click', function(e){
+    e.preventDefault();
+    var targetUrl = el.dataset.url;
+    if(!targetUrl) return;
+    input.value = targetUrl;
+    navigate(targetUrl);
+  });
+});
+
+$('br-close').addEventListener('click', function(){
+  sfxClose();
+  hideBrowser();
+});
+
+$('br-back').addEventListener('click', function(){
+  if(navIdx > 0){
+    sfxClick();
+    navIdx--;
+    navigateClient(navHistory[navIdx], false);
+  }
+});
+
+$('br-fwd').addEventListener('click', function(){
+  if(navIdx < navHistory.length - 1){
+    sfxClick();
+    navIdx++;
+    navigateClient(navHistory[navIdx], false);
+  }
+});
+
+$('br-refresh').addEventListener('click', function(){
+  sfxClick();
+  if(currentUrl) navigateClient(currentUrl, false);
+});
+
+if($('setup-link')) $('setup-link').addEventListener('click', function(){
+  showBrowser();
+  setLoading(false);
+  $('br-addr').value = 'Setup Instructions';
+  renderInIframe('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    + '*{margin:0;padding:0;box-sizing:border-box}'
+    + 'body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d0d14;color:#eee;font-family:system-ui,sans-serif;padding:2rem}'
+    + '.card{max-width:600px;width:100%}'
+    + 'h1{font-size:2rem;background:linear-gradient(135deg,#a78bfa,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}'
+    + 'p{color:#9a9bb8;line-height:1.7;margin-top:.8rem;font-size:.85rem}'
+    + '.steps{margin-top:1rem;padding:0;list-style:none;counter-reset:s}'
+    + '.steps li{counter-increment:s;padding:.8rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.85rem;color:#c8c8d8;line-height:1.6}'
+    + '.steps li::before{content:counter(s);display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(124,106,255,.2);color:#a78bfa;font-size:.72rem;font-weight:700;margin-right:10px}'
+    + 'a{color:#7c6aff}'
+    + 'code{padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.06);color:#ff8f5f;font-size:.78rem}'
+    + '.tag{display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(52,211,153,.15);color:#34d399;font-size:.65rem;font-weight:700;margin-left:6px}'
+    + '.worker-code{display:block;margin-top:1rem;padding:1rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;font-size:.72rem;color:#9a9bb8;white-space:pre-wrap;max-height:300px;overflow-y:auto}'
+    + '</style></head><body><div class="card">'
+    + '<h1>Setup Your Proxy</h1>'
+    + '<p>Deploy a free Cloudflare Worker to get your own private CORS proxy. Takes about 2 minutes.</p>'
+    + '<ol class="steps">'
+    + '<li>Go to <a href="https://workers.cloudflare.com" target="_blank">workers.cloudflare.com</a> and create a free account <span class="tag">FREE</span></li>'
+    + '<li>In the dashboard, go to <b>Workers &amp; Pages</b> → click <b>Create</b></li>'
+    + '<li>Choose <b>"Hello World"</b> template → give it a name → click <b>Deploy</b></li>'
+    + '<li>Click <b>"Edit code"</b> to open the editor</li>'
+    + '<li>Delete everything in the editor and paste the code from the <code>worker.js</code> file (it\\\'s next to void.html)</li>'
+    + '<li>Click <b>Deploy</b> again</li>'
+    + '<li>Your URL will look like: <code>https://your-name.username.workers.dev</code></li>'
+    + '<li>Go back to Void, paste that URL + <code>/?url=</code> into the <b>CORS Proxy URL</b> field.<br>Example: <code>https://my-proxy.user.workers.dev/?url=</code></li>'
+    + '</ol>'
+    + '<p style="margin-top:1.2rem">That\\\'s it! You get <b>100,000 free requests per day</b>. The proxy runs on Cloudflare\\\'s global network (~50ms latency, 330+ locations).</p>'
+    + '</div></body></html>');
+});
+
+$('br-addr').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){
+    var raw = $('br-addr').value.trim();
+    if(!raw) return;
+    var url = toUrl(raw);
+    if(url) navigateClient(url, true);
+  }
+});
+
+window.addEventListener('message', function(e){
+  if(!e.data || typeof e.data !== 'object') return;
+  if(e.data.type === 'void_navigate' && e.data.url){
+    navigateClient(e.data.url, true);
+  }
+  if(e.data.type === 'void_post' && e.data.url){
+    navigateClient(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
+  }
+  if(e.data.type === 'void_url' && e.data.url){
+    currentUrl = e.data.url;
+    $('br-addr').value = e.data.url;
+  }
+  if(e.data.type === 'void_title' && e.data.title){
+    $('br-status-text').textContent = e.data.title;
+  }
+  if(e.data.type === 'void_loaded'){
+    setLoading(false);
+    sfxNav();
+    $('br-iframe').classList.add('loaded');
+  }
+});
+
+document.addEventListener('keydown', function(e){
+  if(e.altKey && e.key === 'ArrowLeft'){
+    e.preventDefault();
+    $('br-back').click();
+  }
+  if(e.altKey && e.key === 'ArrowRight'){
+    e.preventDefault();
+    $('br-fwd').click();
+  }
+  if(e.key === 'Escape' && $('browser-overlay').classList.contains('visible')){
+    hideBrowser();
+  }
+  if((e.ctrlKey || e.metaKey) && e.key === 'l' && $('browser-overlay').classList.contains('visible')){
+    e.preventDefault();
+    $('br-addr').focus();
+    $('br-addr').select();
+  }
+  if(e.key === 'Escape' && $('settings-overlay').classList.contains('visible')){
+    $('settings-overlay').classList.remove('visible');
+    sfxClose();
+    return;
+  }
+  if((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey){
+    var ae = document.activeElement;
+    if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    if($('browser-overlay').classList.contains('visible')) return;
+    e.preventDefault();
+    var so = $('settings-overlay');
+    if(so.classList.contains('visible')){ so.classList.remove('visible'); sfxClose(); }
+    else { so.classList.add('visible'); sfxOpen(); }
+  }
+});
+
+/* ──────────── Preferences ──────────── */
+
+function savePrefs(){
+  try {
+    localStorage.setItem('void_prefs', JSON.stringify({
+      engine: engine,
+      mode: getMode(),
+      newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
+      cloak: $('opt-cloak') ? $('opt-cloak').checked : false,
+      eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
+      corsProxy: ($('cors-proxy-url') && $('cors-proxy-url').value.trim()) || '',
+      serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
+      uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
+      scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
+    }));
+  } catch(e){}
+}
+
+function loadPrefs(){
+  try {
+    var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+    if(p.mode){
+      var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
+      if(mb){ mb.click(); }
+    }
+    if(p.engine){
+      var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
+      if(btn) btn.click();
+    }
+    if(p.newtab && $('opt-newtab')) $('opt-newtab').checked = true;
+    if(p.cloak && $('opt-cloak')) $('opt-cloak').checked = true;
+    if(p.eruda && $('opt-eruda')) $('opt-eruda').checked = true;
+    if(p.corsProxy && $('cors-proxy-url')) $('cors-proxy-url').value = p.corsProxy;
+    if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
+    if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
+    if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
+  } catch(e){}
+  updateModeUI();
+}
+
+['cors-proxy-url','server-backend','uv-backend','scramjet-backend'].forEach(function(id){
+  var el = $(id);
+  if(el) el.addEventListener('input', savePrefs);
+});
+['opt-newtab','opt-cloak','opt-eruda'].forEach(function(id){
+  var el = $(id);
+  if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
+});
+
+/* ──────────── Settings panel ──────────── */
+$('settings-x').addEventListener('click', function(){
+  $('settings-overlay').classList.remove('visible');
+  sfxClose();
+});
+$('settings-overlay').addEventListener('click', function(e){
+  if(e.target === $('settings-overlay')){
+    $('settings-overlay').classList.remove('visible');
+    sfxClose();
+  }
+});
+$('settings-upd-btn').addEventListener('click', function(){
+  var btn = $('settings-upd-btn');
+  btn.disabled = true;
+  btn.textContent = 'Checking\u2026';
+  var meta = document.querySelector('meta[name="void-update-repo"]');
+  var repo = (meta && meta.getAttribute('content') && meta.getAttribute('content').trim()) || 'wiizzz786/math-quiz';
+  var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g,'') + '/main/void.html';
+  fetch(rawUrl)
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'void.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      btn.textContent = 'Downloaded!';
+      sfxSuccess();
+      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 3000);
+    })
+    .catch(function(err){
+      btn.disabled = false;
+      btn.textContent = 'Check for Update';
+      sfxError();
+      toast('Update failed: ' + err.message);
+    });
+});
+
+/* ──────────── Boot sequence ──────────── */
+var landing = $('landing');
+if(landing) landing.style.opacity = '0';
+
+(function runBoot(){
+  var screen = $('boot-screen');
+  var logo = $('boot-logo');
+  var lines = $('boot-lines');
+  var bar = $('boot-bar');
+  var barWrap = $('boot-bar-wrap');
+  var status = $('boot-status');
+  if(!screen){
+    loadPrefs();
+    if(landing) landing.style.opacity = '';
+    var _ag = new URLSearchParams(window.location.search).get('go');
+    if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
+    return;
+  }
+
+  function trySound(fn){ try { fn(); } catch(e){} }
+
+  var t = 0;
+
+  trySound(sfxBoot);
+  t += 80;
+  setTimeout(function(){ lines.classList.add('show'); barWrap.classList.add('show'); }, t);
+  t += 40;
+
+  var lineEls = [$('bl-0'), $('bl-1'), $('bl-2'), $('bl-3'), $('bl-4')];
+  var pcts = [15, 35, 60, 85, 100];
+  for(var i = 0; i < lineEls.length; i++){
+    (function(el, pct, idx){
+      setTimeout(function(){
+        trySound(sfxBootTick);
+        el.classList.add('show');
+        bar.style.width = pct + '%';
+      }, t + idx * 70);
+    })(lineEls[i], pcts[i], i);
+  }
+  t += lineEls.length * 70 + 50;
+
+  setTimeout(function(){
+    status.classList.add('show');
+    trySound(sfxBootDone);
+  }, t);
+  t += 250;
+
+  setTimeout(function(){
+    screen.classList.add('done');
+    if(landing) landing.style.opacity = '';
+    loadPrefs();
+    var _ag = new URLSearchParams(window.location.search).get('go');
+    if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
+  }, t);
+
+  setTimeout(function(){
+    if(screen.parentNode) screen.parentNode.removeChild(screen);
+  }, t + 500);
+})();
+
 })();
 </script>
 </body>
