@@ -168,6 +168,20 @@
     .eng-btn:active { transform: scale(.94); }
     .eng-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 20px rgba(124,106,255,.1); }
     .eng-btn .ico { width: 16px; height: 16px; border-radius: 3px; }
+    .eng-more-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.03);
+      border: 1.5px dashed var(--border); color: var(--muted);
+      font-family: inherit; font-size: .7rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .eng-more-btn:hover { background: var(--surface); color: var(--sub); border-color: var(--border2); }
+    .eng-more-btn .arrow { font-size: .55rem; transition: transform .2s; }
+    .eng-more-btn.open .arrow { transform: rotate(180deg); }
+    .engines-extra {
+      display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .engines-extra.show { display: flex; }
     .rec-badge {
       position: absolute; top: -7px; right: -5px;
       font-size: .5rem; font-weight: 800; letter-spacing: .06em;
@@ -732,6 +746,33 @@
         <button class="eng-btn" data-e="yahoo">
           <img class="ico" src="https://www.google.com/s2/favicons?domain=yahoo.com&sz=32" alt=""/>Yahoo
         </button>
+        <button class="eng-more-btn" id="eng-more-btn">More <span class="arrow">&#9660;</span></button>
+      </div>
+      <div class="engines engines-extra" id="engines-extra">
+        <button class="eng-btn" data-e="ecosia">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=ecosia.org&sz=32" alt=""/>Ecosia
+        </button>
+        <button class="eng-btn" data-e="startpage">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=startpage.com&sz=32" alt=""/>Startpage
+        </button>
+        <button class="eng-btn" data-e="qwant">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=qwant.com&sz=32" alt=""/>Qwant
+        </button>
+        <button class="eng-btn" data-e="yandex">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=yandex.com&sz=32" alt=""/>Yandex
+        </button>
+        <button class="eng-btn" data-e="searxng">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=searx.be&sz=32" alt=""/>SearXNG
+        </button>
+        <button class="eng-btn" data-e="mojeek">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=mojeek.com&sz=32" alt=""/>Mojeek
+        </button>
+        <button class="eng-btn" data-e="swisscows">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=swisscows.com&sz=32" alt=""/>Swisscows
+        </button>
+        <button class="eng-btn" data-e="ask">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=ask.com&sz=32" alt=""/>Ask
+        </button>
       </div>
 
       <div class="section-hdr"><span>Options</span></div>
@@ -1042,11 +1083,19 @@ try {
 
 /* ──────────── Search Engines ──────────── */
 var SEARCH = {
-  brave:  function(q){ return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
-  google: function(q){ return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
-  ddg:    function(q){ return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); },
-  bing:   function(q){ return 'https://www.bing.com/search?q=' + encodeURIComponent(q); },
-  yahoo:  function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
+  brave:     function(q){ return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
+  google:    function(q){ return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
+  ddg:       function(q){ return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); },
+  bing:      function(q){ return 'https://www.bing.com/search?q=' + encodeURIComponent(q); },
+  yahoo:     function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
+  ecosia:    function(q){ return 'https://www.ecosia.org/search?q=' + encodeURIComponent(q); },
+  startpage: function(q){ return 'https://www.startpage.com/do/search?q=' + encodeURIComponent(q); },
+  qwant:     function(q){ return 'https://www.qwant.com/?q=' + encodeURIComponent(q); },
+  yandex:    function(q){ return 'https://yandex.com/search/?text=' + encodeURIComponent(q); },
+  searxng:   function(q){ return 'https://searx.be/search?q=' + encodeURIComponent(q); },
+  mojeek:    function(q){ return 'https://www.mojeek.com/search?q=' + encodeURIComponent(q); },
+  swisscows: function(q){ return 'https://swisscows.com/web?query=' + encodeURIComponent(q); },
+  ask:       function(q){ return 'https://www.ask.com/web?q=' + encodeURIComponent(q); },
 };
 
 function toUrl(raw){
@@ -1725,6 +1774,13 @@ document.querySelectorAll('.eng-btn').forEach(function(btn){
     engine = btn.dataset.e;
     savePrefs();
   });
+});
+
+$('eng-more-btn').addEventListener('click', function(){
+  sfxClick();
+  var extra = $('engines-extra');
+  var open = extra.classList.toggle('show');
+  this.classList.toggle('open', open);
 });
 
 $('go-btn').addEventListener('click', function(){ closeSuggestions(); navigate(input.value); });
