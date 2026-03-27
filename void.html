@@ -284,49 +284,6 @@
     .sug-tag.bk { background: rgba(124,106,255,.12); color: var(--accent); }
     .sug-tag.hist { background: rgba(52,211,153,.1); color: var(--green); }
 
-    .br-toolbar {
-      display: flex; align-items: center; gap: 4px; padding: 0 8px;
-      background: rgba(6,6,11,.9); border-bottom: 1px solid rgba(255,255,255,.05);
-      height: 34px; flex-shrink: 0;
-    }
-    .br-tool-btn {
-      padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.06);
-      background: rgba(255,255,255,.03); color: var(--muted); font-size: .58rem;
-      font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit;
-      letter-spacing: .03em;
-    }
-    .br-tool-btn:hover { background: rgba(124,106,255,.12); color: var(--text); border-color: rgba(124,106,255,.2); }
-    .br-tool-btn.active { background: rgba(124,106,255,.15); color: var(--accent); border-color: rgba(124,106,255,.25); }
-    .br-tool-sep { width: 1px; height: 16px; background: rgba(255,255,255,.06); flex-shrink: 0; }
-    .br-tool-label { font-size: .5rem; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-right: 2px; }
-
-    .br-panel {
-      position: absolute; bottom: 28px; left: 0; right: 0; z-index: 100;
-      background: rgba(6,6,11,.97); backdrop-filter: blur(12px);
-      border-top: 1px solid rgba(255,255,255,.08);
-      max-height: 240px; overflow-y: auto; display: none; padding: 12px 16px;
-    }
-    .br-panel.show { display: block; }
-    .br-panel-title {
-      font-size: .55rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 8px;
-    }
-    .br-js-area {
-      width: 100%; min-height: 80px; padding: 10px; border-radius: 8px;
-      border: 1px solid var(--border); background: rgba(0,0,0,.4);
-      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
-      resize: vertical; box-sizing: border-box;
-    }
-    .br-js-area:focus { outline: none; border-color: var(--accent); }
-    .br-js-actions { display: flex; gap: 6px; margin-top: 8px; }
-    .br-js-btn {
-      padding: 5px 14px; border-radius: 6px; border: none;
-      font-family: inherit; font-weight: 700; font-size: .65rem;
-      cursor: pointer; transition: .15s;
-    }
-    .br-js-run { background: linear-gradient(135deg, var(--accent), #6d28d9); color: #fff; }
-    .br-js-clear { background: rgba(255,255,255,.06); color: var(--muted); }
-
     .hint-row {
       font-size: .62rem; color: var(--muted); letter-spacing: .02em;
       display: flex; align-items: center; gap: 6px;
@@ -354,69 +311,6 @@
     .mode-btn:active { transform: scale(.94); }
     .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 16px rgba(124,106,255,.15); }
     .mode-btn .tag { font-size: .6rem; opacity: .9; margin-left: 4px; }
-
-    /* ── Browser overlay ── */
-    .browser-overlay {
-      position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; background: var(--bg);
-      transform: translateY(100%); opacity: 0; pointer-events: none;
-      transition: transform .45s cubic-bezier(.16,1,.3,1), opacity .35s ease;
-    }
-    .browser-overlay.visible { transform: translateY(0); opacity: 1; pointer-events: all; }
-    .browser-bar {
-      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-      padding: 6px 10px; background: rgba(6,6,11,.97);
-      border-bottom: 1px solid var(--border);
-    }
-    .browser-nav-btn {
-      width: 32px; height: 32px; border-radius: 8px; border: none;
-      background: transparent; color: var(--sub); font-size: 16px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all .2s cubic-bezier(.16,1,.3,1);
-    }
-    .browser-nav-btn:hover { background: var(--surface2); color: var(--text); transform: scale(1.1); }
-    .browser-nav-btn:active { transform: scale(.88); }
-    .browser-nav-btn:disabled { opacity: .25; cursor: default; transform: none; }
-    .browser-nav-btn:disabled:hover { background: transparent; color: var(--sub); transform: none; }
-    .browser-addr {
-      flex: 1; padding: 7px 14px; border-radius: 8px;
-      background: rgba(255,255,255,.04); border: 1px solid var(--border);
-      color: var(--sub); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
-      outline: none; min-width: 0; transition: all .2s;
-    }
-    .browser-addr:focus { border-color: var(--accent); color: var(--text); background: rgba(0,0,0,.5); }
-    .browser-close {
-      padding: 6px 14px; border-radius: 8px; border: none;
-      background: rgba(255,95,143,.12); color: var(--accent2);
-      font-family: inherit; font-weight: 600; font-size: .75rem;
-      cursor: pointer; transition: all .2s cubic-bezier(.16,1,.3,1); white-space: nowrap;
-    }
-    .browser-close:hover { background: rgba(255,95,143,.25); transform: scale(1.05); }
-    .browser-close:active { transform: scale(.92); }
-    .browser-progress {
-      height: 2px; background: transparent; flex-shrink: 0; overflow: hidden;
-    }
-    .browser-progress.loading {
-      background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
-      background-size: 200% 100%;
-      animation: progress-slide 1.2s linear infinite;
-    }
-    @keyframes progress-slide { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-    .browser-frame { flex: 1; position: relative; overflow: hidden; }
-    .browser-frame iframe {
-      width: 100%; height: 100%; border: none; display: block; background: #fff;
-      opacity: 0; transition: opacity .4s ease;
-    }
-    .browser-frame iframe.loaded { opacity: 1; }
-    .browser-status {
-      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-      padding: 4px 12px; background: rgba(6,6,11,.97);
-      border-top: 1px solid var(--border);
-      font-size: .6rem; color: var(--muted); font-family: 'JetBrains Mono', monospace;
-    }
-    .browser-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-    .browser-status .dot.loading { background: var(--accent); animation: pulse-dot 1s ease infinite; }
-    .browser-status .dot.error { background: var(--accent2); }
-    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
     .toast {
       position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -650,8 +544,6 @@
       .eng-btn { padding: 7px 11px; font-size: .7rem; }
       .opts { gap: 12px; }
       .brand .logo-text { filter: none; }
-      .browser-bar { gap: 4px; padding: 5px 6px; }
-      .browser-addr { font-size: .68rem; padding: 6px 10px; }
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -849,41 +741,7 @@
 </audio>
 <div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
 
-<!-- Browser overlay with full chrome -->
-<div class="browser-overlay" id="browser-overlay">
-  <div class="browser-bar">
-    <button class="browser-nav-btn" id="br-back" title="Back (Alt+Left)" disabled>&#x2190;</button>
-    <button class="browser-nav-btn" id="br-fwd" title="Forward (Alt+Right)" disabled>&#x2192;</button>
-    <button class="browser-nav-btn" id="br-refresh" title="Refresh">&#x21BB;</button>
-    <input class="browser-addr" id="br-addr" type="text" placeholder="URL" spellcheck="false" autocomplete="off"/>
-    <button class="browser-close" id="br-close">&#x2715; Close</button>
-  </div>
-  <div class="browser-progress" id="br-progress"></div>
-  <div class="br-toolbar" id="br-toolbar">
-    <span class="br-tool-label">MODE:</span>
-    <button class="br-tool-btn" id="brt-mode" title="Current proxy mode">Client</button>
-    <div class="br-tool-sep"></div>
-    <button class="br-tool-btn" id="brt-bookmark" title="Bookmark this page">&#9734; Bookmark</button>
-    <button class="br-tool-btn" id="brt-js" title="Inject JavaScript">JS</button>
-    <div class="br-tool-sep"></div>
-    <button class="br-tool-btn" id="brt-eruda" title="Toggle Eruda console">Eruda</button>
-  </div>
-  <div class="browser-frame" style="position:relative;">
-    <iframe id="br-iframe" title="Proxy"></iframe>
-    <div class="br-panel" id="br-js-panel">
-      <div class="br-panel-title">Inject JavaScript</div>
-      <textarea class="br-js-area" id="br-js-code" placeholder="document.body.style.background = '#111'"></textarea>
-      <div class="br-js-actions">
-        <button class="br-js-btn br-js-run" id="br-js-run">Run</button>
-        <button class="br-js-btn br-js-clear" id="br-js-close">Close</button>
-      </div>
-    </div>
-  </div>
-  <div class="browser-status" id="br-status">
-    <span class="dot" id="br-dot"></span>
-    <span id="br-status-text">Ready</span>
-  </div>
-</div>
+<!-- Browser overlay removed — proxy now uses document.write rendering -->
 
 <div class="settings-overlay" id="settings-overlay">
   <div class="settings-card">
@@ -930,7 +788,6 @@ var mode = 'client';
 var navHistory = [];
 var navIdx = -1;
 var currentUrl = '';
-var isLoading = false;
 
 /* ──────────── Sound engine (Web Audio API) ──────────── */
 var _audioCtx = null;
@@ -1068,10 +925,6 @@ function decodeBody(buf, headers){
   catch(e){ return new TextDecoder('utf-8', { fatal: false }).decode(buf); }
 }
 
-var _lastBlobUrl = null;
-function cleanBlobUrl(){
-  if(_lastBlobUrl){ URL.revokeObjectURL(_lastBlobUrl); _lastBlobUrl = null; }
-}
 
 try {
   var link = document.createElement('link');
@@ -1466,12 +1319,250 @@ function clientRewrite(html, baseUrl){
   return html;
 }
 
-function renderInIframe(html){
-  cleanBlobUrl();
-  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  _lastBlobUrl = URL.createObjectURL(blob);
-  $('br-iframe').removeAttribute('srcdoc');
-  $('br-iframe').src = _lastBlobUrl;
+function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
+  var _corsBase = corsBase, _eruda = eruda, _injSrc = clientInjSrc, _selfSrc = selfSrc;
+  var _curUrl, _navHist, _navIdx;
+  try { _navHist = JSON.parse(localStorage.getItem('void_nav_history') || '[]'); } catch(e){ _navHist = []; }
+  try { _navIdx = parseInt(localStorage.getItem('void_nav_idx') || '0'); } catch(e){ _navIdx = 0; }
+  _curUrl = _navHist[_navIdx] || '';
+
+  function escH(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function makeCors(u){ return _corsBase.indexOf('?') >= 0 ? _corsBase + encodeURIComponent(u) : _corsBase + '?url=' + encodeURIComponent(u); }
+
+  function rwCss(css, base){
+    return css.replace(/url\s*\(\s*(?!["']*data:)["']*\s*([^)"'\s]+)/gi, function(m, u){
+      if(/^data:/i.test(u)) return m;
+      try { return m.replace(u, makeCors(new URL(u, base).href)); } catch(e){ return m; }
+    });
+  }
+  function rwSrcset(ss, base){
+    if(!ss) return ss;
+    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){ return makeCors(u); });
+  }
+
+  function buildInj(baseUrl){
+    var src = '(' + _injSrc + ')();';
+    src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
+    src = src.replace("'%%CORS%%'", JSON.stringify(_corsBase));
+    src = src.replace("'%%ERUDA%%'", _eruda ? 'true' : 'false');
+    var out = '';
+    if(_eruda) out = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/eruda"><\/scr' + 'ipt><scr' + 'ipt>eruda.init();<\/scr' + 'ipt>';
+    return out + '<scr' + 'ipt data-void-inject>' + src + '<\/scr' + 'ipt>';
+  }
+
+  function rewrite(html, base){
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
+    html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
+    var hi = '<meta charset="UTF-8"><base href="' + escH(base) + '">';
+    if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
+    else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
+    else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
+    html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi,
+      function(m,pre,attr,q,val){ return pre + attr + q + rwSrcset(val, base) + q; });
+    html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi,
+      function(m,a,css){ return '<style'+a+'>' + rwCss(css,base) + '</style>'; });
+    html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi,
+      function(m,pre,q,css){ return pre+'style='+q + rwCss(css,base)+q; });
+    var inj = buildInj(base);
+    if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, inj + '</head>');
+    else html = inj + html;
+    return html;
+  }
+
+  var TB_CSS = '#_vt{position:fixed;top:0;left:0;right:0;z-index:2147483647;height:36px;background:rgba(6,6,11,.96);'
+    + 'backdrop-filter:blur(12px);display:flex;align-items:center;gap:4px;padding:0 6px;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07);font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}'
+    + '#_vt *{box-sizing:border-box;}#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
+    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
+    + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
+    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;}'
+    + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
+    + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
+    + '#_vld{display:none;position:fixed;top:36px;left:0;right:0;height:2px;z-index:2147483647;'
+    + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;}'
+    + '#_vld.on{display:block;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vjp{position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:rgba(6,6,11,.97);'
+    + 'border-top:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
+    + '#_vjp.on{display:block;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
+    + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
+    + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
+    + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
+    + '#_vjp>div{display:flex;gap:5px;margin-top:5px;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;'
+    + 'border-radius:5px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05);color:#888;border:none;border-radius:5px;'
+    + 'padding:4px 12px;font-size:10px;cursor:pointer;}'
+    + 'html body{margin-top:40px !important;}';
+
+  function tbHtml(url){
+    return '<div id="_vld"></div><div id="_vt">'
+      + '<button id="_vb">\u2190</button><button id="_vf">\u2192</button><button id="_vr">\u21bb</button>'
+      + '<input id="_va" type="text" value="' + escH(url) + '" spellcheck="false"/>'
+      + '<div class="sp"></div>'
+      + '<button id="_vbk">\u2606</button><button id="_vjs">JS</button><button id="_vh">\u2302 Home</button>'
+      + '</div>'
+      + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
+      + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
+  }
+
+  function render(html, url){
+    _curUrl = url;
+    try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
+    var css = '<style>' + TB_CSS + '</style>';
+    var tb = tbHtml(url);
+    var bootScript = '<scr' + 'ipt>(function(){var e=new Function("return "+' + JSON.stringify(_selfSrc) + ')();'
+      + 'e(' + JSON.stringify(_corsBase) + ',' + _eruda + ',' + JSON.stringify(_injSrc) + ',' + JSON.stringify(_selfSrc) + ');})()'
+      + '<\/scr' + 'ipt>';
+    if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + '</head>');
+    else html = css + html;
+    if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tb + bootScript + '</body>');
+    else html += tb + bootScript;
+    document.open(); document.write(html); document.close();
+  }
+
+  async function nav(url, push, postOpts){
+    var ld = document.getElementById('_vld'); if(ld) ld.className = 'on';
+    try {
+      var fo = undefined;
+      if(postOpts) fo = { method: 'POST', headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' }, body: postOpts.body };
+      var r = await fetch(makeCors(url), fo);
+      var text = await r.text();
+      var ct = (r.headers.get('content-type') || '').toLowerCase();
+      var fin = r.headers.get('x-void-final-url') || url;
+      if(fin !== url){ url = fin; }
+      if(push !== false){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(url); _navIdx = _navHist.length - 1; }
+      _curUrl = url;
+      try {
+        var bh = JSON.parse(localStorage.getItem('void_browse_history') || '[]').filter(function(e){ return e.url !== url; });
+        var d = ''; try { d = new URL(url).hostname; } catch(e){}
+        bh.unshift({ url: url, title: d, ts: Date.now() });
+        if(bh.length > 30) bh = bh.slice(0, 30);
+        localStorage.setItem('void_browse_history', JSON.stringify(bh));
+      } catch(e){}
+      var rw;
+      if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && text.length > 0 && text.trim().charAt(0) === '<')){
+        rw = rewrite(text, url);
+      } else if(ct.indexOf('image/') >= 0){
+        rw = '<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escH(makeCors(url)) + '" style="max-width:100%;max-height:100vh"></body></html>';
+      } else if(ct.indexOf('application/json') >= 0){
+        rw = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all}</style></head><body>' + escH(text) + '</body></html>';
+      } else { rw = rewrite(text, url); }
+      render(rw, url);
+    } catch(err){
+      if(ld) ld.className = '';
+      var ai = document.getElementById('_va');
+      if(ai) ai.style.borderColor = 'rgba(255,95,143,.5)';
+      setTimeout(function(){ if(ai) ai.style.borderColor = ''; }, 2000);
+    }
+  }
+
+  window.addEventListener('message', function(e){
+    if(!e.data || typeof e.data !== 'object') return;
+    if(e.data.type === 'void_navigate' && e.data.url) nav(e.data.url, true);
+    if(e.data.type === 'void_post' && e.data.url) nav(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
+    if(e.data.type === 'void_url' && e.data.url){ _curUrl = e.data.url; var ai = document.getElementById('_va'); if(ai) ai.value = e.data.url; }
+    if(e.data.type === 'void_title' && e.data.title) document.title = e.data.title;
+    if(e.data.type === 'void_loaded'){ var ld = document.getElementById('_vld'); if(ld) ld.className = ''; }
+  });
+
+  var $vh = document.getElementById('_vh');
+  var $vb = document.getElementById('_vb');
+  var $vf = document.getElementById('_vf');
+  var $vr = document.getElementById('_vr');
+  var $va = document.getElementById('_va');
+  var $vbk = document.getElementById('_vbk');
+  var $vjs = document.getElementById('_vjs');
+  var $vjr = document.getElementById('_vjr');
+  var $vjx = document.getElementById('_vjx');
+  if($vh) $vh.onclick = function(){ location.reload(); };
+  if($vb) $vb.onclick = function(){ if(_navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); } };
+  if($vf) $vf.onclick = function(){ if(_navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); } };
+  if($vr) $vr.onclick = function(){ nav(_curUrl, false); };
+  if($va) $va.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){
+      var u = this.value.trim(); if(!u) return;
+      if(!/^https?:\/\//i.test(u)){ u = u.includes('.') && !u.includes(' ') ? 'https://' + u : 'https://search.brave.com/search?q=' + encodeURIComponent(u); }
+      nav(u, true);
+    }
+  });
+  if($vbk) $vbk.onclick = function(){
+    try {
+      var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
+      if(bks.some(function(b){ return b.url === _curUrl; })){ bks = bks.filter(function(b){ return b.url !== _curUrl; }); this.innerHTML = '\u2606'; }
+      else { var d = ''; try{d = new URL(_curUrl).hostname;}catch(e){} bks.unshift({url:_curUrl,title:d}); this.innerHTML = '\u2605'; }
+      localStorage.setItem('void_bookmarks', JSON.stringify(bks));
+    } catch(e){}
+  };
+  try { var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
+    if(bks.some(function(b){ return b.url === _curUrl; }) && $vbk) $vbk.innerHTML = '\u2605'; } catch(e){}
+  if($vjs) $vjs.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.className = p.className.indexOf('on') >= 0 ? '' : 'on'; };
+  if($vjr) $vjr.onclick = function(){ var c = document.getElementById('_vjc'); if(c && c.value.trim()) try{(0,eval)(c.value);}catch(e){alert(e.message);} };
+  if($vjx) $vjx.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.className = ''; };
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ var p = document.getElementById('_vjp'); if(p) p.className = ''; }
+    if((e.ctrlKey || e.metaKey) && e.key === 'l'){ e.preventDefault(); if($va){ $va.focus(); $va.select(); } }
+    if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); if($vb) $vb.click(); }
+    if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); if($vf) $vf.click(); }
+  });
+}
+
+function renderPage(html, baseUrl){
+  localStorage.setItem('void_nav_history', JSON.stringify(navHistory));
+  localStorage.setItem('void_nav_idx', String(navIdx));
+  var corsBase = getActiveCorsBase();
+  var eruda = $('opt-eruda') && $('opt-eruda').checked;
+  var selfSrc = _voidEngine.toString();
+  var injSrc = _clientInjection.toString();
+
+  var bootScript = '<scr' + 'ipt>(function(){var e=new Function("return "+' + JSON.stringify(selfSrc) + ')();'
+    + 'e(' + JSON.stringify(corsBase) + ',' + (eruda?'true':'false') + ',' + JSON.stringify(injSrc) + ',' + JSON.stringify(selfSrc) + ');})()'
+    + '<\/scr' + 'ipt>';
+
+  var TB_CSS = '#_vt{position:fixed;top:0;left:0;right:0;z-index:2147483647;height:36px;background:rgba(6,6,11,.96);'
+    + 'backdrop-filter:blur(12px);display:flex;align-items:center;gap:4px;padding:0 6px;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07);font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}'
+    + '#_vt *{box-sizing:border-box;}#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
+    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
+    + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
+    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;}'
+    + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
+    + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
+    + '#_vld{display:none;position:fixed;top:36px;left:0;right:0;height:2px;z-index:2147483647;'
+    + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;}'
+    + '#_vld.on{display:block;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vjp{position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:rgba(6,6,11,.97);'
+    + 'border-top:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
+    + '#_vjp.on{display:block;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
+    + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
+    + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
+    + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
+    + '#_vjp>div{display:flex;gap:5px;margin-top:5px;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;'
+    + 'border-radius:5px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05);color:#888;border:none;border-radius:5px;'
+    + 'padding:4px 12px;font-size:10px;cursor:pointer;}'
+    + 'html body{margin-top:40px !important;}';
+
+  var tbHtml = '<div id="_vld"></div><div id="_vt">'
+    + '<button id="_vb">\u2190</button><button id="_vf">\u2192</button><button id="_vr">\u21bb</button>'
+    + '<input id="_va" type="text" value="' + escHtml(baseUrl) + '" spellcheck="false"/>'
+    + '<div class="sp"></div>'
+    + '<button id="_vbk">\u2606</button><button id="_vjs">JS</button><button id="_vh">\u2302 Home</button>'
+    + '</div>'
+    + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
+    + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
+
+  if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, '<style>' + TB_CSS + '</style></head>');
+  else html = '<style>' + TB_CSS + '</style>' + html;
+  if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tbHtml + bootScript + '</body>');
+  else html += tbHtml + bootScript;
+
+  document.open(); document.write(html); document.close();
 }
 
 function fetchWithTimeout(url, opts, ms){
@@ -1549,51 +1640,16 @@ async function clientFetch(targetUrl, fetchOpts){
   throw new Error('All CORS proxies failed:\n' + errors.join('\n'));
 }
 
-/* ──────────── Browser UI helpers ──────────── */
-
-function showBrowser(){
-  $('browser-overlay').classList.add('visible');
-  $('br-iframe').classList.remove('loaded');
-}
-function hideBrowser(){
-  $('browser-overlay').classList.remove('visible');
-  cleanBlobUrl();
-  $('br-iframe').removeAttribute('src');
-  $('br-iframe').removeAttribute('srcdoc');
-  currentUrl = '';
-  updateBrowserNav();
-}
-function setLoading(on){
-  isLoading = on;
-  $('br-progress').className = 'browser-progress' + (on ? ' loading' : '');
-  var dot = $('br-dot');
-  dot.className = 'dot' + (on ? ' loading' : '');
-  $('br-status-text').textContent = on ? 'Loading...' : 'Ready';
-}
-function setError(msg){
-  $('br-dot').className = 'dot error';
-  $('br-status-text').textContent = msg;
-}
-function updateBrowserNav(){
-  $('br-back').disabled = navIdx <= 0;
-  $('br-fwd').disabled = navIdx >= navHistory.length - 1;
-  $('br-addr').value = currentUrl;
-}
-
 /* ──────────── Navigation ──────────── */
 
 async function navigateClient(targetUrl, pushHist, postOpts){
-  showBrowser();
-  setLoading(true);
   currentUrl = targetUrl;
-  $('br-addr').value = targetUrl;
 
   if(pushHist !== false){
     navHistory = navHistory.slice(0, navIdx + 1);
     navHistory.push(targetUrl);
     navIdx = navHistory.length - 1;
   }
-  updateBrowserNav();
 
   try {
     var fetchOpts = undefined;
@@ -1610,28 +1666,21 @@ async function navigateClient(targetUrl, pushHist, postOpts){
 
     if(resolvedUrl !== targetUrl){
       currentUrl = resolvedUrl;
-      $('br-addr').value = resolvedUrl;
     }
 
     if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && result.body.length > 0 && result.body.trim().charAt(0) === '<')){
-      renderInIframe(clientRewrite(result.body, resolvedUrl));
+      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
     } else if(ct.indexOf('image/') >= 0){
-      renderInIframe('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>');
-      setLoading(false);
+      renderPage('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>', resolvedUrl);
     } else if(ct.indexOf('application/json') >= 0){
-      renderInIframe('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>');
-      setLoading(false);
+      renderPage('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>', resolvedUrl);
     } else if(ct.indexOf('application/pdf') >= 0){
-      renderInIframe('<!DOCTYPE html><html><body style="margin:0"><embed src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh"></body></html>');
-      setLoading(false);
+      renderPage('<!DOCTYPE html><html><body style="margin:0"><embed src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh"></body></html>', resolvedUrl);
     } else {
-      renderInIframe(clientRewrite(result.body, resolvedUrl));
+      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
     }
   } catch(proxyErr){
-    setLoading(false);
-    sfxError();
-    hideBrowser();
-    toast('Failed to load — ' + (proxyErr.message || 'check your CORS proxy URL'));
+    alert('Proxy error: ' + (proxyErr.message || 'check your CORS proxy URL'));
   }
 }
 
@@ -1919,178 +1968,7 @@ $('btn-clear-hist').addEventListener('click', function(){
 });
 renderHistory();
 
-/* ──────────── Browser Toolbar ──────────── */
-function updateToolbar(){
-  var m = getMode();
-  $('brt-mode').textContent = m.charAt(0).toUpperCase() + m.slice(1);
-  $('brt-eruda').classList.toggle('active', $('opt-eruda') && $('opt-eruda').checked);
-  if(currentUrl) $('brt-bookmark').innerHTML = (isBookmarked(currentUrl) ? '&#9733;' : '&#9734;') + ' Bookmark';
-}
-
-$('brt-mode').addEventListener('click', function(){
-  var modes = ['client','server','experimental','uv','scramjet'];
-  var cur = getMode();
-  var idx = modes.indexOf(cur);
-  var next = modes[(idx + 1) % modes.length];
-  var btn = document.querySelector('.mode-btn[data-m="' + next + '"]');
-  if(btn) btn.click();
-  updateToolbar();
-  toast('Mode: ' + next);
-});
-
-$('brt-bookmark').addEventListener('click', function(){
-  if(!currentUrl) return;
-  if(isBookmarked(currentUrl)){
-    removeBookmark(currentUrl);
-    toast('Bookmark removed');
-  } else {
-    var title = ''; try { title = new URL(currentUrl).hostname; } catch(e){}
-    addBookmark(currentUrl, title);
-    toast('Bookmarked!');
-  }
-  updateToolbar();
-});
-
-$('brt-js').addEventListener('click', function(){
-  var panel = $('br-js-panel');
-  var isOpen = panel.classList.contains('show');
-  panel.classList.toggle('show');
-  $('brt-js').classList.toggle('active', !isOpen);
-  if(!isOpen) $('br-js-code').focus();
-});
-
-$('br-js-run').addEventListener('click', function(){
-  var code = $('br-js-code').value;
-  if(!code.trim()) return;
-  try {
-    var iframe = $('br-iframe');
-    if(iframe && iframe.contentWindow){
-      iframe.contentWindow.postMessage({ type: 'void_eval', code: code }, '*');
-    }
-    toast('JS executed');
-  } catch(e){ toast('Error: ' + e.message); }
-});
-
-$('br-js-close').addEventListener('click', function(){
-  $('br-js-panel').classList.remove('show');
-  $('brt-js').classList.remove('active');
-});
-
-$('brt-eruda').addEventListener('click', function(){
-  var cb = $('opt-eruda');
-  if(cb){ cb.checked = !cb.checked; savePrefs(); }
-  updateToolbar();
-  toast('Eruda: ' + (cb && cb.checked ? 'ON' : 'OFF'));
-});
-
-$('br-close').addEventListener('click', function(){
-  sfxClose();
-  hideBrowser();
-});
-
-$('br-back').addEventListener('click', function(){
-  if(navIdx > 0){
-    sfxClick();
-    navIdx--;
-    navigateClient(navHistory[navIdx], false);
-  }
-});
-
-$('br-fwd').addEventListener('click', function(){
-  if(navIdx < navHistory.length - 1){
-    sfxClick();
-    navIdx++;
-    navigateClient(navHistory[navIdx], false);
-  }
-});
-
-$('br-refresh').addEventListener('click', function(){
-  sfxClick();
-  if(currentUrl) navigateClient(currentUrl, false);
-});
-
-if($('setup-link')) $('setup-link').addEventListener('click', function(){
-  showBrowser();
-  setLoading(false);
-  $('br-addr').value = 'Setup Instructions';
-  renderInIframe('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
-    + '*{margin:0;padding:0;box-sizing:border-box}'
-    + 'body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d0d14;color:#eee;font-family:system-ui,sans-serif;padding:2rem}'
-    + '.card{max-width:600px;width:100%}'
-    + 'h1{font-size:2rem;background:linear-gradient(135deg,#a78bfa,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}'
-    + 'p{color:#9a9bb8;line-height:1.7;margin-top:.8rem;font-size:.85rem}'
-    + '.steps{margin-top:1rem;padding:0;list-style:none;counter-reset:s}'
-    + '.steps li{counter-increment:s;padding:.8rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.85rem;color:#c8c8d8;line-height:1.6}'
-    + '.steps li::before{content:counter(s);display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(124,106,255,.2);color:#a78bfa;font-size:.72rem;font-weight:700;margin-right:10px}'
-    + 'a{color:#7c6aff}'
-    + 'code{padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.06);color:#ff8f5f;font-size:.78rem}'
-    + '.tag{display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(52,211,153,.15);color:#34d399;font-size:.65rem;font-weight:700;margin-left:6px}'
-    + '.worker-code{display:block;margin-top:1rem;padding:1rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;font-size:.72rem;color:#9a9bb8;white-space:pre-wrap;max-height:300px;overflow-y:auto}'
-    + '</style></head><body><div class="card">'
-    + '<h1>Setup Your Proxy</h1>'
-    + '<p>Deploy a free Cloudflare Worker to get your own private CORS proxy. Takes about 2 minutes.</p>'
-    + '<ol class="steps">'
-    + '<li>Go to <a href="https://workers.cloudflare.com" target="_blank">workers.cloudflare.com</a> and create a free account <span class="tag">FREE</span></li>'
-    + '<li>In the dashboard, go to <b>Workers &amp; Pages</b> → click <b>Create</b></li>'
-    + '<li>Choose <b>"Hello World"</b> template → give it a name → click <b>Deploy</b></li>'
-    + '<li>Click <b>"Edit code"</b> to open the editor</li>'
-    + '<li>Delete everything in the editor and paste the code from the <code>worker.js</code> file (it\\\'s next to void.html)</li>'
-    + '<li>Click <b>Deploy</b> again</li>'
-    + '<li>Your URL will look like: <code>https://your-name.username.workers.dev</code></li>'
-    + '<li>Go back to Void, paste that URL + <code>/?url=</code> into the <b>CORS Proxy URL</b> field.<br>Example: <code>https://my-proxy.user.workers.dev/?url=</code></li>'
-    + '</ol>'
-    + '<p style="margin-top:1.2rem">That\\\'s it! You get <b>100,000 free requests per day</b>. The proxy runs on Cloudflare\\\'s global network (~50ms latency, 330+ locations).</p>'
-    + '</div></body></html>');
-});
-
-$('br-addr').addEventListener('keydown', function(e){
-  if(e.key === 'Enter'){
-    var raw = $('br-addr').value.trim();
-    if(!raw) return;
-    var url = toUrl(raw);
-    if(url) navigateClient(url, true);
-  }
-});
-
-window.addEventListener('message', function(e){
-  if(!e.data || typeof e.data !== 'object') return;
-  if(e.data.type === 'void_navigate' && e.data.url){
-    navigateClient(e.data.url, true);
-  }
-  if(e.data.type === 'void_post' && e.data.url){
-    navigateClient(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
-  }
-  if(e.data.type === 'void_url' && e.data.url){
-    currentUrl = e.data.url;
-    $('br-addr').value = e.data.url;
-  }
-  if(e.data.type === 'void_title' && e.data.title){
-    $('br-status-text').textContent = e.data.title;
-  }
-  if(e.data.type === 'void_loaded'){
-    setLoading(false);
-    sfxNav();
-    $('br-iframe').classList.add('loaded');
-  }
-});
-
 document.addEventListener('keydown', function(e){
-  if(e.altKey && e.key === 'ArrowLeft'){
-    e.preventDefault();
-    $('br-back').click();
-  }
-  if(e.altKey && e.key === 'ArrowRight'){
-    e.preventDefault();
-    $('br-fwd').click();
-  }
-  if(e.key === 'Escape' && $('browser-overlay').classList.contains('visible')){
-    hideBrowser();
-  }
-  if((e.ctrlKey || e.metaKey) && e.key === 'l' && $('browser-overlay').classList.contains('visible')){
-    e.preventDefault();
-    $('br-addr').focus();
-    $('br-addr').select();
-  }
   if(e.key === 'Escape' && $('settings-overlay').classList.contains('visible')){
     $('settings-overlay').classList.remove('visible');
     sfxClose();
@@ -2099,7 +1977,6 @@ document.addEventListener('keydown', function(e){
   if((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey){
     var ae = document.activeElement;
     if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
-    if($('browser-overlay').classList.contains('visible')) return;
     e.preventDefault();
     var so = $('settings-overlay');
     if(so.classList.contains('visible')){ so.classList.remove('visible'); sfxClose(); }
