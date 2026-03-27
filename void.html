@@ -782,6 +782,19 @@
 var $ = function(id){ return document.getElementById(id); };
 var input = $('url-input');
 
+/* ──────────── Bounce detection ──────────── */
+try {
+  var _bounce = JSON.parse(localStorage.getItem('void_bounce') || 'null');
+  if(_bounce && Date.now() - _bounce.ts < 5000){
+    localStorage.removeItem('void_bounce');
+    var _bd = document.createElement('div');
+    _bd.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:999999;background:rgba(255,60,60,.95);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-family:system-ui;max-width:90vw;word-break:break-all;';
+    _bd.textContent = 'Proxy bounce detected! The page tried to leave: ' + _bounce.url;
+    document.body.appendChild(_bd);
+    setTimeout(function(){ if(_bd.parentNode) _bd.parentNode.removeChild(_bd); }, 8000);
+  } else { localStorage.removeItem('void_bounce'); }
+} catch(e){}
+
 /* ──────────── State ──────────── */
 var engine = 'brave';
 var mode = 'client';
@@ -1334,6 +1347,15 @@ function _clientInjection(){
     navigator.serviceWorker.register = function(){ return Promise.reject(new Error('blocked by proxy')); };
   }
 
+  /* ── Block document.write/writeln from nuking proxy ── */
+  document.write = function(){};
+  document.writeln = function(){};
+
+  /* ── Catch unintended real navigation ── */
+  window.addEventListener('beforeunload', function(e){
+    try { localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() })); } catch(e){}
+  });
+
   /* ── MutationObserver: rewrite dynamically added elements ── */
   var _mo = new MutationObserver(function(muts){
     for(var i = 0; i < muts.length; i++){
@@ -1562,8 +1584,9 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
     var css = '<style>' + TB_CSS + '</style>';
     var tb = tbHtml(url);
-    var bootScript = '<scr' + 'ipt>(function(){var e=new Function("return "+' + JSON.stringify(_selfSrc) + ')();'
-      + 'e(' + JSON.stringify(_corsBase) + ',' + _eruda + ',' + JSON.stringify(_injSrc) + ',' + JSON.stringify(_selfSrc) + ');})()'
+    var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(_selfSrc) + ')();'
+      + 'e(' + JSON.stringify(_corsBase) + ',' + _eruda + ',' + JSON.stringify(_injSrc) + ',' + JSON.stringify(_selfSrc) + ');})()}'
+      + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
       + '<\/scr' + 'ipt>';
     if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + '</head>');
     else html = css + html;
@@ -1700,8 +1723,9 @@ function renderPage(html, baseUrl){
   var selfSrc = _voidEngine.toString();
   var injSrc = _clientInjection.toString();
 
-  var bootScript = '<scr' + 'ipt>(function(){var e=new Function("return "+' + JSON.stringify(selfSrc) + ')();'
-    + 'e(' + JSON.stringify(corsBase) + ',' + (eruda?'true':'false') + ',' + JSON.stringify(injSrc) + ',' + JSON.stringify(selfSrc) + ');})()'
+  var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(selfSrc) + ')();'
+    + 'e(' + JSON.stringify(corsBase) + ',' + (eruda?'true':'false') + ',' + JSON.stringify(injSrc) + ',' + JSON.stringify(selfSrc) + ');})()}'
+    + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
     + '<\/scr' + 'ipt>';
 
   var TB_CSS = '#_vt{position:fixed;top:0;left:0;right:0;z-index:2147483647;height:36px;background:rgba(6,6,11,.96);'
