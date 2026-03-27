@@ -328,6 +328,8 @@
     <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>Users</span><span class="nav-count" id="nav-user-count">0</span></div>
     <div class="nav-item" data-panel="requests"><span class="nav-ico">&#9993;</span><span>Requests</span><span class="nav-count" id="nav-req-count" style="background:rgba(255,95,143,.2);color:var(--accent2);">0</span></div>
     <div class="nav-item" data-panel="history"><span class="nav-ico">&#9201;</span><span>History</span><span class="nav-count" id="nav-history-count">0</span></div>
+    <div class="nav-item" data-panel="messages"><span class="nav-ico">&#9993;</span><span>Messages</span><span class="nav-count" id="nav-msg-count">0</span></div>
+    <div class="nav-item" data-panel="activity"><span class="nav-ico">&#9776;</span><span>Activity</span></div>
     <div class="nav-sep"></div>
     <div class="nav-item" data-panel="proxy"><span class="nav-ico">&#9658;</span><span>Test Proxy</span></div>
     <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug</span></div>
@@ -369,6 +371,11 @@
     <div class="panel" id="p-users">
       <div class="card">
         <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="users-live-dot"></span>Firestore Users</span><span id="users-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-users" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+          <input type="text" class="debug-url" id="user-search" placeholder="Search by UID, label, or status..." style="flex:1;font-size:.7rem;"/>
+          <button class="btn btn-ghost btn-sm" id="btn-broadcast" title="Message all users">Broadcast</button>
+          <button class="btn btn-ghost btn-sm" id="btn-export-users" title="Export users to JSON">Export</button>
+        </div>
         <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Click a label to rename a user.</p>
         <div class="uid-list" id="fb-uid-list"></div>
       </div>
@@ -531,6 +538,23 @@
           <button class="btn btn-danger" id="btn-reset-owner">Reset Owner ID</button>
           <button class="btn btn-danger" id="btn-nuke">Factory Reset (clear everything)</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="panel" id="p-messages">
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span>Sent Messages</span><button class="btn btn-ghost btn-sm" id="btn-refresh-msgs" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
+        <div class="uid-list" id="msg-list"></div>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="panel" id="p-activity">
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span>Activity Log</span><button class="btn btn-ghost btn-sm" id="btn-clear-activity" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Clear</button></div>
+        <p style="font-size:.65rem;color:var(--muted);margin-bottom:10px;">Admin actions are logged here.</p>
+        <div class="debug-console" id="activity-log" style="height:400px;"></div>
       </div>
     </div>
 
@@ -1021,6 +1045,7 @@ if(_fbOk){
     _db.collection('requests').onSnapshot(function(snap){
       _allRequests = []; snap.forEach(function(doc){ _allRequests.push(doc.data()); });
       renderRequests();
+      checkNewRequests();
       var pending = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
       $('req-status').textContent = 'live \u00b7 ' + pending + ' pending';
       $('req-status').style.color = pending ? 'var(--yellow)' : 'var(--green)';
@@ -1033,6 +1058,176 @@ if(_fbOk){
 
 $('btn-refresh-requests').addEventListener('click', fetchRequests);
 
+
+/* ──── User Search ──── */
+$('user-search').addEventListener('input', function(){
+  var q = this.value.trim().toLowerCase();
+  var rows = document.querySelectorAll('.uid-row');
+  rows.forEach(function(row){
+    var text = row.textContent.toLowerCase();
+    row.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+});
+
+/* ──── Broadcast ──── */
+$('btn-broadcast').addEventListener('click', function(){
+  var text = prompt('Broadcast message to ALL users:');
+  if(!text || !text.trim() || !_db) return;
+  if(!confirm('Send to ' + _allUsers.length + ' users?')) return;
+  var sent = 0;
+  _allUsers.forEach(function(u){
+    _db.collection('messages').add({
+      uid: u.uid, text: text.trim(), read: false,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(){ sent++; }).catch(function(){});
+  });
+  logActivity('Broadcast sent to ' + _allUsers.length + ' users');
+  setTimeout(function(){ alert('Sent to ' + _allUsers.length + ' users'); }, 500);
+});
+
+/* ──── Export Users ──── */
+$('btn-export-users').addEventListener('click', function(){
+  var data = _allUsers.map(function(u){
+    return {
+      uid: u.uid, label: getUserLabel(u.uid), banned: !!u.banned,
+      deviceId: u.deviceId || '', screenRes: u.screenRes || '',
+      userAgent: u.userAgent || '',
+      lastSeen: u.lastSeen && u.lastSeen.toDate ? u.lastSeen.toDate().toISOString() : '',
+      createdAt: u.createdAt && u.createdAt.toDate ? u.createdAt.toDate().toISOString() : ''
+    };
+  });
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'void-users-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  logActivity('Exported ' + data.length + ' users');
+});
+
+/* ──── Activity Log ──── */
+function getActivityLog(){
+  try { return JSON.parse(localStorage.getItem('void_activity_log') || '[]'); } catch(e){ return []; }
+}
+function logActivity(msg){
+  var log = getActivityLog();
+  log.unshift({ ts: Date.now(), msg: msg });
+  if(log.length > 200) log = log.slice(0, 200);
+  try { localStorage.setItem('void_activity_log', JSON.stringify(log)); } catch(e){}
+  renderActivityLog();
+}
+function renderActivityLog(){
+  var el = $('activity-log'); if(!el) return;
+  var log = getActivityLog();
+  if(!log.length){ el.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:.7rem;">No activity yet.</div>'; return; }
+  el.innerHTML = '';
+  log.forEach(function(entry){
+    var d = new Date(entry.ts);
+    var line = document.createElement('div');
+    line.style.cssText = 'padding:4px 8px;font-size:.65rem;border-bottom:1px solid rgba(255,255,255,.02);';
+    line.innerHTML = '<span style="color:var(--muted);margin-right:8px;">' + d.toLocaleTimeString() + '</span>'
+      + '<span style="color:var(--text);">' + (entry.msg||'').replace(/</g,'&lt;') + '</span>';
+    el.appendChild(line);
+  });
+}
+$('btn-clear-activity').addEventListener('click', function(){
+  localStorage.removeItem('void_activity_log');
+  renderActivityLog();
+});
+renderActivityLog();
+
+/* ──── Messages History ──── */
+var _allMessages = [];
+function renderMessages(){
+  var list = $('msg-list'); if(!list) return;
+  list.innerHTML = '';
+  if(!_allMessages.length){ list.innerHTML = '<div class="empty-state">No messages sent yet.</div>'; return; }
+  _allMessages.forEach(function(m){
+    var row = document.createElement('div'); row.className = 'uid-row';
+    row.style.cssText = 'opacity:' + (m.read ? '0.5' : '1');
+    var dot = document.createElement('span'); dot.className = 'uid-dot ' + (m.read ? 'active' : 'banned');
+    dot.title = m.read ? 'Read' : 'Unread'; row.appendChild(dot);
+    var uid = document.createElement('span'); uid.className = 'uid-id';
+    var lbl = getUserLabel(m.uid); uid.textContent = lbl ? lbl + ' (' + m.uid + ')' : m.uid; row.appendChild(uid);
+    var txt = document.createElement('span'); txt.className = 'uid-meta'; txt.style.flex = '1';
+    txt.textContent = (m.text||'').slice(0, 80) + (m.text && m.text.length > 80 ? '\u2026' : '');
+    row.appendChild(txt);
+    var time = document.createElement('span'); time.style.cssText = 'font-size:.55rem;color:var(--muted);';
+    time.textContent = m.timestamp ? timeAgo(m.timestamp) : ''; row.appendChild(time);
+    var tag = document.createElement('span'); tag.className = 'uid-tag';
+    tag.style.cssText = m.read ? 'background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.15);font-size:.45rem;' : 'background:rgba(255,95,143,.1);color:var(--accent2);border:1px solid rgba(255,95,143,.15);font-size:.45rem;';
+    tag.textContent = m.read ? 'READ' : 'UNREAD'; row.appendChild(tag);
+    var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;';
+    del.addEventListener('click', function(){ if(_db && m._id) _db.collection('messages').doc(m._id).delete().catch(function(){}); });
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+  $('nav-msg-count').textContent = _allMessages.length;
+}
+
+if(_fbOk){
+  try {
+    _db.collection('messages').orderBy('timestamp','desc').limit(100).onSnapshot(function(snap){
+      _allMessages = [];
+      snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
+      renderMessages();
+    }, function(){
+      $('btn-refresh-msgs').addEventListener('click', function(){
+        _db.collection('messages').limit(100).get().then(function(snap){
+          _allMessages = [];
+          snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
+          renderMessages();
+        }).catch(function(){});
+      });
+    });
+  } catch(e){}
+}
+$('btn-refresh-msgs').addEventListener('click', function(){
+  if(!_db) return;
+  _db.collection('messages').limit(100).get().then(function(snap){
+    _allMessages = [];
+    snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
+    renderMessages();
+  }).catch(function(){});
+});
+
+/* ──── Notification Sound ──── */
+var _lastReqCount = 0;
+function checkNewRequests(){
+  var pending = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
+  if(pending > _lastReqCount && _lastReqCount >= 0){
+    try {
+      var ac = new (window.AudioContext || window.webkitAudioContext)();
+      var o = ac.createOscillator(); var g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value = 880; g.gain.value = 0.1;
+      o.start(); o.stop(ac.currentTime + 0.15);
+      setTimeout(function(){
+        var o2 = ac.createOscillator(); var g2 = ac.createGain();
+        o2.connect(g2); g2.connect(ac.destination);
+        o2.frequency.value = 1100; g2.gain.value = 0.1;
+        o2.start(); o2.stop(ac.currentTime + 0.15);
+      }, 160);
+    } catch(e){}
+  }
+  _lastReqCount = pending;
+}
+
+/* ──── Hook activity logging into existing actions ──── */
+var _origToggleBan = toggleBan;
+toggleBan = function(uid, banned){
+  _origToggleBan(uid, banned);
+  logActivity((banned ? 'Banned' : 'Unbanned') + ' user ' + (getUserLabel(uid) || uid));
+};
+var _origDeleteUser = deleteUser;
+deleteUser = function(uid){
+  var label = getUserLabel(uid);
+  _origDeleteUser(uid);
+  logActivity('Deleted user ' + (label || uid));
+};
+var _origHandleRequest = handleRequest;
+handleRequest = function(uid, status){
+  _origHandleRequest(uid, status);
+  logActivity((status === 'accepted' ? 'Accepted' : 'Denied') + ' request from ' + (getUserLabel(uid) || uid));
+};
 
 /* ──── Test Proxy (Live Preview) ──── */
 $('btn-proxy-load').addEventListener('click', function(){

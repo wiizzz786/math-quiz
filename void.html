@@ -125,6 +125,7 @@
       border-radius: var(--rad-sm);
       padding: 5px 6px 5px 16px;
       transition: border-color .3s, box-shadow .3s;
+      position: relative;
     }
     .search-wrap:focus-within {
       border-color: var(--accent);
@@ -213,6 +214,104 @@
     .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 28px rgba(0,0,0,.25); }
     .ql:active { transform: scale(.95); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
     .ql img { width: 18px; height: 18px; border-radius: 4px; border: none; background: transparent; }
+
+    .ql .ql-rm {
+      margin-left: auto; font-size: .55rem; color: var(--muted); opacity: 0;
+      background: none; border: none; cursor: pointer; padding: 2px 4px; transition: .15s;
+    }
+    .ql:hover .ql-rm { opacity: 1; }
+    .ql .ql-rm:hover { color: var(--accent2); }
+
+    .section-row { display: flex; align-items: center; justify-content: space-between; }
+    .section-row .section-hdr { flex: 1; }
+    .section-row .sec-action {
+      font-size: .55rem; font-weight: 700; color: var(--accent); cursor: pointer;
+      background: none; border: none; padding: 2px 8px; letter-spacing: .06em;
+      text-transform: uppercase; transition: .15s;
+    }
+    .section-row .sec-action:hover { color: var(--text); }
+
+    .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+    .h-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 10px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--sub);
+      font-size: .7rem; font-weight: 500; cursor: pointer;
+      transition: all .2s; text-decoration: none; overflow: hidden;
+    }
+    .h-item:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+    .h-item img { width: 16px; height: 16px; border: none; border-radius: 3px; flex-shrink: 0; }
+    .h-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-item .h-rm {
+      margin-left: auto; font-size: .5rem; color: var(--muted); opacity: 0;
+      background: none; border: none; cursor: pointer; padding: 2px; flex-shrink: 0;
+    }
+    .h-item:hover .h-rm { opacity: 1; }
+    .h-item .h-rm:hover { color: var(--accent2); }
+
+    .search-suggest {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+      background: rgba(10,10,20,.97); border: 1px solid var(--border);
+      border-radius: 0 0 12px 12px; max-height: 220px; overflow-y: auto;
+      display: none;
+    }
+    .search-suggest.show { display: block; }
+    .sug-item {
+      padding: 8px 14px; font-size: .75rem; color: var(--sub);
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: background .1s;
+    }
+    .sug-item:hover, .sug-item.active { background: rgba(124,106,255,.1); color: var(--text); }
+    .sug-item img { width: 14px; height: 14px; border: none; border-radius: 3px; }
+    .sug-tag {
+      font-size: .48rem; font-weight: 700; letter-spacing: .06em; padding: 1px 5px;
+      border-radius: 3px; margin-left: auto; text-transform: uppercase;
+    }
+    .sug-tag.bk { background: rgba(124,106,255,.12); color: var(--accent); }
+    .sug-tag.hist { background: rgba(52,211,153,.1); color: var(--green); }
+
+    .br-toolbar {
+      display: flex; align-items: center; gap: 4px; padding: 0 8px;
+      background: rgba(6,6,11,.9); border-bottom: 1px solid rgba(255,255,255,.05);
+      height: 34px; flex-shrink: 0;
+    }
+    .br-tool-btn {
+      padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.06);
+      background: rgba(255,255,255,.03); color: var(--muted); font-size: .58rem;
+      font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit;
+      letter-spacing: .03em;
+    }
+    .br-tool-btn:hover { background: rgba(124,106,255,.12); color: var(--text); border-color: rgba(124,106,255,.2); }
+    .br-tool-btn.active { background: rgba(124,106,255,.15); color: var(--accent); border-color: rgba(124,106,255,.25); }
+    .br-tool-sep { width: 1px; height: 16px; background: rgba(255,255,255,.06); flex-shrink: 0; }
+    .br-tool-label { font-size: .5rem; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-right: 2px; }
+
+    .br-panel {
+      position: absolute; bottom: 28px; left: 0; right: 0; z-index: 100;
+      background: rgba(6,6,11,.97); backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,.08);
+      max-height: 240px; overflow-y: auto; display: none; padding: 12px 16px;
+    }
+    .br-panel.show { display: block; }
+    .br-panel-title {
+      font-size: .55rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 8px;
+    }
+    .br-js-area {
+      width: 100%; min-height: 80px; padding: 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: rgba(0,0,0,.4);
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+      resize: vertical; box-sizing: border-box;
+    }
+    .br-js-area:focus { outline: none; border-color: var(--accent); }
+    .br-js-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .br-js-btn {
+      padding: 5px 14px; border-radius: 6px; border: none;
+      font-family: inherit; font-weight: 700; font-size: .65rem;
+      cursor: pointer; transition: .15s;
+    }
+    .br-js-run { background: linear-gradient(135deg, var(--accent), #6d28d9); color: #fff; }
+    .br-js-clear { background: rgba(255,255,255,.06); color: var(--muted); }
 
     .hint-row {
       font-size: .62rem; color: var(--muted); letter-spacing: .02em;
@@ -577,6 +676,7 @@
         <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="url-input" placeholder="Search the web or enter a URL..." autocomplete="off" spellcheck="false" autofocus/>
         <button class="go-btn" id="go-btn">Browse</button>
+        <div class="search-suggest" id="search-suggest"></div>
       </div>
 
       <div class="section-hdr"><span>Proxy Mode</span></div>
@@ -653,6 +753,12 @@
         </label>
       </div>
 
+      <div class="section-row">
+        <div class="section-hdr"><span>Bookmarks</span></div>
+        <button class="sec-action" id="btn-add-bk">+ Add</button>
+      </div>
+      <div class="links" id="bookmarks-grid"></div>
+
       <div class="section-hdr"><span>Quick Access</span></div>
       <div class="links">
         <a class="ql" href="javascript:void(0)" data-url="https://www.google.com"><img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/>Google</a>
@@ -668,6 +774,12 @@
         <a class="ql" href="javascript:void(0)" data-url="https://now.gg"><img src="https://www.google.com/s2/favicons?domain=now.gg&sz=32" alt=""/>now.gg</a>
         <a class="ql" href="javascript:void(0)" data-url="https://twitter.com"><img src="https://www.google.com/s2/favicons?domain=x.com&sz=32" alt=""/>Twitter</a>
       </div>
+
+      <div class="section-row" id="history-section" style="display:none;">
+        <div class="section-hdr"><span>Recent</span></div>
+        <button class="sec-action" id="btn-clear-hist">Clear</button>
+      </div>
+      <div class="history-grid" id="history-grid"></div>
     </div>
 
     <div class="hint-row">
@@ -706,8 +818,26 @@
     <button class="browser-close" id="br-close">&#x2715; Close</button>
   </div>
   <div class="browser-progress" id="br-progress"></div>
-  <div class="browser-frame">
+  <div class="br-toolbar" id="br-toolbar">
+    <span class="br-tool-label">MODE:</span>
+    <button class="br-tool-btn" id="brt-mode" title="Current proxy mode">Client</button>
+    <div class="br-tool-sep"></div>
+    <button class="br-tool-btn" id="brt-bookmark" title="Bookmark this page">&#9734; Bookmark</button>
+    <button class="br-tool-btn" id="brt-js" title="Inject JavaScript">JS</button>
+    <button class="br-tool-btn" id="brt-adblock" title="Toggle ad blocking">Ads: ON</button>
+    <div class="br-tool-sep"></div>
+    <button class="br-tool-btn" id="brt-eruda" title="Toggle Eruda console">Eruda</button>
+  </div>
+  <div class="browser-frame" style="position:relative;">
     <iframe id="br-iframe" title="Proxy"></iframe>
+    <div class="br-panel" id="br-js-panel">
+      <div class="br-panel-title">Inject JavaScript</div>
+      <textarea class="br-js-area" id="br-js-code" placeholder="document.body.style.background = '#111'"></textarea>
+      <div class="br-js-actions">
+        <button class="br-js-btn br-js-run" id="br-js-run">Run</button>
+        <button class="br-js-btn br-js-clear" id="br-js-close">Close</button>
+      </div>
+    </div>
   </div>
   <div class="browser-status" id="br-status">
     <span class="dot" id="br-dot"></span>
@@ -1206,6 +1336,12 @@ function _clientInjection(){
     new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
   }
 
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'void_eval' && e.data.code){
+      try { (0, eval)(e.data.code); } catch(err){ console.error('[void inject]', err); }
+    }
+  });
+
   _top.postMessage({ type: 'void_loaded' }, '*');
 }
 
@@ -1243,6 +1379,12 @@ function rewriteSrcset(ss, baseUrl, corsBase){
 function clientRewrite(html, baseUrl){
   var cp = getActiveCorsBase();
   var eruda = $('opt-eruda') && $('opt-eruda').checked;
+
+  if(_adBlockEnabled){
+    html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|analytics|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
+    html = html.replace(/<iframe[^>]*src\s*=\s*["'][^"']*(ads|doubleclick|googlesyndication)[^"']*["'][^>]*>[\s\S]*?<\/iframe>/gi, '');
+  }
 
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
@@ -1530,6 +1672,9 @@ async function navigate(rawOrUrl){
   if(!url) return;
 
   logSearch(url, rawOrUrl);
+  var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+  addToHistory(url, domain);
+  updateToolbar();
 
   var m = getMode();
 
@@ -1589,8 +1734,54 @@ document.querySelectorAll('.eng-btn').forEach(function(btn){
   });
 });
 
-$('go-btn').addEventListener('click', function(){ navigate(input.value); });
-input.addEventListener('keydown', function(e){ if(e.key === 'Enter') navigate(input.value); });
+$('go-btn').addEventListener('click', function(){ closeSuggestions(); navigate(input.value); });
+input.addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ closeSuggestions(); navigate(input.value); }
+  if(e.key === 'Escape') closeSuggestions();
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    var items = document.querySelectorAll('.sug-item');
+    if(!items.length) return;
+    var cur = document.querySelector('.sug-item.active');
+    var idx = -1;
+    items.forEach(function(it, i){ if(it === cur) idx = i; });
+    if(cur) cur.classList.remove('active');
+    idx = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx <= 0 ? items.length - 1 : idx - 1);
+    items[idx].classList.add('active');
+    input.value = items[idx].dataset.url || items[idx].textContent;
+  }
+});
+
+input.addEventListener('input', function(){
+  var q = input.value.trim().toLowerCase();
+  if(!q || q.length < 2){ closeSuggestions(); return; }
+  var results = [];
+  getBookmarks().forEach(function(b){
+    if(b.url.toLowerCase().includes(q) || (b.title||'').toLowerCase().includes(q))
+      results.push({ url: b.url, title: b.title, type: 'bk' });
+  });
+  getBrowsingHistory().forEach(function(h){
+    if(h.url.toLowerCase().includes(q) || (h.title||'').toLowerCase().includes(q)){
+      if(!results.some(function(r){ return r.url === h.url; }))
+        results.push({ url: h.url, title: h.title, type: 'hist' });
+    }
+  });
+  if(!results.length){ closeSuggestions(); return; }
+  var sg = $('search-suggest'); sg.innerHTML = '';
+  results.slice(0, 8).forEach(function(r){
+    var d = document.createElement('div'); d.className = 'sug-item'; d.dataset.url = r.url;
+    var domain = ''; try { domain = new URL(r.url).hostname; } catch(e){}
+    d.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + '<span>' + (r.title || domain || r.url).replace(/</g,'&lt;') + '</span>'
+      + '<span class="sug-tag ' + r.type + '">' + (r.type === 'bk' ? 'Bookmark' : 'History') + '</span>';
+    d.addEventListener('click', function(){ closeSuggestions(); input.value = r.url; navigate(r.url); });
+    sg.appendChild(d);
+  });
+  sg.classList.add('show');
+});
+
+input.addEventListener('blur', function(){ setTimeout(closeSuggestions, 200); });
+function closeSuggestions(){ var sg = $('search-suggest'); if(sg) sg.classList.remove('show'); }
 
 document.querySelectorAll('.ql').forEach(function(el){
   el.addEventListener('click', function(e){
@@ -1601,6 +1792,174 @@ document.querySelectorAll('.ql').forEach(function(el){
     input.value = targetUrl;
     navigate(targetUrl);
   });
+});
+
+/* ──────────── Bookmarks ──────────── */
+function getBookmarks(){
+  try { return JSON.parse(localStorage.getItem('void_bookmarks') || '[]'); } catch(e){ return []; }
+}
+function saveBookmarks(bks){
+  try { localStorage.setItem('void_bookmarks', JSON.stringify(bks)); } catch(e){}
+}
+function addBookmark(url, title){
+  var bks = getBookmarks();
+  if(bks.some(function(b){ return b.url === url; })) return;
+  bks.unshift({ url: url, title: title || '' });
+  if(bks.length > 50) bks = bks.slice(0, 50);
+  saveBookmarks(bks);
+  renderBookmarks();
+}
+function removeBookmark(url){
+  var bks = getBookmarks().filter(function(b){ return b.url !== url; });
+  saveBookmarks(bks);
+  renderBookmarks();
+}
+function isBookmarked(url){
+  return getBookmarks().some(function(b){ return b.url === url; });
+}
+function renderBookmarks(){
+  var grid = $('bookmarks-grid'); if(!grid) return;
+  var bks = getBookmarks();
+  grid.innerHTML = '';
+  if(!bks.length){ grid.innerHTML = '<span style="font-size:.65rem;color:var(--muted);padding:4px;">No bookmarks yet. Click &#9734; in the browser toolbar to add one.</span>'; return; }
+  bks.forEach(function(b){
+    var el = document.createElement('a'); el.className = 'ql'; el.href = 'javascript:void(0)';
+    var domain = ''; try { domain = new URL(b.url).hostname; } catch(e){}
+    el.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + (b.title || domain || b.url).replace(/</g,'&lt;')
+      + '<button class="ql-rm" title="Remove">&times;</button>';
+    el.addEventListener('click', function(e){
+      if(e.target.classList.contains('ql-rm')){ e.preventDefault(); removeBookmark(b.url); return; }
+      e.preventDefault(); sfxClick(); input.value = b.url; navigate(b.url);
+    });
+    grid.appendChild(el);
+  });
+}
+$('btn-add-bk').addEventListener('click', function(){
+  var url = prompt('Enter URL to bookmark:', 'https://');
+  if(!url || !url.trim()) return;
+  url = url.trim();
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var title = prompt('Label (optional):', '');
+  addBookmark(url, title || '');
+});
+renderBookmarks();
+
+/* ──────────── Browsing History ──────────── */
+function getBrowsingHistory(){
+  try { return JSON.parse(localStorage.getItem('void_browse_history') || '[]'); } catch(e){ return []; }
+}
+function saveBrowsingHistory(h){
+  try { localStorage.setItem('void_browse_history', JSON.stringify(h)); } catch(e){}
+}
+function addToHistory(url, title){
+  var h = getBrowsingHistory().filter(function(e){ return e.url !== url; });
+  h.unshift({ url: url, title: title || '', ts: Date.now() });
+  if(h.length > 30) h = h.slice(0, 30);
+  saveBrowsingHistory(h);
+  renderHistory();
+}
+function renderHistory(){
+  var grid = $('history-grid'); var sec = $('history-section');
+  if(!grid || !sec) return;
+  var h = getBrowsingHistory();
+  if(!h.length){ sec.style.display = 'none'; grid.innerHTML = ''; return; }
+  sec.style.display = '';
+  grid.innerHTML = '';
+  h.slice(0, 12).forEach(function(entry){
+    var el = document.createElement('div'); el.className = 'h-item';
+    var domain = ''; try { domain = new URL(entry.url).hostname; } catch(e){}
+    el.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + '<span>' + (entry.title || domain || entry.url).replace(/</g,'&lt;') + '</span>'
+      + '<button class="h-rm" title="Remove">&times;</button>';
+    el.addEventListener('click', function(e){
+      if(e.target.classList.contains('h-rm')){
+        var hist = getBrowsingHistory().filter(function(x){ return x.url !== entry.url; });
+        saveBrowsingHistory(hist); renderHistory(); return;
+      }
+      input.value = entry.url; navigate(entry.url);
+    });
+    grid.appendChild(el);
+  });
+}
+$('btn-clear-hist').addEventListener('click', function(){
+  localStorage.removeItem('void_browse_history');
+  renderHistory();
+});
+renderHistory();
+
+/* ──────────── Browser Toolbar ──────────── */
+var _adBlockEnabled = false;
+
+function updateToolbar(){
+  var m = getMode();
+  $('brt-mode').textContent = m.charAt(0).toUpperCase() + m.slice(1);
+  $('brt-eruda').classList.toggle('active', $('opt-eruda') && $('opt-eruda').checked);
+  $('brt-adblock').textContent = 'Ads: ' + (_adBlockEnabled ? 'OFF' : 'ON');
+  $('brt-adblock').classList.toggle('active', _adBlockEnabled);
+  if(currentUrl) $('brt-bookmark').innerHTML = (isBookmarked(currentUrl) ? '&#9733;' : '&#9734;') + ' Bookmark';
+}
+
+$('brt-mode').addEventListener('click', function(){
+  var modes = ['client','server','experimental','uv','scramjet'];
+  var cur = getMode();
+  var idx = modes.indexOf(cur);
+  var next = modes[(idx + 1) % modes.length];
+  var btn = document.querySelector('.mode-btn[data-m="' + next + '"]');
+  if(btn) btn.click();
+  updateToolbar();
+  toast('Mode: ' + next);
+});
+
+$('brt-bookmark').addEventListener('click', function(){
+  if(!currentUrl) return;
+  if(isBookmarked(currentUrl)){
+    removeBookmark(currentUrl);
+    toast('Bookmark removed');
+  } else {
+    var title = ''; try { title = new URL(currentUrl).hostname; } catch(e){}
+    addBookmark(currentUrl, title);
+    toast('Bookmarked!');
+  }
+  updateToolbar();
+});
+
+$('brt-js').addEventListener('click', function(){
+  var panel = $('br-js-panel');
+  var isOpen = panel.classList.contains('show');
+  panel.classList.toggle('show');
+  $('brt-js').classList.toggle('active', !isOpen);
+  if(!isOpen) $('br-js-code').focus();
+});
+
+$('br-js-run').addEventListener('click', function(){
+  var code = $('br-js-code').value;
+  if(!code.trim()) return;
+  try {
+    var iframe = $('br-iframe');
+    if(iframe && iframe.contentWindow){
+      iframe.contentWindow.postMessage({ type: 'void_eval', code: code }, '*');
+    }
+    toast('JS executed');
+  } catch(e){ toast('Error: ' + e.message); }
+});
+
+$('br-js-close').addEventListener('click', function(){
+  $('br-js-panel').classList.remove('show');
+  $('brt-js').classList.remove('active');
+});
+
+$('brt-adblock').addEventListener('click', function(){
+  _adBlockEnabled = !_adBlockEnabled;
+  updateToolbar();
+  toast('Ad blocking: ' + (_adBlockEnabled ? 'ON' : 'OFF'));
+});
+
+$('brt-eruda').addEventListener('click', function(){
+  var cb = $('opt-eruda');
+  if(cb){ cb.checked = !cb.checked; savePrefs(); }
+  updateToolbar();
+  toast('Eruda: ' + (cb && cb.checked ? 'ON' : 'OFF'));
 });
 
 $('br-close').addEventListener('click', function(){
