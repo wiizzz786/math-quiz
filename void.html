@@ -1015,12 +1015,27 @@ function _clientInjection(){
   var _b = '%%BASE%%';
   var _cp = '%%CORS%%';
   var _eruda = '%%ERUDA%%';
+
+  /* ── Prevent override stacking on re-navigation ── */
+  if(window.__voidProxy){
+    window.__voidProxy._setCur(_b);
+    window.__voidProxy._reattach();
+    return;
+  }
+
   var _cur = _b;
 
   /* ── Cookie jar ── */
   var _cookieJar = {};
   try { _cookieJar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
-  function _saveCookies(){ try { localStorage.setItem('void_cookies', JSON.stringify(_cookieJar)); } catch(e){} }
+  function _saveCookies(){
+    try { localStorage.setItem('void_cookies', JSON.stringify(_cookieJar)); } catch(e){}
+    try {
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage({ type: 'void-sw-cookies', cookies: _cookieJar });
+      }
+    } catch(e){}
+  }
   function _getDomain(url){ try { return new URL(url).hostname; } catch(e){ return ''; } }
   function _getCookiesFor(url){
     var domain = _getDomain(url);
@@ -1550,17 +1565,24 @@ function _clientInjection(){
     };
   }
 
-  /* ── Block ServiceWorker registration ── */
+  /* ── Block foreign ServiceWorker registration (allow our own void-sw) ── */
   if(navigator.serviceWorker){
-    navigator.serviceWorker.register = function(){ return Promise.reject(new Error('blocked by proxy')); };
+    var _origSWReg = navigator.serviceWorker.register;
+    navigator.serviceWorker.register = function(url){
+      if(url && typeof url === 'string' && url.indexOf('void-sw') >= 0)
+        return _origSWReg.apply(navigator.serviceWorker, arguments);
+      return Promise.reject(new Error('blocked by proxy'));
+    };
   }
 
-  /* ── Block document.write/writeln from nuking proxy after load ── */
+  /* ── Block document.open/write/writeln from nuking proxy after load ── */
   var _origWrite = document.write.bind(document);
   var _origWriteln = document.writeln.bind(document);
+  var _origOpen = document.open.bind(document);
   var _docLoaded = false;
   document.write = function(s){ if(!_docLoaded) return _origWrite(s); };
   document.writeln = function(s){ if(!_docLoaded) return _origWriteln(s); };
+  document.open = function(){ if(!_docLoaded) return _origOpen.apply(document, arguments); return document; };
   if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
   else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
 
@@ -1586,21 +1608,26 @@ function _clientInjection(){
   });
 
   /* ── MutationObserver: rewrite dynamically added elements ── */
-  var _mo = new MutationObserver(function(muts){
-    for(var i = 0; i < muts.length; i++){
-      var added = muts[i].addedNodes;
-      for(var j = 0; j < added.length; j++){
-        var n = added[j];
-        if(n.nodeType !== 1) continue;
-        _rewriteNode(n);
-        if(n.querySelectorAll){
-          var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src]');
-          for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
+  var _mo;
+  function _setupMO(){
+    if(_mo) try { _mo.disconnect(); } catch(e){}
+    _mo = new MutationObserver(function(muts){
+      for(var i = 0; i < muts.length; i++){
+        var added = muts[i].addedNodes;
+        for(var j = 0; j < added.length; j++){
+          var n = added[j];
+          if(n.nodeType !== 1) continue;
+          _rewriteNode(n);
+          if(n.querySelectorAll){
+            var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src]');
+            for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
+          }
         }
       }
-    }
-  });
-  _mo.observe(document.documentElement, { childList: true, subtree: true });
+    });
+    try { _mo.observe(document.documentElement, { childList: true, subtree: true }); } catch(e){}
+  }
+  _setupMO();
 
   function _rewriteNode(el){
     var tag = el.tagName;
@@ -1635,11 +1662,35 @@ function _clientInjection(){
 
   /* ── Title reporting ── */
   function reportTitle(){ _top.postMessage({ type: 'void_title', title: document.title }, '*'); }
-  reportTitle();
-  var titleEl = document.querySelector('title');
-  if(titleEl){
-    new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
+  function _attachTitle(){
+    reportTitle();
+    var titleEl = document.querySelector('title');
+    if(titleEl){
+      try { new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true }); } catch(e){}
+    }
   }
+  _attachTitle();
+
+  /* ── Expose __voidProxy for re-navigation (prevents override stacking) ── */
+  window.__voidProxy = {
+    _setCur: function(v){ _cur = v; },
+    _reattach: function(){
+      _setupMO();
+      _attachTitle();
+      _top.postMessage({ type: 'void_loaded' }, '*');
+    }
+  };
+
+  /* ── Listen for SW cookie updates ── */
+  try {
+    if(navigator.serviceWorker){
+      navigator.serviceWorker.addEventListener('message', function(e){
+        if(e.data && e.data.type === 'void-sw-set-cookie'){
+          _parseSetCookies(e.data.raw, e.data.url);
+        }
+      });
+    }
+  } catch(e){}
 
   window.addEventListener('message', function(e){
     if(e.data && e.data.type === 'void_eval' && e.data.code){
@@ -1817,22 +1868,26 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     return html;
   }
 
-  var TB_CSS = '#_vt{position:fixed;top:0;left:0;right:0;z-index:2147483647;height:36px;background:rgba(6,6,11,.96);'
-    + 'backdrop-filter:blur(12px);display:flex;align-items:center;gap:4px;padding:0 6px;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07);font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}'
-    + '#_vt *{box-sizing:border-box;}#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
-    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;}'
+  var TB_CSS = '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:36px !important;background:rgba(6,6,11,.96) !important;'
+    + 'backdrop-filter:blur(12px) !important;display:flex !important;align-items:center !important;'
+    + 'gap:4px !important;padding:0 6px !important;visibility:visible !important;opacity:1 !important;'
+    + 'transform:none !important;pointer-events:auto !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;font-family:system-ui,-apple-system,sans-serif !important;box-sizing:border-box !important;}'
+    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
+    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;display:inline-flex !important;}'
     + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
     + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
-    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;}'
+    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;display:block !important;}'
     + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
     + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
-    + '#_vld{display:none;position:fixed;top:36px;left:0;right:0;height:2px;z-index:2147483647;'
+    + '#_vld{display:none;position:fixed !important;top:36px !important;left:0 !important;right:0 !important;height:2px !important;z-index:2147483647 !important;'
     + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;}'
-    + '#_vld.on{display:block;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
-    + '#_vjp{position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:rgba(6,6,11,.97);'
+    + '#_vld.on{display:block !important;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vjp{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
     + 'border-top:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
-    + '#_vjp.on{display:block;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
     + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
     + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
     + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
@@ -2014,22 +2069,26 @@ function renderPage(html, baseUrl){
     + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
     + '<\/scr' + 'ipt>';
 
-  var TB_CSS = '#_vt{position:fixed;top:0;left:0;right:0;z-index:2147483647;height:36px;background:rgba(6,6,11,.96);'
-    + 'backdrop-filter:blur(12px);display:flex;align-items:center;gap:4px;padding:0 6px;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07);font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}'
-    + '#_vt *{box-sizing:border-box;}#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
-    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;}'
+  var TB_CSS = '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:36px !important;background:rgba(6,6,11,.96) !important;'
+    + 'backdrop-filter:blur(12px) !important;display:flex !important;align-items:center !important;'
+    + 'gap:4px !important;padding:0 6px !important;visibility:visible !important;opacity:1 !important;'
+    + 'transform:none !important;pointer-events:auto !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;font-family:system-ui,-apple-system,sans-serif !important;box-sizing:border-box !important;}'
+    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
+    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;display:inline-flex !important;}'
     + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
     + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
-    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;}'
+    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;display:block !important;}'
     + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
     + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
-    + '#_vld{display:none;position:fixed;top:36px;left:0;right:0;height:2px;z-index:2147483647;'
+    + '#_vld{display:none;position:fixed !important;top:36px !important;left:0 !important;right:0 !important;height:2px !important;z-index:2147483647 !important;'
     + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;}'
-    + '#_vld.on{display:block;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
-    + '#_vjp{position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:rgba(6,6,11,.97);'
+    + '#_vld.on{display:block !important;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vjp{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
     + 'border-top:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
-    + '#_vjp.on{display:block;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
     + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
     + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
     + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
@@ -2066,6 +2125,31 @@ function fetchWithTimeout(url, opts, ms){
 }
 
 probeBackends();
+
+/* ── Service Worker registration ── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/void-sw.js', { scope: '/' }).catch(function(e){
+    console.warn('[Void SW] registration failed:', e.message);
+  });
+}
+function configureSW(proxyBase, targetUrl){
+  return new Promise(function(resolve){
+    if(!navigator.serviceWorker || !navigator.serviceWorker.controller){ resolve(); return; }
+    try {
+      var jar = {};
+      try { jar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
+      var mc = new MessageChannel();
+      mc.port1.onmessage = function(){ resolve(); };
+      navigator.serviceWorker.controller.postMessage({
+        type: 'void-sw-config',
+        proxy: proxyBase.replace(/\/+$/, ''),
+        origin: new URL(targetUrl).origin,
+        cookies: jar
+      }, [mc.port2]);
+      setTimeout(resolve, 150);
+    } catch(e){ resolve(); }
+  });
+}
 
 function _getVoidCookies(url){
   try {
@@ -2191,6 +2275,7 @@ async function navigateClient(targetUrl, pushHist, postOpts){
   }
 
   try {
+    await configureSW(getActiveCorsBase(), targetUrl);
     var fetchOpts = undefined;
     if(postOpts){
       fetchOpts = {
