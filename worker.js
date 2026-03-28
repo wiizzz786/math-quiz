@@ -34,21 +34,29 @@ function validate(target) {
 
 function buildHeaders(request) {
   var fwd = new Headers();
-  var STRIP = new Set(['host','origin','cf-connecting-ip','cf-ipcountry','cf-ray','cf-visitor','x-forwarded-for','x-real-ip','x-forwarded-proto']);
+  var STRIP = new Set(['host','origin','cf-connecting-ip','cf-ipcountry','cf-ray','cf-visitor',
+    'x-forwarded-for','x-real-ip','x-forwarded-proto',
+    'sec-fetch-site','sec-fetch-mode','sec-fetch-dest','sec-fetch-user']);
   for (var pair of request.headers) {
-    if (!STRIP.has(pair[0].toLowerCase())) fwd.set(pair[0], pair[1]);
+    var k = pair[0].toLowerCase();
+    if (!STRIP.has(k) && !k.startsWith('x-void-')) fwd.set(pair[0], pair[1]);
   }
 
   var voidCookie = request.headers.get('x-void-cookie');
   if (voidCookie) {
     fwd.set('Cookie', voidCookie);
-    fwd.delete('x-void-cookie');
   }
 
   if (!fwd.has('user-agent')) {
     fwd.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   }
+  if (!fwd.has('accept')) {
+    fwd.set('Accept', '*/*');
+  }
   fwd.set('Accept-Encoding', 'gzip, deflate, br');
+  fwd.set('Sec-Fetch-Site', 'same-origin');
+  fwd.set('Sec-Fetch-Mode', 'cors');
+  fwd.set('Sec-Fetch-Dest', 'empty');
   return fwd;
 }
 
@@ -137,7 +145,11 @@ export default {
     }
 
     var fwdHeaders = buildHeaders(request);
-    fwdHeaders.set('Referer', new URL(decoded).origin + '/');
+    var targetOrigin = new URL(decoded).origin;
+    fwdHeaders.set('Referer', targetOrigin + '/');
+    fwdHeaders.set('Origin', targetOrigin);
+    fwdHeaders.delete('x-void-cookie');
+    fwdHeaders.delete('x-void-set-cookie');
 
     try {
       var finalUrl = decoded;
