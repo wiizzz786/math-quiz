@@ -604,7 +604,7 @@
 
 var $ = function(id){ return document.getElementById(id); };
 var CORS_PROXY = 'https://void-proxy.aadizzz786.workers.dev';
-var VER = '1.0.0';
+var VER = '2.0.0';
 var _db = null, _fbOk = false, _allUsers = [], _allSearches = [], _userLabels = {};
 
 try { var p = localStorage.getItem('void_prefs'); if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; } } catch(e){}
