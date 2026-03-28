@@ -50,13 +50,41 @@ function buildHeaders(request) {
   if (!fwd.has('user-agent')) {
     fwd.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   }
-  if (!fwd.has('accept')) {
-    fwd.set('Accept', '*/*');
+
+  var dest = request.headers.get('x-void-dest') || 'empty';
+  fwd.delete('x-void-dest');
+
+  if (dest === 'document') {
+    if (!fwd.has('accept')) fwd.set('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8');
+    fwd.set('Sec-Fetch-Dest', 'document');
+    fwd.set('Sec-Fetch-Mode', 'navigate');
+    fwd.set('Sec-Fetch-Site', 'none');
+    fwd.set('Sec-Fetch-User', '?1');
+    fwd.set('Upgrade-Insecure-Requests', '1');
+  } else if (dest === 'script') {
+    if (!fwd.has('accept')) fwd.set('Accept', '*/*');
+    fwd.set('Sec-Fetch-Dest', 'script');
+    fwd.set('Sec-Fetch-Mode', 'no-cors');
+    fwd.set('Sec-Fetch-Site', 'same-origin');
+  } else if (dest === 'style') {
+    if (!fwd.has('accept')) fwd.set('Accept', 'text/css,*/*;q=0.1');
+    fwd.set('Sec-Fetch-Dest', 'style');
+    fwd.set('Sec-Fetch-Mode', 'no-cors');
+    fwd.set('Sec-Fetch-Site', 'same-origin');
+  } else if (dest === 'image') {
+    if (!fwd.has('accept')) fwd.set('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8');
+    fwd.set('Sec-Fetch-Dest', 'image');
+    fwd.set('Sec-Fetch-Mode', 'no-cors');
+    fwd.set('Sec-Fetch-Site', 'same-origin');
+  } else {
+    if (!fwd.has('accept')) fwd.set('Accept', '*/*');
+    fwd.set('Sec-Fetch-Dest', 'empty');
+    fwd.set('Sec-Fetch-Mode', 'cors');
+    fwd.set('Sec-Fetch-Site', 'same-origin');
   }
+
+  if (!fwd.has('accept-language')) fwd.set('Accept-Language', 'en-US,en;q=0.9');
   fwd.set('Accept-Encoding', 'gzip, deflate, br');
-  fwd.set('Sec-Fetch-Site', 'same-origin');
-  fwd.set('Sec-Fetch-Mode', 'cors');
-  fwd.set('Sec-Fetch-Dest', 'empty');
   return fwd;
 }
 
@@ -179,7 +207,9 @@ export default {
           var loc = upstream.headers.get('location');
           if (!loc) break;
           try { finalUrl = new URL(loc, finalUrl).href; } catch { break; }
-          fwdHeaders.set('Referer', new URL(finalUrl).origin + '/');
+          var newOrigin = new URL(finalUrl).origin;
+          fwdHeaders.set('Referer', newOrigin + '/');
+          fwdHeaders.set('Origin', newOrigin);
 
           if (upstream.status !== 307 && upstream.status !== 308) {
             curMethod = 'GET';

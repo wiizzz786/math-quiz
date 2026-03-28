@@ -1144,9 +1144,9 @@ function _clientInjection(){
       if(!_navHandled){
         _dbg('nav-fallback', url);
         var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
-        var fo = {};
+        var fo = { headers: { 'X-Void-Dest': 'document' } };
         var ck = _getCookiesFor(url);
-        if(ck) fo.headers = { 'X-Void-Cookie': ck };
+        if(ck) fo.headers['X-Void-Cookie'] = ck;
         window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
           _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
         }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
@@ -1336,6 +1336,20 @@ function _clientInjection(){
 
   /* ── fetch override ── */
   var _of = window.fetch;
+  function _inferDest(url, opts){
+    var acc = '';
+    if(opts && opts.headers){
+      if(opts.headers instanceof Headers) acc = opts.headers.get('accept') || '';
+      else if(typeof opts.headers === 'object') acc = opts.headers['Accept'] || opts.headers['accept'] || '';
+    }
+    if(acc.indexOf('text/html') >= 0) return 'document';
+    if(acc.indexOf('text/css') >= 0) return 'style';
+    if(acc.indexOf('image/') >= 0) return 'image';
+    if(/\.(js|mjs)(\?|$)/i.test(url)) return 'script';
+    if(/\.(css)(\?|$)/i.test(url)) return 'style';
+    if(/\.(png|jpg|jpeg|gif|webp|svg|ico|avif)(\?|$)/i.test(url)) return 'image';
+    return 'empty';
+  }
   window.fetch = function(u, o){
     o = o || {};
     var origUrl = '';
@@ -1347,9 +1361,12 @@ function _clientInjection(){
         u = _proxied(resolved);
         if(!o.headers) o.headers = {};
         var ck = _getCookiesFor(resolved);
-        if(ck){
-          if(o.headers instanceof Headers) o.headers.set('X-Void-Cookie', ck);
-          else o.headers['X-Void-Cookie'] = ck;
+        if(o.headers instanceof Headers){
+          if(ck) o.headers.set('X-Void-Cookie', ck);
+          if(!o.headers.has('X-Void-Dest')) o.headers.set('X-Void-Dest', _inferDest(resolved, o));
+        } else {
+          if(ck) o.headers['X-Void-Cookie'] = ck;
+          if(!o.headers['X-Void-Dest']) o.headers['X-Void-Dest'] = _inferDest(resolved, o);
         }
         delete o.credentials;
         o.mode = 'cors';
@@ -1362,6 +1379,7 @@ function _clientInjection(){
         var h = new Headers(u.headers);
         var ck = _getCookiesFor(resolved);
         if(ck) h.set('X-Void-Cookie', ck);
+        if(!h.has('X-Void-Dest')) h.set('X-Void-Dest', _inferDest(resolved, { headers: h }));
         u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: 'cors' });
       }
     }
@@ -2074,6 +2092,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       if(postOpts) fo = { method: 'POST', headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' }, body: postOpts.body };
       if(!fo) fo = {};
       if(!fo.headers) fo.headers = {};
+      fo.headers['X-Void-Dest'] = 'document';
       var ck = _getCk(url);
       if(ck) fo.headers['X-Void-Cookie'] = ck;
       var r = await fetch(makeCors(url), fo);
@@ -2324,17 +2343,17 @@ function _storeVoidCookies(resp, url){
     localStorage.setItem('void_cookies', JSON.stringify(jar));
   } catch(e){}
 }
-function _addCookieHeaders(fetchOpts, targetUrl){
-  var ck = _getVoidCookies(targetUrl);
-  if(!ck) return fetchOpts;
+function _addCookieHeaders(fetchOpts, targetUrl, dest){
   if(!fetchOpts) fetchOpts = {};
   if(!fetchOpts.headers) fetchOpts.headers = {};
-  fetchOpts.headers['X-Void-Cookie'] = ck;
+  var ck = _getVoidCookies(targetUrl);
+  if(ck) fetchOpts.headers['X-Void-Cookie'] = ck;
+  if(dest) fetchOpts.headers['X-Void-Dest'] = dest;
   return fetchOpts;
 }
 
 async function clientFetch(targetUrl, fetchOpts){
-  fetchOpts = _addCookieHeaders(fetchOpts, targetUrl);
+  fetchOpts = _addCookieHeaders(fetchOpts, targetUrl, 'document');
   var custom = getCustomCorsProxy();
   if(custom){
     var proxyUrl = custom.includes('?') ? custom + encodeURIComponent(targetUrl) : custom + '?url=' + encodeURIComponent(targetUrl);

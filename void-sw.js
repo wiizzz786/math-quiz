@@ -79,6 +79,9 @@ self.addEventListener('fetch', function(e) {
       }
       var ck = getCookies(targetUrl);
       if (ck) h.set('X-Void-Cookie', ck);
+      var dest = e.request.destination || 'empty';
+      var destMap = { document: 'document', script: 'script', style: 'style', image: 'image', font: 'style', worker: 'script', sharedworker: 'script' };
+      h.set('X-Void-Dest', destMap[dest] || 'empty');
 
       var init = { method: e.request.method, headers: h, mode: 'cors' };
       if (e.request.method !== 'GET' && e.request.method !== 'HEAD') {
