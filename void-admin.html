@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <title>Void Admin</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ff5f8f'/%3E%3Cstop offset='100%25' stop-color='%237c6aff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -16,9 +16,10 @@
       --text: #eef0f8; --sub: #9a9bb8; --muted: #464660; --dim: #2a2a3d;
       --rad: 16px; --rad-sm: 10px;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
     body { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    button, a, input, textarea, select, .nav-item, .uid-row, .req-row, .btn, .uid-label, .uid-delete, .btn-msg { touch-action: manipulation; }
 
     .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
     .bg .wavy-grad {
@@ -304,6 +305,35 @@
       .uid-meta, .uid-label, .h-query { display: none; }
       .tool-row { flex-direction: column; }
       .tool-arrow { transform: rotate(90deg); }
+    }
+    /* ── Touch / iPad optimizations ── */
+    @supports (padding: env(safe-area-inset-top)) {
+      .header { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+      .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+      .content { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    }
+    @media (pointer: coarse) {
+      .nav-item { padding: 14px 16px; min-height: 48px; font-size: .82rem; }
+      .btn { padding: 12px 20px; font-size: .82rem; min-height: 44px; }
+      .btn-sm { padding: 8px 14px; font-size: .7rem; min-height: 36px; }
+      .btn-msg { padding: 8px 12px; font-size: .64rem; min-height: 36px; }
+      .uid-row { padding: 14px 16px; gap: 12px; }
+      .uid-delete { width: 32px; height: 32px; font-size: .85rem; }
+      .uid-label { padding: 6px 10px; min-height: 36px; display: inline-flex; align-items: center; }
+      .req-row { padding: 14px 16px; }
+      .history-row { padding: 12px 14px; }
+      .history-filters select { padding: 10px 14px; font-size: .78rem; min-height: 44px; }
+      .stat { padding: 18px; }
+      .debug-url { padding: 12px 14px; font-size: .82rem; }
+      .tool-textarea { padding: 14px; font-size: .8rem; min-height: 100px; }
+      .msg-modal textarea { padding: 14px; font-size: .85rem; min-height: 110px; }
+      input, textarea, select { font-size: 16px; }
+      .header { padding: 14px 20px; }
+    }
+    @media (max-width: 700px) and (pointer: coarse) {
+      .sidebar { width: 58px; }
+      .nav-item { padding: 16px 10px; }
+      .content { padding: 14px; }
     }
   </style>
 </head>
@@ -646,7 +676,7 @@ function refreshDashboard(){
   $('d-fb-total').textContent = _allUsers.length || '\u2014';
   var now = Date.now();
   var onlineCount = _allUsers.filter(function(u){
-    return !u.banned && u.lastSeen && u.lastSeen.toMillis && (now - u.lastSeen.toMillis()) < 60000;
+    return !u.banned && u.lastSeen && u.lastSeen.toMillis && (now - u.lastSeen.toMillis()) < 45000;
   }).length;
   $('d-fb-online').textContent = onlineCount;
   $('d-fb-banned').textContent = _allUsers.filter(function(u){ return u.banned; }).length;
@@ -712,7 +742,7 @@ function renderFirestoreUsers(){
 
     var isOnline = false;
     if(u.lastSeen && u.lastSeen.toMillis){
-      isOnline = (now - u.lastSeen.toMillis()) < 60000;
+      isOnline = (now - u.lastSeen.toMillis()) < 45000;
     }
     var onDot = document.createElement('span');
     onDot.className = 'uid-online ' + (u.banned ? 'banned' : (isOnline ? 'online' : 'offline'));
@@ -860,6 +890,10 @@ if(_fbOk){
       fetchUsers();
     });
   } catch(e){ fetchUsers(); }
+
+  setInterval(function(){
+    if(_allUsers.length) { renderFirestoreUsers(); refreshDashboard(); }
+  }, 15000);
 }
 
 $('btn-refresh-users').addEventListener('click', fetchUsers);
