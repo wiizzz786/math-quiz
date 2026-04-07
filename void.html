@@ -3,10 +3,17 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
-  <meta name="void-update-repo" content="wiizzz786/math-quiz"/>
+  <!-- Optional: absolute URL to void.html for "Check for Update" (defaults to same origin when hosted) -->
+  <meta name="void-update-url" content=""/>
   <meta name="void-version" content="2.0.0"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
+  <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
+  <meta name="void-default-mode" content="scramjet"/>
+  <!-- Scramjet entry host when void isn’t opened from that origin (e.g. file://). Matches Funnel HTTPS on 443. -->
+  <meta name="void-scramjet-base" content="https://void.tailf49039.ts.net"/>
+  <!-- Client mode: full CORS proxy base including ?url= (must match your Worker) -->
+  <meta name="void-cors-proxy-base" content="https://void-proxy.aadizzz786.workers.dev/?url="/>
   <title>Void</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
@@ -32,7 +39,7 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow: hidden; -webkit-text-size-adjust: 100%; }
+    html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-y: hidden; -webkit-text-size-adjust: 100%; }
     button, a, input, textarea, select, .ql, .eng-btn, .eng-more-btn, .h-item, .opt { touch-action: manipulation; }
 
     .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -67,7 +74,12 @@
       opacity: 0.9;
     }
 
-    .app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; }
+    .app {
+      position: relative; z-index: 1;
+      height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
+      min-height: 0;
+      display: flex; flex-direction: column;
+    }
 
     .brand, .card, .hint-row, .foot {
       opacity: 0; transform: translateY(18px);
@@ -80,8 +92,16 @@
     @keyframes enter { to { opacity: 1; transform: translateY(0); } }
 
     .landing {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 2rem 1.5rem; gap: 1.5rem; overflow-y: auto;
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: max(2rem, env(safe-area-inset-top, 0px));
+      padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(2.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+      gap: 1.5rem;
+      overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
       transition: opacity .3s, transform .3s;
     }
     .landing.hidden { opacity: 0; pointer-events: none; transform: scale(.97); position: absolute; inset: 0; }
@@ -317,15 +337,92 @@
       position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
       padding: 10px 22px; border-radius: 10px; background: rgba(0,0,0,.85);
       border: 1px solid var(--border); color: var(--text); font-size: .78rem;
-      font-weight: 500; opacity: 0; pointer-events: none; z-index: 9999;
+      font-weight: 500; opacity: 0; pointer-events: none; z-index: 10072;
       transition: all .3s cubic-bezier(.16,1,.3,1);
       backdrop-filter: blur(12px);
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+    .void-embed-overlay {
+      position: fixed; inset: 0; z-index: 10050;
+      background: var(--bg);
+      display: none; flex-direction: column;
+    }
+    .void-embed-overlay.show { display: flex; }
+    .void-embed-top {
+      flex-shrink: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      background: rgba(6,6,11,.96); backdrop-filter: blur(12px);
+      position: relative;
+    }
+    .void-embed-overlay.loading .void-embed-top::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #ff5f8f, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+      pointer-events: none;
+    }
+    .void-embed-top button {
+      padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: .76rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .void-embed-top button:hover { border-color: var(--border2); background: var(--surface2); }
+    .void-embed-top .void-embed-url {
+      font-size: .65rem; color: var(--muted); flex: 1; min-width: 120px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .void-embed-wrap { flex: 1; position: relative; min-height: 0; }
+    .void-embed-wrap iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+      z-index: 1;
+    }
+    .void-embed-loading {
+      position: absolute; inset: 0; z-index: 2;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(6,6,11,.94); backdrop-filter: blur(10px);
+      padding: 1.5rem;
+    }
+    .void-embed-loading.show { display: flex; }
+    .void-embed-loading-inner {
+      text-align: center; max-width: 22rem;
+      display: flex; flex-direction: column; align-items: center; gap: .5rem;
+    }
+    .void-embed-status-icon {
+      font-size: 1.75rem; line-height: 1; font-weight: 800; user-select: none;
+    }
+    .void-embed-icon-loading {
+      color: #a78bfa;
+      text-shadow: 0 0 18px rgba(167, 139, 250, .55);
+      animation: void-embed-status-blink .85s ease-in-out infinite;
+    }
+    .void-embed-icon-ready { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, .35); }
+    .void-embed-icon-error { color: #f87171; }
+    @keyframes void-embed-status-blink { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+    .void-embed-loading-inner p {
+      font-size: .78rem; font-weight: 600; color: var(--sub); letter-spacing: .06em;
+      text-transform: uppercase; margin: 0;
+    }
+    .void-embed-loading-inner.state-ready p,
+    .void-embed-loading-inner.state-error p { text-transform: none; letter-spacing: normal; font-size: .85rem; }
+    .void-embed-loading-bar {
+      height: 4px; width: 100%; max-width: 260px; margin: .25rem auto 0; border-radius: 3px;
+      overflow: hidden;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #c4b5fd, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+      box-shadow: 0 0 24px rgba(124,106,255,.25);
+    }
+    .void-embed-loading-inner.state-ready .void-embed-loading-bar,
+    .void-embed-loading-inner.state-error .void-embed-loading-bar { display: none; }
+    .void-embed-loading-sub {
+      margin-top: .35rem; font-size: .65rem; color: var(--muted); line-height: 1.45;
+    }
+
     /* ── Ambient music player ── */
     .music-ctrl {
-      position: fixed; bottom: 18px; right: 18px; z-index: 9990;
+      position: fixed; bottom: 18px; right: 18px; z-index: 10070;
       display: flex; align-items: center; gap: 8px;
       padding: 8px 14px; border-radius: 12px;
       background: rgba(6,6,11,.85); backdrop-filter: blur(12px);
@@ -365,6 +462,21 @@
     .music-vol::-webkit-slider-thumb {
       -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
       background: var(--accent); cursor: pointer;
+    }
+
+    /* In-page embed: music strip in header (same audio as floating control) */
+    .void-embed-music {
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+      padding: 5px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      cursor: pointer; user-select: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .void-embed-music:hover { border-color: var(--border2); box-shadow: 0 2px 12px rgba(124,106,255,.12); }
+    .void-embed-music.playing { border-color: rgba(124,106,255,.35); }
+    .void-embed-music .music-label { font-size: .55rem; max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .void-embed-music .music-vol { width: 72px; margin-left: 0; }
+    @media (max-width: 520px) {
+      .void-embed-music .music-vol { width: 56px; }
     }
 
     /* ── Boot screen ── */
@@ -488,37 +600,35 @@
     }
 
     /* ── Ban screen ── */
-    .void-msg-overlay {
-      position: fixed; inset: 0; z-index: 99998;
-      background: rgba(6,6,11,.7); backdrop-filter: blur(8px);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity .3s; pointer-events: none;
+    .void-msg-toast {
+      position: fixed; top: 16px; right: 16px; z-index: 99998;
+      max-width: 340px; width: calc(100% - 32px);
+      background: rgba(15,15,25,.92); backdrop-filter: blur(16px);
+      border: 1px solid rgba(124,106,255,.25); border-radius: 14px;
+      padding: 14px 16px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transform: translateX(120%); transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .3s;
+      opacity: 0; pointer-events: none;
     }
-    .void-msg-overlay.show { opacity: 1; pointer-events: auto; }
-    .void-msg-box {
-      background: var(--card); border: 1px solid rgba(124,106,255,.25);
-      border-radius: 16px; padding: 2rem 2.5rem; max-width: 420px; width: 90%;
-      text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,.5);
-      transform: scale(.9); transition: transform .3s;
+    .void-msg-toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+    .void-msg-hdr {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
     }
-    .void-msg-overlay.show .void-msg-box { transform: scale(1); }
     .void-msg-from {
-      font-size: .6rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: .6rem;
+      font-size: .55rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--accent);
     }
+    .void-msg-x {
+      width: 20px; height: 20px; border-radius: 6px; border: none;
+      background: rgba(255,255,255,.06); color: var(--muted); font-size: .7rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: .15s; flex-shrink: 0;
+    }
+    .void-msg-x:hover { background: rgba(255,95,143,.15); color: var(--accent2); }
     .void-msg-text {
-      font-size: .92rem; color: var(--text); line-height: 1.7; margin-bottom: 1.2rem;
+      font-size: .82rem; color: var(--text); line-height: 1.55;
       word-break: break-word;
     }
-    .void-msg-time { font-size: .65rem; color: var(--muted); margin-bottom: 1rem; }
-    .void-msg-ok {
-      padding: .6rem 2rem; border-radius: 10px; border: none;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff; font-family: inherit; font-weight: 700; font-size: .8rem;
-      cursor: pointer; box-shadow: 0 4px 16px rgba(124,106,255,.3);
-      transition: transform .15s;
-    }
-    .void-msg-ok:hover { transform: translateY(-1px); }
+    .void-msg-time { font-size: .58rem; color: var(--muted); margin-top: 6px; }
 
     .ban-screen {
       position: fixed; inset: 0; z-index: 99999;
@@ -538,6 +648,24 @@
       font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #ff5f8f;
     }
 
+    body.void-fetching::after {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      z-index: 50000;
+      pointer-events: none;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #ff5f8f, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+    }
+    @keyframes void-landing-load {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
     @media (max-width: 600px) {
       .card { padding: 1.5rem; border-radius: 16px; }
       .links { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
@@ -547,10 +675,6 @@
       .brand .logo-text { filter: none; }
     }
     /* ── Touch / iPad optimizations ── */
-    @supports (padding: env(safe-area-inset-top)) {
-      .app { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-      .landing { padding-left: max(1.5rem, env(safe-area-inset-left)); padding-right: max(1.5rem, env(safe-area-inset-right)); }
-    }
     @media (pointer: coarse) {
       .search-wrap input[type="text"] { font-size: 16px; }
       .go-btn { padding: .85rem 2.2rem; font-size: .88rem; min-height: 48px; }
@@ -580,7 +704,7 @@
   <div class="boot-logo" id="boot-logo">void</div>
   <div class="boot-lines" id="boot-lines">
     <div class="boot-line" id="bl-0">initializing proxy engine...</div>
-    <div class="boot-line" id="bl-1">loading CORS backends...</div>
+    <div class="boot-line" id="bl-1">CORS worker…</div>
     <div class="boot-line" id="bl-2">injecting rewrite module...</div>
     <div class="boot-line" id="bl-3">mounting browser frame...</div>
     <div class="boot-line" id="bl-4">sound system online</div>
@@ -611,6 +735,9 @@
       </div>
 
       <div class="section-hdr"><span>Proxy Mode</span></div>
+      <p class="mode-hint" style="margin-top:-2px;margin-bottom:10px;line-height:1.45">
+        <strong>Client</strong> = your Cloudflare Worker CORS proxy (<code>void-cors-proxy-base</code> meta). This deploy defaults to <strong>Scramjet</strong> on <code>https://void.tailf49039.ts.net</code> (443) and <strong>UV</strong> on <code>https://void.tailf49039.ts.net:8443</code>. Switch mode to pick which engine runs.
+      </p>
       <div class="mode-btns" id="mode-btns">
         <button type="button" class="mode-btn active" data-m="client">Client-side <span class="tag">DEFAULT</span></button>
         <button type="button" class="mode-btn" data-m="server">Server-side</button>
@@ -620,28 +747,29 @@
       </div>
 
       <div id="cfg-client" style="display:none;">
-        <input type="hidden" id="cors-proxy-url" value="https://void-proxy.aadizzz786.workers.dev"/>
+        <p class="mode-hint" style="margin-top:0">No CORS URL to configure — Client mode uses the Worker from <code>&lt;meta name=&quot;void-cors-proxy-base&quot;&gt;</code>.</p>
       </div>
 
       <div id="cfg-server" class="opts opts-backend" style="display:none;margin-top:10px;">
         <p class="mode-hint">Requires a running Void proxy server.</p>
         <label class="opt opt-backend">
           <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Void Server URL</span>
-          <input type="url" id="server-backend" placeholder="http://localhost:8080" autocomplete="off"/>
+          <input type="url" id="server-backend" value="https://void.tailf49039.ts.net" placeholder="https://void.tailf49039.ts.net" autocomplete="off"/>
         </label>
       </div>
 
       <div id="cfg-uv" class="opts opts-backend" style="display:none;margin-top:10px;">
         <label class="opt opt-backend">
           <span class="opt-label">UV backend URL</span>
-          <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
+          <input type="url" id="uv-backend" value="https://void.tailf49039.ts.net:8443" placeholder="https://void.tailf49039.ts.net:8443" autocomplete="off"/>
         </label>
       </div>
 
       <div id="cfg-scramjet" class="opts opts-backend" style="display:none;margin-top:10px;">
+        <p class="mode-hint" style="margin-top:0;margin-bottom:8px">Prefilled to your Scramjet origin (443). Clear the field to use <code>location.origin</code> when void is served from the same host. <code>&lt;meta name=&quot;void-scramjet-base&quot;&gt;</code> covers <strong>file://</strong> and odd entry URLs.</p>
         <label class="opt opt-backend">
           <span class="opt-label">Scramjet backend URL</span>
-          <input type="url" id="scramjet-backend" placeholder="https://your-scramjet.render.com" autocomplete="off"/>
+          <input type="url" id="scramjet-backend" value="https://void.tailf49039.ts.net" placeholder="https://void.tailf49039.ts.net or blank for same origin" autocomplete="off"/>
         </label>
       </div>
 
@@ -694,15 +822,15 @@
 
       <div class="section-hdr"><span>Options</span></div>
       <div class="opts">
-        <label class="opt" title="Open in a new tab instead">
+        <label class="opt" title="Opens the proxy URL in a new browser tab. If In-page iframe is on, the embed wins — you stay in Void.">
           <input type="checkbox" id="opt-newtab"/>
           <span class="toggle-track"></span>
           New Tab
         </label>
-        <label class="opt" title="Open in disguised about:blank tab">
-          <input type="checkbox" id="opt-cloak"/>
+        <label class="opt" title="Embeds Scramjet/UV inside Void so the shell stays visible. Empty search = proxy home; typed URL/search uses ?url= or /service/. Takes priority over New Tab when both are on.">
+          <input type="checkbox" id="opt-iframe" checked/>
           <span class="toggle-track"></span>
-          Tab Cloak
+          In-page iframe
         </label>
         <label class="opt" title="Inject Eruda mobile console">
           <input type="checkbox" id="opt-eruda"/>
@@ -727,7 +855,7 @@
         <a class="ql" href="javascript:void(0)" data-url="https://spotify.com"><img src="https://www.google.com/s2/favicons?domain=spotify.com&sz=32" alt=""/>Spotify</a>
         <a class="ql" href="javascript:void(0)" data-url="https://tiktok.com"><img src="https://www.google.com/s2/favicons?domain=tiktok.com&sz=32" alt=""/>TikTok</a>
         <a class="ql" href="javascript:void(0)" data-url="https://chat.openai.com"><img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" alt=""/>ChatGPT</a>
-        <a class="ql" href="javascript:void(0)" data-url="https://github.com"><img src="https://www.google.com/s2/favicons?domain=github.com&sz=32" alt=""/>GitHub</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://duckduckgo.com"><img src="https://www.google.com/s2/favicons?domain=duckduckgo.com&sz=32" alt=""/>DuckDuckGo</a>
         <a class="ql" href="javascript:void(0)" data-url="https://wikipedia.org"><img src="https://www.google.com/s2/favicons?domain=wikipedia.org&sz=32" alt=""/>Wikipedia</a>
         <a class="ql" href="javascript:void(0)" data-url="https://now.gg"><img src="https://www.google.com/s2/favicons?domain=now.gg&sz=32" alt=""/>now.gg</a>
         <a class="ql" href="javascript:void(0)" data-url="https://twitter.com"><img src="https://www.google.com/s2/favicons?domain=x.com&sz=32" alt=""/>Twitter</a>
@@ -741,18 +869,41 @@
     </div>
 
     <div class="hint-row">
-      Press <kbd>Enter</kbd> to browse &nbsp;&middot;&nbsp; Client-side mode needs no server
+      Press <kbd>Enter</kbd> to browse
     </div>
 
     <div class="foot">
       <span>VOID</span>
-      <span class="dot"></span>
-      <span>Single file &middot; No server required</span>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="void-embed-overlay" id="void-embed-overlay" aria-hidden="true">
+  <div class="void-embed-top">
+    <button type="button" id="void-embed-close">← Back</button>
+    <div class="void-embed-music" id="music-ctrl-embed" title="Play / pause — volume">
+      <div class="music-ico">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+      <span class="music-label" id="music-label-embed">Music</span>
+      <input type="range" class="music-vol" id="music-vol-embed" min="0" max="100" value="25"/>
+    </div>
+    <span id="void-embed-label" class="void-embed-url">Proxy</span>
+  </div>
+  <div class="void-embed-wrap">
+    <iframe id="void-embed-frame" title="Proxy view" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay"></iframe>
+    <div class="void-embed-loading" id="void-embed-loading" aria-hidden="true">
+      <div class="void-embed-loading-inner state-loading" id="void-embed-loading-inner">
+        <span class="void-embed-status-icon void-embed-icon-loading" id="void-embed-status-icon" aria-hidden="true">●</span>
+        <p id="void-embed-loading-title">Loading proxy…</p>
+        <div class="void-embed-loading-bar" id="void-embed-loading-bar" role="progressbar" aria-label="Loading"></div>
+        <div class="void-embed-loading-sub" id="void-embed-loading-sub">Scramjet / UV may take a few seconds. Press Esc or Back to cancel.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="music-ctrl" id="music-ctrl" title="Ambient Music">
   <div class="music-ico">
@@ -778,7 +929,7 @@
       <div class="settings-sec-title">Update</div>
       <p class="settings-info" style="margin-top:0;margin-bottom:.6rem">Current version: <code id="s-cur-ver"></code> <span id="s-ver-status"></span></p>
       <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
-      <p class="settings-info">Checks <a href="https://github.com/wiizzz786/math-quiz" target="_blank">GitHub</a> for a newer version.</p>
+      <p class="settings-info">Fetches <code>void.html</code> from this site when hosted (HTTPS). Add <code>&lt;meta name=&quot;void-update-url&quot; content=&quot;https://&hellip;/void.html&quot;&gt;</code> to point elsewhere.</p>
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">Keyboard Shortcuts</div>
@@ -792,8 +943,7 @@
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">About</div>
-      <p class="settings-info">Void Proxy &mdash; Single-file client-side web proxy.<br>
-        Source: <a href="https://github.com/wiizzz786/math-quiz" target="_blank">wiizzz786/math-quiz</a><br>
+      <p class="settings-info">Void Proxy &mdash; client-side web proxy.<br>
         User ID: <code id="s-uid"></code>
       </p>
     </div>
@@ -892,17 +1042,33 @@ function sfxBootDone(){
   setTimeout(function(){ playTone(1318, 0.3, 'sine', 0.12); }, 260);
 }
 
-/* ──────────── CORS Proxy backends ──────────── */
+/* ──────────── CORS proxy (single Worker — meta void-cors-proxy-base) ──────────── */
 var _workingBackendIdx = 0;
 var _backendLatencies = {};
 var _probePromise = null;
 
+function getVoidCorsBase(){
+  var def = 'https://void-proxy.aadizzz786.workers.dev/?url=';
+  try {
+    var m = document.querySelector('meta[name="void-cors-proxy-base"]');
+    if(m){
+      var c = (m.getAttribute('content') || '').trim();
+      if(c){
+        if(c.indexOf('?') >= 0) return c;
+        return c.replace(/\/+$/, '') + '/?url=';
+      }
+    }
+  } catch(e){}
+  return def;
+}
+
 var CORS_BACKENDS = [
-  { name: 'void-worker', fn: function(u){ return 'https://void-proxy.aadizzz786.workers.dev/?url=' + encodeURIComponent(u); }, corsBase: 'https://void-proxy.aadizzz786.workers.dev/?url=', type: 'raw' },
-  { name: 'allorigins',  fn: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); }, corsBase: 'https://api.allorigins.win/raw?url=',    type: 'json' },
-  { name: 'cors.lol',    fn: function(u){ return 'https://api.cors.lol/?url=' + encodeURIComponent(u); },          corsBase: 'https://api.cors.lol/?url=',              type: 'raw' },
-  { name: 'codetabs',    fn: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }, corsBase: 'https://api.codetabs.com/v1/proxy?quest=', type: 'raw' },
-  { name: 'corsproxy',   fn: function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },          corsBase: 'https://corsproxy.io/?url=',              type: 'raw' },
+  {
+    name: 'void-worker',
+    fn: function(u){ return getVoidCorsBase() + encodeURIComponent(u); },
+    get corsBase(){ return getVoidCorsBase(); },
+    type: 'raw',
+  },
 ];
 
 function probeBackends(){
@@ -910,7 +1076,7 @@ function probeBackends(){
   var testUrl = 'https://httpbin.org/status/200';
   _probePromise = Promise.allSettled(CORS_BACKENDS.map(function(be, idx){
     var t0 = performance.now();
-    return fetchWithTimeout(be.fn(testUrl), {method:'HEAD'}, 6000).then(function(r){
+    return fetchWithTimeout(be.fn(testUrl), {method:'GET'}, 6000).then(function(r){
       var ms = Math.round(performance.now() - t0);
       _backendLatencies[idx] = ms;
       return { idx: idx, ms: ms, ok: r.ok };
@@ -927,15 +1093,8 @@ function probeBackends(){
   return _probePromise;
 }
 
-function getCustomCorsProxy(){
-  var v = ($('cors-proxy-url') && $('cors-proxy-url').value.trim()) || '';
-  return v;
-}
-
 function getActiveCorsBase(){
-  var custom = getCustomCorsProxy();
-  if(custom) return custom;
-  return CORS_BACKENDS[_workingBackendIdx].corsBase;
+  return getVoidCorsBase();
 }
 
 function makeCorsUrl(targetUrl){
@@ -972,9 +1131,12 @@ function decodeBody(buf, headers){
 
 
 try {
+  var _corsOrigin = (function(){
+    try { return new URL(getVoidCorsBase()).origin; } catch(e){ return 'https://void-proxy.aadizzz786.workers.dev'; }
+  })();
   var link = document.createElement('link');
   link.rel = 'preconnect';
-  link.href = 'https://void-proxy.aadizzz786.workers.dev';
+  link.href = _corsOrigin;
   link.crossOrigin = '';
   document.head.appendChild(link);
 } catch(e){}
@@ -1010,6 +1172,144 @@ function toast(msg){
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); }, 3500);
+}
+
+var _voidEmbedLoadTimer = null;
+var _voidEmbedReadyTimer = null;
+
+function _voidEmbedClearLoadTimer(){
+  if(_voidEmbedLoadTimer){
+    clearTimeout(_voidEmbedLoadTimer);
+    _voidEmbedLoadTimer = null;
+  }
+}
+function _voidEmbedClearReadyTimer(){
+  if(_voidEmbedReadyTimer){
+    clearTimeout(_voidEmbedReadyTimer);
+    _voidEmbedReadyTimer = null;
+  }
+}
+
+function _voidEmbedSetLoadingState(state, msg){
+  var inner = $('void-embed-loading-inner');
+  var bar = $('void-embed-loading-bar');
+  var title = $('void-embed-loading-title');
+  var icon = $('void-embed-status-icon');
+  var sub = $('void-embed-loading-sub');
+  if(inner){
+    inner.className = 'void-embed-loading-inner state-' + state;
+  }
+  if(state === 'loading'){
+    if(icon){
+      icon.textContent = '\u25cf';
+      icon.className = 'void-embed-status-icon void-embed-icon-loading';
+    }
+    if(title) title.textContent = msg || 'Loading proxy\u2026';
+    if(bar) bar.style.display = '';
+    if(sub) sub.textContent = 'Scramjet / UV may take a few seconds. Press Esc or Back to cancel.';
+  } else if(state === 'ready'){
+    if(icon){
+      icon.textContent = '\u2713';
+      icon.className = 'void-embed-status-icon void-embed-icon-ready';
+    }
+    if(title) title.textContent = 'Ready';
+    if(bar) bar.style.display = 'none';
+    if(sub) sub.textContent = '';
+  } else {
+    if(icon){
+      icon.textContent = '\u2715';
+      icon.className = 'void-embed-status-icon void-embed-icon-error';
+    }
+    if(title) title.textContent = msg || 'Could not load';
+    if(bar) bar.style.display = 'none';
+    if(sub) sub.textContent = 'Try a new tab or check the URL.';
+  }
+}
+
+function _voidEmbedFinishLoading(){
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  var ov = $('void-embed-overlay');
+  var ld = $('void-embed-loading');
+  if(ov) ov.classList.remove('loading');
+  if(ld){
+    ld.classList.remove('show');
+    ld.setAttribute('aria-hidden', 'true');
+  }
+  _voidEmbedSetLoadingState('loading');
+}
+
+function showVoidEmbedOverlay(url){
+  var ov = $('void-embed-overlay');
+  var fr = $('void-embed-frame');
+  var lb = $('void-embed-label');
+  var ld = $('void-embed-loading');
+  if(lb) lb.textContent = url;
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  _voidEmbedSetLoadingState('loading');
+  if(fr){
+    fr.onload = null;
+    fr.onerror = null;
+    fr.onload = function(){
+      _voidEmbedClearLoadTimer();
+      if(ov) ov.classList.remove('loading');
+      _voidEmbedSetLoadingState('ready');
+      _voidEmbedReadyTimer = setTimeout(function(){
+        _voidEmbedReadyTimer = null;
+        _voidEmbedFinishLoading();
+      }, 420);
+    };
+    fr.onerror = function(){
+      _voidEmbedClearLoadTimer();
+      if(ov) ov.classList.remove('loading');
+      _voidEmbedSetLoadingState('error', 'Frame failed to load');
+      toast('Embed could not load — try a new tab.');
+    };
+  }
+  if(ov){
+    ov.classList.add('show', 'loading');
+    ov.setAttribute('aria-hidden', 'false');
+  }
+  if(ld){
+    ld.classList.add('show');
+    ld.setAttribute('aria-hidden', 'false');
+  }
+  if(fr) fr.src = url;
+  _voidEmbedLoadTimer = setTimeout(function(){
+    _voidEmbedLoadTimer = null;
+    var still = $('void-embed-loading');
+    if(still && still.classList.contains('show')){
+      var inner = $('void-embed-loading-inner');
+      if(inner && inner.classList.contains('state-loading')){
+        if(ov) ov.classList.remove('loading');
+        _voidEmbedSetLoadingState('error', 'Taking too long');
+        toast('Still waiting — check the frame or try a new tab.');
+        setTimeout(function(){ _voidEmbedFinishLoading(); }, 2800);
+      }
+    }
+  }, 55000);
+}
+function hideVoidEmbedOverlay(){
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  var ov = $('void-embed-overlay');
+  var fr = $('void-embed-frame');
+  var ld = $('void-embed-loading');
+  if(fr){
+    fr.onload = null;
+    fr.onerror = null;
+    fr.src = 'about:blank';
+  }
+  if(ov){
+    ov.classList.remove('show', 'loading');
+    ov.setAttribute('aria-hidden', 'true');
+  }
+  if(ld){
+    ld.classList.remove('show');
+    ld.setAttribute('aria-hidden', 'true');
+  }
+  _voidEmbedSetLoadingState('loading');
 }
 
 function escHtml(s){
@@ -1256,9 +1556,11 @@ function _clientInjection(){
 
   if(_eruda){
     var es = document.createElement('script');
-    var _erudaCdn = 'https://cdn.jsdelivr.net/npm/eruda';
-    es.src = _cp ? _proxied(_erudaCdn) : _erudaCdn;
-    es.onload = function(){ if(window.eruda) eruda.init(); };
+    /* Always load Eruda from the CDN directly. Routing through the CORS proxy breaks the script (wrong MIME / HTML error pages). */
+    es.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    es.crossOrigin = 'anonymous';
+    es.onload = function(){ try { if(window.eruda) eruda.init(); } catch(_e){} };
+    es.onerror = function(){ try { console.warn('[Void] Eruda failed to load from CDN'); } catch(_e2){} };
     (document.head || document.documentElement).appendChild(es);
   }
 
@@ -1352,6 +1654,8 @@ function _clientInjection(){
   }
   window.fetch = function(u, o){
     o = o || {};
+    if(typeof u === 'string' && /^(blob:|data:|about:)/i.test(u.trim())) return _of.call(this, u, o);
+    if(u && typeof u === 'object' && u.url && /^(blob:|data:|about:)/i.test(String(u.url))) return _of.call(this, u, o);
     var origUrl = '';
     if(typeof u === 'string'){
       var resolved = _abs(u);
@@ -1404,6 +1708,9 @@ function _clientInjection(){
   XMLHttpRequest.prototype.open = function(){
     var args = Array.prototype.slice.call(arguments);
     this._voidOrigUrl = '';
+    if(typeof args[1] === 'string' && /^(blob:|data:|about:)/i.test(args[1].trim())){
+      return _xo.apply(this, args);
+    }
     if(typeof args[1] === 'string'){
       var resolved = _abs(args[1]);
       if(_shouldProxy(resolved)){
@@ -1843,6 +2150,33 @@ function rewriteSrcset(ss, baseUrl, corsBase){
   });
 }
 
+/** DNS prefetch + dual preconnect to the CORS proxy origin so the browser opens parallel connections early (HTTP/2 lanes). */
+function voidProxyResourceHintsHtml(corsBase){
+  try {
+    var origin = new URL(corsBase).origin;
+    var o = escHtml(origin);
+    return '<meta http-equiv="x-dns-prefetch-control" content="on">'
+      + '<link rel="dns-prefetch" href="' + o + '">'
+      + '<link rel="preconnect" href="' + o + '" crossorigin>'
+      + '<link rel="preconnect" href="' + o + '">';
+  } catch(e){
+    return '<meta http-equiv="x-dns-prefetch-control" content="on">';
+  }
+}
+
+function voidEnsureCorsAttrs(html){
+  html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+    if(/\bcrossorigin\s*=/i.test(inner)) return full;
+    return '<script crossorigin="anonymous"' + inner + '>';
+  });
+  html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+    if(/\bcrossorigin\s*=/i.test(inner)) return full;
+    if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
+    return '<link crossorigin="anonymous"' + inner + '>';
+  });
+  return html;
+}
+
 function clientRewrite(html, baseUrl){
   var cp = getActiveCorsBase();
   var eruda = $('opt-eruda') && $('opt-eruda').checked;
@@ -1853,7 +2187,7 @@ function clientRewrite(html, baseUrl){
   html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
 
-  html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
+  html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
 
   html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
   html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
@@ -1862,7 +2196,9 @@ function clientRewrite(html, baseUrl){
   html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
 
   var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
-  var headInsert = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><base href="' + escHtml(baseUrl) + '">' + injection;
+  var headInsert = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">'
+    + voidProxyResourceHintsHtml(cp)
+    + '<base href="' + escHtml(baseUrl) + '">' + injection;
   if(/<head/i.test(html)){
     html = html.replace(/<head([^>]*)>/i, '<head$1>' + headInsert);
   } else if(/<html/i.test(html)){
@@ -1906,6 +2242,8 @@ function clientRewrite(html, baseUrl){
     return pre + 'style=' + q + rewriteCssUrls(css, baseUrl, cp) + q;
   });
 
+  html = voidEnsureCorsAttrs(html);
+
   return html;
 }
 
@@ -1936,7 +2274,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     src = src.replace("'%%CORS%%'", JSON.stringify(_corsBase));
     src = src.replace("'%%ERUDA%%'", _eruda ? 'true' : 'false');
     var out = '';
-    if(_eruda) out = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/eruda"><\/scr' + 'ipt><scr' + 'ipt>eruda.init();<\/scr' + 'ipt>';
+    if(_eruda) out = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/eruda" crossorigin="anonymous"><\/scr' + 'ipt><scr' + 'ipt>try{eruda.init();}catch(_e){}<\/scr' + 'ipt>';
     return out + '<scr' + 'ipt data-void-inject>' + src + '<\/scr' + 'ipt>';
   }
 
@@ -1946,13 +2284,18 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
-    html = html.replace(/\s(integrity|nonce|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
+    html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
     html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
     html = html.replace(/(<a\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
     html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
     var inj = buildInj(base);
-    var hi = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><base href="' + escH(base) + '">' + inj;
+    var vHints = '';
+    try {
+      var vo = new URL(_corsBase).origin;
+      vHints = '<meta http-equiv="x-dns-prefetch-control" content="on"><link rel="dns-prefetch" href="' + escH(vo) + '"><link rel="preconnect" href="' + escH(vo) + '" crossorigin><link rel="preconnect" href="' + escH(vo) + '">';
+    } catch(e){ vHints = '<meta http-equiv="x-dns-prefetch-control" content="on">'; }
+    var hi = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">' + vHints + '<base href="' + escH(base) + '">' + inj;
     if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
     else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
     else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
@@ -1981,6 +2324,15 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       function(m,a,css){ return '<style'+a+'>' + rwCss(css,base) + '</style>'; });
     html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi,
       function(m,pre,q,css){ return pre+'style='+q + rwCss(css,base)+q; });
+    html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+      if(/\bcrossorigin\s*=/i.test(inner)) return full;
+      return '<script crossorigin="anonymous"' + inner + '>';
+    });
+    html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+      if(/\bcrossorigin\s*=/i.test(inner)) return full;
+      if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
+      return '<link crossorigin="anonymous"' + inner + '>';
+    });
     return html;
   }
 
@@ -2007,9 +2359,11 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     + '#_vs{font-size:9px;color:#666;white-space:nowrap;position:relative;z-index:1;transition:color .3s;}'
     + '#_vs.ld{color:#ff5f8f;animation:_vblink .8s ease-in-out infinite;}#_vs.ok{color:#4ade80;}'
     + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
-    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;width:100% !important;height:2px !important;'
-    + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;display:none;}'
-    + '#_vld.on{display:block !important;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
+    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
+    + 'background-size:200% 100% !important;border-radius:0 !important;}'
+    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
+    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
     + '#_vjp{position:fixed !important;top:36px !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
     + 'border-bottom:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
     + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
@@ -2233,9 +2587,11 @@ function renderPage(html, baseUrl){
     + '#_vs{font-size:9px;color:#666;white-space:nowrap;position:relative;z-index:1;transition:color .3s;}'
     + '#_vs.ld{color:#ff5f8f;animation:_vblink .8s ease-in-out infinite;}#_vs.ok{color:#4ade80;}'
     + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
-    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;width:100% !important;height:2px !important;'
-    + 'background:linear-gradient(90deg,#7c6aff,#ff5f8f);animation:_va 1s infinite;display:none;}'
-    + '#_vld.on{display:block !important;}@keyframes _va{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
+    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
+    + 'background-size:200% 100% !important;border-radius:0 !important;}'
+    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
+    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
     + '#_vjp{position:fixed !important;top:36px !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
     + 'border-bottom:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
     + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
@@ -2273,39 +2629,78 @@ function renderPage(html, baseUrl){
   document.open(); document.write(html); document.close();
 }
 
+function mergeAbortSignals(a, b){
+  if(typeof AbortSignal !== 'undefined' && AbortSignal.any) return AbortSignal.any([a, b]);
+  var ctrl = new AbortController();
+  function fire(){ try { ctrl.abort(); } catch(e){} }
+  if(a.aborted || b.aborted){ fire(); return ctrl.signal; }
+  a.addEventListener('abort', fire);
+  b.addEventListener('abort', fire);
+  return ctrl.signal;
+}
+
+function promiseAny(promises){
+  return new Promise(function(resolve, reject){
+    var n = promises.length;
+    if(!n){ reject(new Error('no backends')); return; }
+    var errs = [];
+    promises.forEach(function(p){
+      Promise.resolve(p).then(resolve).catch(function(e){
+        errs.push(e && e.message ? e.message : String(e));
+        if(errs.length === n) reject(new Error(errs.join('\n')));
+      });
+    });
+  });
+}
+
 function fetchWithTimeout(url, opts, ms){
   var ctrl = new AbortController();
   opts = Object.assign({}, opts || {});
-  opts.signal = ctrl.signal;
+  var external = opts.signal;
+  if(external){
+    opts.signal = mergeAbortSignals(external, ctrl.signal);
+  } else {
+    opts.signal = ctrl.signal;
+  }
   var timer = setTimeout(function(){ ctrl.abort(); }, ms || 20000);
   return fetch(url, opts).finally(function(){ clearTimeout(timer); });
 }
 
 probeBackends();
 
-/* ── Service Worker registration ── */
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/void-sw.js', { scope: '/' }).catch(function(e){
+/* ── Service Worker registration (file:// / blob: cannot host SW; ready would hang) ── */
+if('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')){
+  navigator.serviceWorker.register('/void-sw.js', { scope: '/', updateViaCache: 'none' }).catch(function(e){
     console.warn('[Void SW] registration failed:', e.message);
   });
 }
 function configureSW(proxyBase, targetUrl){
-  return new Promise(function(resolve){
-    if(!navigator.serviceWorker || !navigator.serviceWorker.controller){ resolve(); return; }
-    try {
-      var jar = {};
-      try { jar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
-      var mc = new MessageChannel();
-      mc.port1.onmessage = function(){ resolve(); };
-      navigator.serviceWorker.controller.postMessage({
-        type: 'void-sw-config',
-        proxy: proxyBase.replace(/\/+$/, ''),
-        origin: new URL(targetUrl).origin,
-        cookies: jar
-      }, [mc.port2]);
-      setTimeout(resolve, 150);
-    } catch(e){ resolve(); }
-  });
+  var p = location.protocol;
+  if(!navigator.serviceWorker || p === 'file:' || p === 'blob:' || p === 'chrome-extension:' || p === 'moz-extension:'){
+    return Promise.resolve();
+  }
+  return Promise.race([
+    new Promise(function(resolve){
+      function send(){
+        try {
+          if(!navigator.serviceWorker.controller){ resolve(); return; }
+          var jar = {};
+          try { jar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
+          var mc = new MessageChannel();
+          mc.port1.onmessage = function(){ resolve(); };
+          navigator.serviceWorker.controller.postMessage({
+            type: 'void-sw-config',
+            proxy: proxyBase.replace(/\/+$/, ''),
+            origin: new URL(targetUrl).origin,
+            cookies: jar
+          }, [mc.port2]);
+          setTimeout(resolve, 220);
+        } catch(e){ resolve(); }
+      }
+      navigator.serviceWorker.ready.then(send).catch(function(){ resolve(); });
+    }),
+    new Promise(function(r){ setTimeout(r, 500); })
+  ]);
 }
 
 function _getVoidCookies(url){
@@ -2352,31 +2747,27 @@ function _addCookieHeaders(fetchOpts, targetUrl, dest){
   return fetchOpts;
 }
 
+async function consumeCorsResponse(be, resp, targetUrl){
+  if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
+  _storeVoidCookies(resp, targetUrl);
+  var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
+  var body, ct;
+  if(be.type === 'json'){
+    ct = 'text/html';
+    var json = await resp.json();
+    body = json.contents;
+    if(!body && body !== '') throw new Error(be.name + ': empty response');
+  } else {
+    ct = (resp.headers.get('content-type') || '').toLowerCase();
+    var buf = await resp.arrayBuffer();
+    body = decodeBody(buf, resp.headers);
+  }
+  if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
+  return { body: body, contentType: ct, finalUrl: finalUrl };
+}
+
 async function clientFetch(targetUrl, fetchOpts){
   fetchOpts = _addCookieHeaders(fetchOpts, targetUrl, 'document');
-  var custom = getCustomCorsProxy();
-  if(custom){
-    var proxyUrl = custom.includes('?') ? custom + encodeURIComponent(targetUrl) : custom + '?url=' + encodeURIComponent(targetUrl);
-    var lastErr;
-    for(var retry = 0; retry < 2; retry++){
-      try {
-        var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 20000);
-        if(!resp.ok) throw new Error('HTTP ' + resp.status);
-        _storeVoidCookies(resp, targetUrl);
-        var ct = (resp.headers.get('content-type') || '').toLowerCase();
-        var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
-        var buf = await resp.arrayBuffer();
-        var body = decodeBody(buf, resp.headers);
-        if(looksLikeBlockPage(body)) throw new Error('CORS proxy returned a block page');
-        return { body: body, contentType: ct, ok: true, finalUrl: finalUrl };
-      } catch(e){
-        lastErr = e;
-        if(retry === 0) await new Promise(function(r){ setTimeout(r, 500); });
-      }
-    }
-    throw lastErr;
-  }
-
   if(_probePromise) await _probePromise;
 
   var order = [];
@@ -2387,37 +2778,29 @@ async function clientFetch(targetUrl, fetchOpts){
     return la - lb;
   });
 
-  var errors = [];
-  for(var j = 0; j < order.length; j++){
-    var i = order[j];
-    var be = CORS_BACKENDS[i];
-    try {
-      var proxyUrl = be.fn(targetUrl);
-      var resp = await fetchWithTimeout(proxyUrl, fetchOpts, 15000);
-      if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
-      _storeVoidCookies(resp, targetUrl);
+  /* Race parallel attempts (same Worker); first good response wins. */
+  var controllers = order.map(function(){ return new AbortController(); });
+  var perTryMs = 22000;
+  var promises = order.map(function(backendIdx, slot){
+    var be = CORS_BACKENDS[backendIdx];
+    var o = Object.assign({}, fetchOpts);
+    o.signal = controllers[slot].signal;
+    return fetchWithTimeout(be.fn(targetUrl), o, perTryMs).then(function(resp){
+      return consumeCorsResponse(be, resp, targetUrl).then(function(r){
+        return { idx: backendIdx, body: r.body, contentType: r.contentType, ok: true, finalUrl: r.finalUrl };
+      });
+    });
+  });
 
-      var body, ct, finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
-      if(be.type === 'json'){
-        ct = 'text/html';
-        var json = await resp.json();
-        body = json.contents;
-        if(!body && body !== '') throw new Error(be.name + ': empty response');
-      } else {
-        ct = (resp.headers.get('content-type') || '').toLowerCase();
-        var buf = await resp.arrayBuffer();
-        body = decodeBody(buf, resp.headers);
-      }
-
-      if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
-
-      _workingBackendIdx = i;
-      return { body: body, contentType: ct, ok: true, finalUrl: finalUrl };
-    } catch(e){
-      errors.push(e.message);
-    }
+  try {
+    var won = await promiseAny(promises);
+    controllers.forEach(function(c){ try { c.abort(); } catch(e){} });
+    _workingBackendIdx = won.idx;
+    return { body: won.body, contentType: won.contentType, ok: true, finalUrl: won.finalUrl };
+  } catch(e){
+    controllers.forEach(function(c){ try { c.abort(); } catch(err){} });
+    throw new Error('CORS proxy failed:\n' + (e.message || String(e)));
   }
-  throw new Error('All CORS proxies failed:\n' + errors.join('\n'));
 }
 
 /* ──────────── Navigation ──────────── */
@@ -2461,7 +2844,7 @@ async function navigateClient(targetUrl, pushHist, postOpts){
       renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
     }
   } catch(proxyErr){
-    alert('Proxy error: ' + (proxyErr.message || 'check your CORS proxy URL'));
+    alert('Proxy error: ' + (proxyErr.message || 'check void-cors-proxy-base / Worker'));
   }
 }
 
@@ -2488,34 +2871,103 @@ function xorEncode(url, key){
 
 function buildExternalUrl(targetUrl){
   var m = getMode();
+  var t = targetUrl != null ? String(targetUrl).trim() : '';
+  var hasTarget = t !== '';
+  /* In-page iframe + empty search: open proxy home in frame. If you typed a URL/search, we always pass ?url= / /service/ (otherwise iframe mode was stripping your query — broken). */
+  var wantShellOnly =
+    $('opt-iframe') &&
+    $('opt-iframe').checked &&
+    (m === 'scramjet' || m === 'uv') &&
+    !hasTarget;
+  if(wantShellOnly){
+    if(m === 'uv'){
+      var uv0 = ($('uv-backend') && $('uv-backend').value.trim()) || '';
+      if(!uv0){ toast('Enter your UV backend URL'); return null; }
+      var b0 = uv0.replace(/\/+$/, '');
+      if(!/^https?:\/\//i.test(b0)) return null;
+      return b0 + '/';
+    }
+    if(m === 'scramjet'){
+      var sj0 = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
+      if(!sj0){
+        var bb = '';
+        try {
+          if(location.protocol === 'http:' || location.protocol === 'https:'){
+            bb = (location.origin || '').replace(/\/+$/, '');
+          }
+        } catch(e0){}
+        if(!bb){
+          try {
+            var mb = document.querySelector('meta[name="void-scramjet-base"]');
+            if(mb && mb.getAttribute('content')){
+              bb = mb.getAttribute('content').trim().replace(/\/+$/, '');
+            }
+          } catch(e1){}
+        }
+        if(bb && /^https?:\/\//i.test(bb)){
+          return bb + '/scramjet.html' + (($('opt-eruda') && $('opt-eruda').checked) ? '?eruda=1' : '');
+        }
+        if(location.protocol === 'file:' || location.protocol === 'blob:'){
+          return null;
+        }
+        toast('Scramjet: enter a backend URL, host void.html over http/https, or set meta void-scramjet-base.');
+        return null;
+      }
+      var sjb = sj0.replace(/\/+$/, '');
+      if(!/\/scramjet\.html(\?|$)/i.test(sjb)){
+        sjb = sjb.replace(/\/scramjet\.html$/i, '');
+        sjb = sjb + '/scramjet.html';
+      }
+      sjb = sjb.split('?')[0];
+      return sjb + (($('opt-eruda') && $('opt-eruda').checked) ? '?eruda=1' : '');
+    }
+  }
   if(m === 'uv'){
     var uv = ($('uv-backend') && $('uv-backend').value.trim()) || '';
     if(!uv){ toast('Enter your UV backend URL'); return null; }
     var base = uv.replace(/\/+$/, '');
     if(base.includes('/service/') || base.endsWith('/service')){
-      return base.replace(/\/+$/, '') + '/' + xorEncode(targetUrl);
+      return base.replace(/\/+$/, '') + '/' + xorEncode(t);
     }
-    return base + '/service/' + xorEncode(targetUrl);
+    return base + '/service/' + xorEncode(t);
   }
   if(m === 'scramjet'){
     var sj = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
-    if(!sj){ toast('Enter your Scramjet backend URL'); return null; }
-    var sjBase = sj.replace(/\/+$/, '');
-    if(sjBase.includes('/service/') || sjBase.endsWith('/service')){
-      return sjBase.replace(/\/+$/, '') + '/' + encodeURIComponent(targetUrl);
+    if(!sj){
+      var builtinBase = '';
+      try {
+        if(location.protocol === 'http:' || location.protocol === 'https:'){
+          builtinBase = (location.origin || '').replace(/\/+$/, '');
+        }
+      } catch(e){}
+      if(!builtinBase){
+        try {
+          var mbase = document.querySelector('meta[name="void-scramjet-base"]');
+          if(mbase && mbase.getAttribute('content')){
+            builtinBase = mbase.getAttribute('content').trim().replace(/\/+$/, '');
+          }
+        } catch(e2){}
+      }
+      if(builtinBase && /^https?:\/\//i.test(builtinBase)){
+        return builtinBase + '/scramjet.html?url=' + encodeURIComponent(t);
+      }
+      if(location.protocol === 'file:' || location.protocol === 'blob:'){
+        return null;
+      }
+      toast('Scramjet: enter a backend URL, host void.html over http/https, or set meta void-scramjet-base.');
+      return null;
     }
-    return sjBase + '/service/' + encodeURIComponent(targetUrl);
+    /* Scramjet entry is always /scramjet.html?url=… (Mercury Workshop). Do not use UV’s /service/… pattern. */
+    var sjBase = sj.replace(/\/+$/, '');
+    if(!/\/scramjet\.html(\?|$)/i.test(sjBase)){
+      sjBase = sjBase.replace(/\/scramjet\.html$/i, '');
+      sjBase = sjBase + '/scramjet.html';
+    }
+    var sjQ = 'url=' + encodeURIComponent(t);
+    if($('opt-eruda') && $('opt-eruda').checked) sjQ += '&eruda=1';
+    return sjBase + (sjBase.indexOf('?') >= 0 ? '&' : '?') + sjQ;
   }
   return null;
-}
-
-function openCloaked(url){
-  var win = window.open('about:blank', '_blank');
-  if(!win){ toast('Pop-up blocked — allow pop-ups and try again'); return; }
-  win.document.open();
-  win.document.write('<!DOCTYPE html><html><head><title>Google Docs</title><link rel="icon" href="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico"><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src="' + url.replace(/"/g, '&quot;') + '"></iframe></body></html>');
-  win.document.close();
-  toast('Opened in cloaked tab');
 }
 
 async function navigate(rawOrUrl){
@@ -2524,38 +2976,67 @@ async function navigate(rawOrUrl){
   if(!/^https?:\/\//i.test(url)){
     url = toUrl(rawOrUrl);
   }
-  if(!url) return;
-
-  try { logSearch(url, rawOrUrl); } catch(e){}
-  var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
-  try { addToHistory(url, domain); } catch(e){}
-
   var m = getMode();
+  var shellInFrame = $('opt-iframe') && $('opt-iframe').checked && (m === 'scramjet' || m === 'uv');
+  if(!url && !shellInFrame) return;
+
+  if(url){
+    try { logSearch(url, rawOrUrl); } catch(e){}
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    try { addToHistory(url, domain); } catch(e){}
+  }
 
   if(m === 'client'){
     var _voidBase = location.href.split('?')[0];
-    if($('opt-cloak') && $('opt-cloak').checked){
-      openCloaked(_voidBase + '?go=' + encodeURIComponent(url));
-      return;
-    }
     if($('opt-newtab') && $('opt-newtab').checked){
       window.open(_voidBase + '?go=' + encodeURIComponent(url), '_blank');
       return;
     }
-    await navigateClient(url, true);
+    var _vfRoot = document.body || document.documentElement;
+    if (_vfRoot) _vfRoot.classList.add('void-fetching');
+    try {
+      await navigateClient(url, true);
+    } finally {
+      _vfRoot = document.body || document.documentElement;
+      if (_vfRoot) _vfRoot.classList.remove('void-fetching');
+    }
     return;
   }
 
   var proxyUrl = null;
   if(m === 'server' || m === 'experimental'){
+    if(!url){
+      toast('Enter a search or URL');
+      return;
+    }
     proxyUrl = buildServerProxyUrl(url);
   } else {
     proxyUrl = buildExternalUrl(url);
   }
-  if(!proxyUrl) return;
+  if(!proxyUrl){
+    var sjNav = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
+    if(m === 'scramjet' && !sjNav && (location.protocol === 'file:' || location.protocol === 'blob:')){
+      var _vb = location.href.split('?')[0];
+      if($('opt-newtab') && $('opt-newtab').checked){
+        window.open(_vb + '?go=' + encodeURIComponent(url), '_blank');
+        return;
+      }
+      var _vf2 = document.body || document.documentElement;
+      if (_vf2) _vf2.classList.add('void-fetching');
+      try {
+        await navigateClient(url, true);
+      } finally {
+        _vf2 = document.body || document.documentElement;
+        if (_vf2) _vf2.classList.remove('void-fetching');
+      }
+      return;
+    }
+    return;
+  }
 
-  if($('opt-cloak') && $('opt-cloak').checked){
-    openCloaked(proxyUrl);
+  /* Embed before new tab: both options can be on; keep Void visible unless user turned iframe off. */
+  if($('opt-iframe') && $('opt-iframe').checked){
+    showVoidEmbedOverlay(proxyUrl);
     return;
   }
   if($('opt-newtab') && $('opt-newtab').checked){
@@ -2760,6 +3241,14 @@ $('btn-clear-hist').addEventListener('click', function(){
 renderHistory();
 
 document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var emb = $('void-embed-overlay');
+    if(emb && emb.classList.contains('show')){
+      hideVoidEmbedOverlay();
+      e.preventDefault();
+      return;
+    }
+  }
   if(e.key === 'Escape' && $('settings-overlay').classList.contains('visible')){
     $('settings-overlay').classList.remove('visible');
     sfxClose();
@@ -2783,9 +3272,8 @@ function savePrefs(){
       engine: engine,
       mode: getMode(),
       newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
-      cloak: $('opt-cloak') ? $('opt-cloak').checked : false,
+      inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
-      corsProxy: ($('cors-proxy-url') && $('cors-proxy-url').value.trim()) || '',
       serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
       uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
       scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
@@ -2796,18 +3284,27 @@ function savePrefs(){
 function loadPrefs(){
   try {
     var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+    var metaMode = '';
+    try {
+      var mm = document.querySelector('meta[name="void-default-mode"]');
+      if(mm){
+        metaMode = (mm.getAttribute('content') || '').trim();
+      }
+    } catch(e1){}
     if(p.mode){
       var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
       if(mb){ mb.click(); }
+    } else if(metaMode){
+      var mb0 = document.querySelector('.mode-btn[data-m="'+metaMode+'"]');
+      if(mb0){ mb0.click(); }
     }
     if(p.engine){
       var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
       if(btn) btn.click();
     }
-    if(p.newtab && $('opt-newtab')) $('opt-newtab').checked = true;
-    if(p.cloak && $('opt-cloak')) $('opt-cloak').checked = true;
-    if(p.eruda && $('opt-eruda')) $('opt-eruda').checked = true;
-    if(p.corsProxy && $('cors-proxy-url')) $('cors-proxy-url').value = p.corsProxy;
+    if($('opt-newtab')) $('opt-newtab').checked = !!p.newtab;
+    if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
+    if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
     if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
     if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
     if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
@@ -2815,14 +3312,22 @@ function loadPrefs(){
   updateModeUI();
 }
 
-['cors-proxy-url','server-backend','uv-backend','scramjet-backend'].forEach(function(id){
+['server-backend','uv-backend','scramjet-backend'].forEach(function(id){
   var el = $(id);
   if(el) el.addEventListener('input', savePrefs);
 });
-['opt-newtab','opt-cloak','opt-eruda'].forEach(function(id){
+['opt-newtab','opt-iframe','opt-eruda'].forEach(function(id){
   var el = $(id);
   if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
 });
+
+var _voidEmbedClose = $('void-embed-close');
+if(_voidEmbedClose){
+  _voidEmbedClose.addEventListener('click', function(){
+    sfxClick();
+    hideVoidEmbedOverlay();
+  });
+}
 
 /* ──────────── Settings panel ──────────── */
 $('settings-x').addEventListener('click', function(){
@@ -2835,12 +3340,59 @@ $('settings-overlay').addEventListener('click', function(e){
     sfxClose();
   }
 });
-/* ──────────── Ambient Music ──────────── */
+/* ──────────── Ambient Music (floating + in-page embed strip share one <audio>) ──────────── */
 var _ambAudio = $('ambient-audio');
 var _musicCtrl = $('music-ctrl');
 var _musicVol = $('music-vol');
 var _musicLabel = $('music-label');
+var _musicCtrlEmbed = $('music-ctrl-embed');
+var _musicVolEmbed = $('music-vol-embed');
+var _musicLabelEmbed = $('music-label-embed');
 var _musicPlaying = false;
+
+function _musicSyncUi(){
+  var pct = Math.round((_ambAudio ? _ambAudio.volume : 0.25) * 100);
+  if(_musicVol) _musicVol.value = String(pct);
+  if(_musicVolEmbed) _musicVolEmbed.value = String(pct);
+  var lab = _musicPlaying ? 'Playing' : 'Music';
+  if(_musicLabel) _musicLabel.textContent = lab;
+  if(_musicLabelEmbed) _musicLabelEmbed.textContent = lab;
+  if(_musicCtrl){
+    if(_musicPlaying) _musicCtrl.classList.add('playing');
+    else _musicCtrl.classList.remove('playing');
+  }
+  if(_musicCtrlEmbed){
+    if(_musicPlaying) _musicCtrlEmbed.classList.add('playing');
+    else _musicCtrlEmbed.classList.remove('playing');
+  }
+}
+
+function _musicSetVolumeFromPct(pctInt){
+  var v = Math.max(0, Math.min(1, parseInt(pctInt, 10) / 100));
+  if(_ambAudio) _ambAudio.volume = v;
+  try { localStorage.setItem('void_music_vol', String(v)); } catch(e){}
+  if(_musicVol) _musicVol.value = String(Math.round(v * 100));
+  if(_musicVolEmbed) _musicVolEmbed.value = String(Math.round(v * 100));
+}
+
+function _musicTogglePlay(){
+  if(!_ambAudio) return;
+  if(_musicPlaying){
+    _ambAudio.pause();
+    _musicPlaying = false;
+    try { localStorage.setItem('void_music_on', '0'); } catch(e){}
+    _musicSyncUi();
+  } else {
+    _ambAudio.play().then(function(){
+      _musicPlaying = true;
+      try { localStorage.setItem('void_music_on', '1'); } catch(e){}
+      _musicSyncUi();
+    }).catch(function(){
+      if(_musicLabel) _musicLabel.textContent = 'Click again';
+      if(_musicLabelEmbed) _musicLabelEmbed.textContent = 'Tap again';
+    });
+  }
+}
 
 if(_ambAudio){
   _ambAudio.volume = 0.25;
@@ -2849,43 +3401,41 @@ if(_ambAudio){
     var savedVol = localStorage.getItem('void_music_vol');
     if(savedVol !== null){
       _ambAudio.volume = parseFloat(savedVol);
-      _musicVol.value = Math.round(parseFloat(savedVol) * 100);
     }
+    _musicSyncUi();
     if(localStorage.getItem('void_music_on') === '1'){
       _ambAudio.play().then(function(){
         _musicPlaying = true;
-        _musicCtrl.classList.add('playing');
-        _musicLabel.textContent = 'Playing';
+        _musicSyncUi();
       }).catch(function(){});
     }
   } catch(e){}
 
-  _musicCtrl.addEventListener('click', function(e){
-    if(e.target === _musicVol) return;
-    if(_musicPlaying){
-      _ambAudio.pause();
-      _musicPlaying = false;
-      _musicCtrl.classList.remove('playing');
-      _musicLabel.textContent = 'Music';
-      try { localStorage.setItem('void_music_on', '0'); } catch(e){}
-    } else {
-      _ambAudio.play().then(function(){
-        _musicPlaying = true;
-        _musicCtrl.classList.add('playing');
-        _musicLabel.textContent = 'Playing';
-        try { localStorage.setItem('void_music_on', '1'); } catch(e){}
-      }).catch(function(){
-        _musicLabel.textContent = 'Click again';
-      });
-    }
-  });
+  if(_musicCtrl){
+    _musicCtrl.addEventListener('click', function(e){
+      if(e.target === _musicVol) return;
+      _musicTogglePlay();
+    });
+  }
+  if(_musicVol){
+    _musicVol.addEventListener('input', function(){
+      _musicSetVolumeFromPct(_musicVol.value);
+    });
+    _musicVol.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
 
-  _musicVol.addEventListener('input', function(){
-    var v = parseInt(_musicVol.value) / 100;
-    _ambAudio.volume = v;
-    try { localStorage.setItem('void_music_vol', String(v)); } catch(e){}
-  });
-  _musicVol.addEventListener('click', function(e){ e.stopPropagation(); });
+  if(_musicCtrlEmbed){
+    _musicCtrlEmbed.addEventListener('click', function(e){
+      if(e.target === _musicVolEmbed) return;
+      _musicTogglePlay();
+    });
+  }
+  if(_musicVolEmbed){
+    _musicVolEmbed.addEventListener('input', function(){
+      _musicSetVolumeFromPct(_musicVolEmbed.value);
+    });
+    _musicVolEmbed.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
 }
 
 /* ──────────── Firebase ──────────── */
@@ -3075,12 +3625,25 @@ function parseVersion(v){
   return [parseInt(parts[0])||0, parseInt(parts[1])||0, parseInt(parts[2])||0];
 }
 
+function resolveVoidUpdateUrl(){
+  var m = document.querySelector('meta[name="void-update-url"]');
+  var custom = m && m.content ? m.content.trim() : '';
+  if(custom) return custom;
+  if(/^https?:/i.test(location.protocol)) return new URL('void.html', location.href).href;
+  return '';
+}
 $('settings-upd-btn').addEventListener('click', function(){
   var btn = $('settings-upd-btn');
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
-  var repo = (document.querySelector('meta[name="void-update-repo"]') || {}).content || 'wiizzz786/math-quiz';
-  var rawUrl = 'https://raw.githubusercontent.com/' + repo.replace(/^\/+|\/+$/g,'') + '/main/void.html';
+  var rawUrl = resolveVoidUpdateUrl();
+  if(!rawUrl){
+    btn.disabled = false;
+    btn.textContent = 'Check for Update';
+    sfxError();
+    toast('Host Void over HTTPS (or set <meta name="void-update-url">) to check for updates.');
+    return;
+  }
   fetch(rawUrl)
     .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function(html){
@@ -3127,37 +3690,31 @@ $('settings-upd-btn').addEventListener('click', function(){
 
 /* ──────────── User ID init ──────────── */
 function showAdminMessage(text, timestamp, docId){
-  var existing = document.querySelector('.void-msg-overlay');
-  if(existing) existing.parentNode.removeChild(existing);
-
-  var overlay = document.createElement('div');
-  overlay.className = 'void-msg-overlay';
+  var toast = document.createElement('div');
+  toast.className = 'void-msg-toast';
   var timeStr = '';
   if(timestamp && timestamp.toDate) {
     var d = timestamp.toDate();
     timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
   }
-  overlay.innerHTML = '<div class="void-msg-box">'
-    + '<div class="void-msg-from">Message from Admin</div>'
+  toast.innerHTML = '<div class="void-msg-hdr">'
+    + '<span class="void-msg-from">Admin</span>'
+    + '<button class="void-msg-x">&times;</button>'
+    + '</div>'
     + '<div class="void-msg-text">' + (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>'
-    + (timeStr ? '<div class="void-msg-time">' + timeStr + '</div>' : '')
-    + '<button class="void-msg-ok">OK</button>'
-    + '</div>';
-  document.body.appendChild(overlay);
-  requestAnimationFrame(function(){ overlay.classList.add('show'); });
+    + (timeStr ? '<div class="void-msg-time">' + timeStr + '</div>' : '');
+  document.body.appendChild(toast);
+  requestAnimationFrame(function(){ toast.classList.add('show'); });
 
-  overlay.querySelector('.void-msg-ok').addEventListener('click', function(){
-    overlay.classList.remove('show');
-    setTimeout(function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 300);
+  function dismiss(){
+    toast.classList.remove('show');
+    setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 350);
     if(_db && docId){
       _db.collection('messages').doc(docId).update({ read: true }).catch(function(){});
     }
-  });
-  overlay.addEventListener('click', function(e){
-    if(e.target === overlay){
-      overlay.querySelector('.void-msg-ok').click();
-    }
-  });
+  }
+  toast.querySelector('.void-msg-x').addEventListener('click', dismiss);
+  setTimeout(dismiss, 12000);
 }
 
 var _activeUid = initUID();
