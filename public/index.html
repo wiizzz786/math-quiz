@@ -221,9 +221,6 @@
     }
 
     /* ── Proxy mode selector ── */
-    .mode-hint {
-      font-size: .68rem; color: var(--muted); margin-bottom: .5rem; line-height: 1.4;
-    }
     .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
     .mode-btn {
       display: flex; align-items: center; gap: 7px;
@@ -377,32 +374,30 @@
       <div class="adv-panel" id="adv-panel">
 
         <div class="section-hdr"><span>Proxy Mode</span></div>
-        <p class="mode-hint">How pages are loaded. Server-side is the default and only mode that works without extra setup.</p>
         <div class="mode-btns" id="mode-btns">
-          <button type="button" class="mode-btn active" data-m="server" title="Default. Pages are fetched and rewritten on the server. No service workers.">
+          <button type="button" class="mode-btn active" data-m="server" title="Pages fetched and rewritten on this server (/p/…).">
             Server-side <span class="tag">DEFAULT</span>
           </button>
-          <button type="button" class="mode-btn" data-m="experimental" title="Custom bare-metal proxy: stealth headers, stream rewriting, cookie remap, WebSocket support.">
+          <button type="button" class="mode-btn" data-m="experimental" title="Bare-metal proxy with stealth headers and stream rewrite (/pe/…).">
             Experimental <span class="tag">CUSTOM</span>
           </button>
-          <button type="button" class="mode-btn" data-m="uv" title="Ultraviolet proxy (requires UV backend; falls back to server-side if not configured).">
+          <button type="button" class="mode-btn" data-m="uv" title="Ultraviolet (service worker + Bare). Same host uses /uv.html; optional external origin.">
             Ultraviolet <span class="tag">SW</span>
           </button>
-          <button type="button" class="mode-btn" data-m="scramjet" title="Scramjet proxy (requires Scramjet backend; falls back to server-side if not configured).">
+          <button type="button" class="mode-btn" data-m="scramjet" title="Scramjet (Mercury stack). Same host uses /scramjet.html; optional external app URL.">
             Scramjet <span class="tag">SW</span>
           </button>
         </div>
 
         <div class="section-hdr"><span>UV / Scramjet backends</span></div>
-        <p class="mode-hint">UV: optional external backend. Scramjet: leave blank on this Node server to use built-in <code>/scramjet.html</code> (Bare + Epoxy + Wisp), or paste your own Scramjet app URL.</p>
         <div class="opts">
           <label class="opt opt-backend">
             <span class="opt-label">UV backend URL</span>
-            <input type="url" id="uv-backend" placeholder="https://your-uv.railway.app" autocomplete="off"/>
+            <input type="url" id="uv-backend" placeholder="Leave blank for Ultraviolet on this server (/uv.html)" autocomplete="off"/>
           </label>
           <label class="opt opt-backend">
             <span class="opt-label">Scramjet backend URL</span>
-            <input type="url" id="scramjet-backend" placeholder="Blank = built-in Scramjet on this server" autocomplete="off"/>
+            <input type="url" id="scramjet-backend" placeholder="Leave blank for /scramjet.html on this server" autocomplete="off"/>
           </label>
         </div>
 
@@ -560,6 +555,9 @@
       var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
       return uvBackend.replace(/\/+$/, '') + sep + q;
     }
+    if (mode === 'uv' && !uvBackend) {
+      return '/uv.html?' + q;
+    }
     if (mode === 'scramjet' && scramjetBackend) {
       var sb = scramjetBackend.replace(/\/+$/, '');
       if (!/\/scramjet\.html(\?|$)/i.test(sb)) {
@@ -595,7 +593,7 @@
       location.assign(goUrl);
       return;
     }
-    if (goUrl.indexOf('/scramjet') === 0) {
+    if (goUrl.indexOf('/scramjet') === 0 || goUrl.indexOf('/uv.html') === 0) {
       e.preventDefault();
       location.assign(goUrl);
       return;

@@ -9,9 +9,10 @@
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
-  <meta name="void-default-mode" content="scramjet"/>
-  <!-- Scramjet entry host when void isn’t opened from that origin (e.g. file://). Matches Funnel HTTPS on 443. -->
-  <meta name="void-scramjet-base" content="https://void.tailf49039.ts.net"/>
+  <meta name="void-default-mode" content="client"/>
+  <!-- Optional: absolute origin for /scramjet.html when void is opened from file:// or another host. -->
+  <meta name="void-scramjet-base" content=""/>
+  <meta name="void-uv-base" content=""/>
   <!-- Client mode: full CORS proxy base including ?url= (must match your Worker) -->
   <meta name="void-cors-proxy-base" content="https://void-proxy.aadizzz786.workers.dev/?url="/>
   <title>Void</title>
@@ -235,7 +236,6 @@
     .opt.opt-backend input[type=url] { display: block; width: 100%; padding: 8px 12px; margin-top: 4px; font-size: .75rem; font-family: 'JetBrains Mono', monospace; background: var(--dim); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
     .opt.opt-backend input[type=url]::placeholder { color: var(--muted); }
     .opt.opt-backend .opt-label { display: block; font-size: .7rem; color: var(--sub); }
-    .mode-hint { font-size: .65rem; color: var(--muted); margin-top: -4px; margin-bottom: 8px; line-height: 1.35; }
     .opts-backend { flex-direction: column; }
 
     .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
@@ -735,9 +735,6 @@
       </div>
 
       <div class="section-hdr"><span>Proxy Mode</span></div>
-      <p class="mode-hint" style="margin-top:-2px;margin-bottom:10px;line-height:1.45">
-        <strong>Client</strong> = your Cloudflare Worker CORS proxy (<code>void-cors-proxy-base</code> meta). This deploy defaults to <strong>Scramjet</strong> on <code>https://void.tailf49039.ts.net</code> (443) and <strong>UV</strong> on <code>https://void.tailf49039.ts.net:8443</code>. Switch mode to pick which engine runs.
-      </p>
       <div class="mode-btns" id="mode-btns">
         <button type="button" class="mode-btn active" data-m="client">Client-side <span class="tag">DEFAULT</span></button>
         <button type="button" class="mode-btn" data-m="server">Server-side</button>
@@ -746,30 +743,24 @@
         <button type="button" class="mode-btn" data-m="scramjet">Scramjet</button>
       </div>
 
-      <div id="cfg-client" style="display:none;">
-        <p class="mode-hint" style="margin-top:0">No CORS URL to configure — Client mode uses the Worker from <code>&lt;meta name=&quot;void-cors-proxy-base&quot;&gt;</code>.</p>
-      </div>
-
       <div id="cfg-server" class="opts opts-backend" style="display:none;margin-top:10px;">
-        <p class="mode-hint">Requires a running Void proxy server.</p>
         <label class="opt opt-backend">
           <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Void Server URL</span>
-          <input type="url" id="server-backend" value="https://void.tailf49039.ts.net" placeholder="https://void.tailf49039.ts.net" autocomplete="off"/>
+          <input type="url" id="server-backend" placeholder="https://your-server.example.com" autocomplete="off"/>
         </label>
       </div>
 
       <div id="cfg-uv" class="opts opts-backend" style="display:none;margin-top:10px;">
         <label class="opt opt-backend">
           <span class="opt-label">UV backend URL</span>
-          <input type="url" id="uv-backend" value="https://void.tailf49039.ts.net:8443" placeholder="https://void.tailf49039.ts.net:8443" autocomplete="off"/>
+          <input type="url" id="uv-backend" placeholder="Blank = Ultraviolet on this host (/uv.html)" autocomplete="off"/>
         </label>
       </div>
 
       <div id="cfg-scramjet" class="opts opts-backend" style="display:none;margin-top:10px;">
-        <p class="mode-hint" style="margin-top:0;margin-bottom:8px">Prefilled to your Scramjet origin (443). Clear the field to use <code>location.origin</code> when void is served from the same host. <code>&lt;meta name=&quot;void-scramjet-base&quot;&gt;</code> covers <strong>file://</strong> and odd entry URLs.</p>
         <label class="opt opt-backend">
           <span class="opt-label">Scramjet backend URL</span>
-          <input type="url" id="scramjet-backend" value="https://void.tailf49039.ts.net" placeholder="https://void.tailf49039.ts.net or blank for same origin" autocomplete="off"/>
+          <input type="url" id="scramjet-backend" placeholder="Blank = /scramjet.html on this host" autocomplete="off"/>
         </label>
       </div>
 
@@ -827,7 +818,7 @@
           <span class="toggle-track"></span>
           New Tab
         </label>
-        <label class="opt" title="Embeds Scramjet/UV inside Void so the shell stays visible. Empty search = proxy home; typed URL/search uses ?url= or /service/. Takes priority over New Tab when both are on.">
+        <label class="opt" title="Keep Void visible: load the proxy in the panel below. Empty search opens the proxy home. Overrides New Tab when both are on.">
           <input type="checkbox" id="opt-iframe" checked/>
           <span class="toggle-track"></span>
           In-page iframe
@@ -916,8 +907,6 @@
   <source src="https://cdn.freesafemusic.com/audio/jnk0.mp3" type="audio/mpeg"/>
 </audio>
 <div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
-
-<!-- Browser overlay removed — proxy now uses document.write rendering -->
 
 <div class="settings-overlay" id="settings-overlay">
   <div class="settings-card">
@@ -1328,7 +1317,6 @@ function getServerBase(){
 /* ──────────── Mode UI toggling ──────────── */
 function updateModeUI(){
   var m = getMode();
-  $('cfg-client').style.display   = m === 'client' ? '' : 'none';
   $('cfg-server').style.display   = (m === 'server' || m === 'experimental') ? '' : 'none';
   $('cfg-uv').style.display       = m === 'uv' ? '' : 'none';
   $('cfg-scramjet').style.display = m === 'scramjet' ? '' : 'none';
@@ -2860,15 +2848,6 @@ function buildServerProxyUrl(targetUrl){
   return base.replace(/\/+$/,'') + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
 }
 
-function xorEncode(url, key){
-  key = key || 2;
-  var result = '';
-  for(var i = 0; i < url.length; i++){
-    result += String.fromCharCode(url.charCodeAt(i) ^ key);
-  }
-  return btoa(result);
-}
-
 function buildExternalUrl(targetUrl){
   var m = getMode();
   var t = targetUrl != null ? String(targetUrl).trim() : '';
@@ -2882,10 +2861,32 @@ function buildExternalUrl(targetUrl){
   if(wantShellOnly){
     if(m === 'uv'){
       var uv0 = ($('uv-backend') && $('uv-backend').value.trim()) || '';
-      if(!uv0){ toast('Enter your UV backend URL'); return null; }
+      if(!uv0){
+        var u0 = '';
+        try {
+          if(location.protocol === 'http:' || location.protocol === 'https:'){
+            u0 = (location.origin || '').replace(/\/+$/, '');
+          }
+        } catch(e0){}
+        if(!u0){
+          try {
+            var mu0 = document.querySelector('meta[name="void-uv-base"]');
+            if(mu0 && mu0.getAttribute('content')) u0 = mu0.getAttribute('content').trim().replace(/\/+$/, '');
+          } catch(e1){}
+        }
+        if(u0 && /^https?:\/\//i.test(u0)) return u0 + '/uv.html';
+        if(location.protocol === 'file:' || location.protocol === 'blob:') return null;
+        toast('UV: set a backend URL, host void over http(s), or set meta void-uv-base.');
+        return null;
+      }
       var b0 = uv0.replace(/\/+$/, '');
       if(!/^https?:\/\//i.test(b0)) return null;
-      return b0 + '/';
+      try {
+        var uo0 = new URL(b0);
+        return uo0.origin + '/uv.html';
+      } catch(e2){
+        return null;
+      }
     }
     if(m === 'scramjet'){
       var sj0 = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
@@ -2924,12 +2925,40 @@ function buildExternalUrl(targetUrl){
   }
   if(m === 'uv'){
     var uv = ($('uv-backend') && $('uv-backend').value.trim()) || '';
-    if(!uv){ toast('Enter your UV backend URL'); return null; }
-    var base = uv.replace(/\/+$/, '');
-    if(base.includes('/service/') || base.endsWith('/service')){
-      return base.replace(/\/+$/, '') + '/' + xorEncode(t);
+    var qUv = 'url=' + encodeURIComponent(t);
+    if($('opt-eruda') && $('opt-eruda').checked) qUv += '&eruda=1';
+    if(!uv){
+      var ubb = '';
+      try {
+        if(location.protocol === 'http:' || location.protocol === 'https:'){
+          ubb = (location.origin || '').replace(/\/+$/, '');
+        }
+      } catch(e){}
+      if(!ubb){
+        try {
+          var muv = document.querySelector('meta[name="void-uv-base"]');
+          if(muv && muv.getAttribute('content')) ubb = muv.getAttribute('content').trim().replace(/\/+$/, '');
+        } catch(e2){}
+      }
+      if(ubb && /^https?:\/\//i.test(ubb)){
+        return ubb + '/uv.html?' + qUv;
+      }
+      if(location.protocol === 'file:' || location.protocol === 'blob:'){
+        return null;
+      }
+      toast('UV: set a backend URL, host void over http(s), or set meta void-uv-base.');
+      return null;
     }
-    return base + '/service/' + xorEncode(t);
+    var base = uv.replace(/\/+$/, '');
+    var uo;
+    try {
+      uo = new URL(/^https?:\/\//i.test(base) ? base : 'https://' + base);
+    } catch(e3){
+      toast('Invalid UV backend URL');
+      return null;
+    }
+    /* Always enter through /uv.html so the stock UV boot + xor codec match the service worker. */
+    return uo.origin + '/uv.html?' + qUv;
   }
   if(m === 'scramjet'){
     var sj = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
