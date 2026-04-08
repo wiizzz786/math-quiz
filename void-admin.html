@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+  <!-- Shipped versions (bump when you release). Used by Check for Update. -->
+  <meta name="void-version" content="2.0.0"/>
+  <meta name="void-admin-version" content="2.0.0"/>
+  <!-- Canonical raw files on GitHub (same repo as void.html). -->
+  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
+  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
+  <!-- Optional: full URL to embed in Run Void (blank = void.html next to this file). -->
+  <meta name="void-embed-url" content=""/>
   <title>Void Admin</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ff5f8f'/%3E%3Cstop offset='100%25' stop-color='%237c6aff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -393,7 +401,7 @@
       </div>
       <div class="card">
         <div class="card-title">Update Status</div>
-        <p id="update-status" style="font-size:.82rem;color:var(--sub);">Click "Check for Update" to check.</p>
+        <p id="update-status" style="font-size:.82rem;color:var(--sub);line-height:1.5;">Checks <code>void.html</code> and <code>void-admin.html</code> on GitHub (see <code>&lt;meta name=&quot;void-update-url&quot;&gt;</code>).</p>
       </div>
     </div>
 
@@ -402,7 +410,7 @@
       <div class="card">
         <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="users-live-dot"></span>Firestore Users</span><span id="users-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-users" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-          <input type="text" class="debug-url" id="user-search" placeholder="Search by UID, label, or status..." style="flex:1;font-size:.7rem;"/>
+          <input type="text" class="debug-url" id="user-search" placeholder="Search by label name, UID, banned, owner\u2026" style="flex:1;font-size:.7rem;"/>
           <button class="btn btn-ghost btn-sm" id="btn-broadcast" title="Message all users">Broadcast</button>
           <button class="btn btn-ghost btn-sm" id="btn-export-users" title="Export users to JSON">Export</button>
         </div>
@@ -588,10 +596,14 @@
       </div>
     </div>
 
-    <!-- Run Void -->
+    <!-- Run Void — live void.html preview (same experience users see) -->
     <div class="panel" id="p-void">
-      <div class="card" style="padding:0;overflow:hidden;border-radius:12px;height:calc(100vh - 100px);">
-        <iframe id="void-iframe" style="width:100%;height:100%;border:none;background:#06060b;"></iframe>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">Void preview</div>
+        <p style="font-size:.72rem;color:var(--muted);line-height:1.45;">Embedded <code>void.html</code> from this host so you see the same UI as users. Override with <code>&lt;meta name=&quot;void-embed-url&quot; content=&quot;https://&hellip;/void.html&quot;&gt;</code> if needed.</p>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;border-radius:12px;height:calc(100vh - 220px);min-height:320px;">
+        <iframe id="void-iframe" title="Void (user view)" style="width:100%;height:100%;border:none;background:#06060b;" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-popups-to-escape-sandbox"></iframe>
       </div>
     </div>
 
@@ -604,7 +616,35 @@
 
 var $ = function(id){ return document.getElementById(id); };
 var CORS_PROXY = 'https://void-proxy.aadizzz786.workers.dev';
-var VER = '2.0.0';
+
+function _meta(name, fallback){
+  var el = document.querySelector('meta[name="' + name + '"]');
+  var c = el && el.getAttribute('content');
+  return (c != null && String(c).trim() !== '') ? String(c).trim() : fallback;
+}
+var VER = _meta('void-admin-version', '2.0.0');
+var VOID_VER = _meta('void-version', '2.0.0');
+
+function parseVersion(v){
+  var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
+  return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0];
+}
+function isNewer(remote, local){
+  var r = parseVersion(remote), l = parseVersion(local);
+  return r[0] > l[0] || (r[0] === l[0] && r[1] > l[1]) || (r[0] === l[0] && r[1] === l[1] && r[2] > l[2]);
+}
+function resolveVoidUpdateUrl(){
+  return _meta('void-update-url', 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html');
+}
+function resolveVoidAdminUpdateUrl(){
+  return _meta('void-admin-update-url', 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html');
+}
+function resolveVoidEmbedUrl(){
+  var custom = _meta('void-embed-url', '');
+  if(custom) return custom;
+  try { return new URL('void.html', location.href).href; } catch(e){ return 'void.html'; }
+}
+
 var _db = null, _fbOk = false, _allUsers = [], _allSearches = [], _userLabels = {};
 
 try { var p = localStorage.getItem('void_prefs'); if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; } } catch(e){}
@@ -663,7 +703,10 @@ document.querySelectorAll('.nav-item').forEach(function(item){
     if(item.dataset.panel === 'tools') refreshLS();
     if(item.dataset.panel === 'void'){
       var vf = $('void-iframe');
-      if(vf && !vf.src) vf.src = location.href.replace(/[^/]*$/, '') + 'void.html';
+      if(vf && !vf.getAttribute('data-loaded')){
+        vf.src = resolveVoidEmbedUrl();
+        vf.setAttribute('data-loaded', '1');
+      }
     }
   });
 });
@@ -693,26 +736,64 @@ $('btn-clear-data').addEventListener('click', function(){
   refreshDashboard();
 });
 
-/* ──── Update ──── */
+/* ──── Update (void.html + void-admin.html vs GitHub raw) ──── */
+function _downloadBlob(html, filename){
+  var blob = new Blob([html], { type: 'text/html' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
 $('btn-check-update').addEventListener('click', function(){
-  var btn = $('btn-check-update'), status = $('update-status');
-  btn.disabled = true; btn.textContent = 'Checking\u2026';
-  fetch('https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html')
-    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-    .then(function(html){
-      var m = html.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
-      var remote = m ? m[1] : '0.0.0';
-      var lp = VER.split('.').map(Number), rp = remote.split('.').map(Number);
-      var newer = rp[0]>lp[0]||(rp[0]===lp[0]&&rp[1]>lp[1])||(rp[0]===lp[0]&&rp[1]===lp[1]&&rp[2]>lp[2]);
-      if(newer){
-        status.innerHTML = '<span style="color:#ff5f8f;font-weight:700;">v'+remote+' available!</span>';
-        var blob = new Blob([html],{type:'text/html'}); var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'void.html';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        status.innerHTML = '<span style="color:#34d399;">\u2714 Downloaded v'+remote+'</span>';
-      } else { status.innerHTML = '<span style="color:#34d399;">\u2714 Latest (v'+VER+')</span>'; }
-      btn.disabled = false; btn.textContent = 'Check for Update';
-    }).catch(function(err){ status.innerHTML = '<span style="color:#ff5f8f;">Failed: '+err.message+'</span>'; btn.disabled = false; btn.textContent = 'Check for Update'; });
+  var btn = $('btn-check-update');
+  var status = $('update-status');
+  btn.disabled = true;
+  btn.textContent = 'Checking\u2026';
+  status.innerHTML = '<span style="color:var(--sub);">Fetching void.html and void-admin.html\u2026</span>';
+
+  var uVoid = resolveVoidUpdateUrl();
+  var uAdmin = resolveVoidAdminUpdateUrl();
+
+  Promise.all([
+    fetch(uVoid).then(function(r){ if(!r.ok) throw new Error('void.html HTTP ' + r.status); return r.text(); }),
+    fetch(uAdmin).then(function(r){ if(!r.ok) throw new Error('void-admin.html HTTP ' + r.status); return r.text(); })
+  ])
+    .then(function(pair){
+      var voidHtml = pair[0], adminHtml = pair[1];
+      var mv = voidHtml.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
+      var ma = adminHtml.match(/<meta\s+name=["']void-admin-version["']\s+content=["']([^"']+)["']/i);
+      var remoteVoid = mv ? mv[1] : '0.0.0';
+      var remoteAdmin = ma ? ma[1] : '0.0.0';
+
+      var dlVoid = isNewer(remoteVoid, VOID_VER);
+      var dlAdmin = isNewer(remoteAdmin, VER);
+      var lines = [];
+
+      if(dlVoid){
+        _downloadBlob(voidHtml, 'void.html');
+        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void.html</strong> v' + remoteVoid + '</span> <span style="color:var(--muted);">(local was v' + VOID_VER + ')</span>');
+      } else {
+        lines.push('<span style="color:var(--sub);"><strong>void.html</strong> \u2014 local v' + VOID_VER + ', remote v' + remoteVoid + ' \u2014 ' + (remoteVoid === VOID_VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
+      }
+      if(dlAdmin){
+        _downloadBlob(adminHtml, 'void-admin.html');
+        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-admin.html</strong> v' + remoteAdmin + '</span> <span style="color:var(--muted);">(local was v' + VER + ')</span>');
+      } else {
+        lines.push('<span style="color:var(--sub);"><strong>void-admin.html</strong> \u2014 local v' + VER + ', remote v' + remoteAdmin + ' \u2014 ' + (remoteAdmin === VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
+      }
+
+      status.innerHTML = lines.map(function(l){ return '<div style="margin:6px 0;">' + l + '</div>'; }).join('');
+      btn.disabled = false;
+      btn.textContent = 'Check for Update';
+    })
+    .catch(function(err){
+      status.innerHTML = '<span style="color:#ff5f8f;">Failed: ' + (err && err.message ? err.message : err) + '</span>';
+      btn.disabled = false;
+      btn.textContent = 'Check for Update';
+    });
 });
 
 /* ──── Users ──── */
@@ -726,6 +807,11 @@ function startLabelEdit(el, uid){
     _userLabels[uid] = val;
     var span = document.createElement('span'); span.className = 'uid-label' + (val ? '' : ' empty'); span.textContent = val || 'add label';
     span.addEventListener('click', function(){ startLabelEdit(span, uid); }); inp.replaceWith(span);
+    var row = span.closest('.uid-row');
+    if(row){
+      row.setAttribute('data-label', val);
+      applyUserSearch();
+    }
   }
   inp.addEventListener('blur', save);
   inp.addEventListener('keydown', function(e){ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=current; inp.blur(); } });
@@ -739,6 +825,8 @@ function renderFirestoreUsers(){
   var now = Date.now();
   _allUsers.forEach(function(u){
     var row = document.createElement('div'); row.className = 'uid-row'+(u.banned?' banned':'');
+    row.setAttribute('data-uid', u.uid || '');
+    row.setAttribute('data-label', getUserLabel(u.uid) || '');
 
     var isOnline = false;
     if(u.lastSeen && u.lastSeen.toMillis){
@@ -783,6 +871,7 @@ function renderFirestoreUsers(){
     actions.appendChild(del);
     row.appendChild(actions); list.appendChild(row);
   });
+  applyUserSearch();
   refreshDashboard(); updateHistoryFilterDropdown();
 }
 
@@ -862,7 +951,13 @@ function fetchUsers(){
   $('users-status').style.color = 'var(--muted)';
   _db.collection('users').get().then(function(snap){
     _allUsers = []; _userLabels = {};
-    snap.forEach(function(doc){ var d = doc.data(); _allUsers.push(d); if(d.label) _userLabels[d.uid] = d.label; });
+    snap.forEach(function(doc){
+      var d = doc.data();
+      var uid = d.uid || doc.id;
+      if(!d.uid) d.uid = uid;
+      _allUsers.push(d);
+      _userLabels[uid] = d.label != null ? String(d.label) : '';
+    });
     renderFirestoreUsers(); refreshDashboard();
     $('users-status').textContent = _allUsers.length + ' users \u00b7 ' + new Date().toLocaleTimeString();
     $('users-status').style.color = 'var(--green)';

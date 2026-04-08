@@ -3,16 +3,20 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
-  <!-- Optional: absolute URL to void.html for "Check for Update" (defaults to same origin when hosted) -->
-  <meta name="void-update-url" content=""/>
+  <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
+  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
+  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
   <meta name="void-version" content="2.0.0"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
   <meta name="void-default-mode" content="client"/>
-  <!-- Optional: absolute origin for /scramjet.html when void is opened from file:// or another host. -->
-  <meta name="void-scramjet-base" content=""/>
-  <meta name="void-uv-base" content=""/>
+  <!-- Scramjet: void-scramjet-path=/ → https://host/?url=… (no /scramjet.html in the link). Omit meta to use /scramjet.html?url= instead. -->
+  <meta name="void-scramjet-base" content="https://void.tailf49039.ts.net"/>
+  <meta name="void-scramjet-path" content="/"/>
+  <!-- UV: void-uv-path=/ → https://host:8443/?url=… (no /uv.html in the link). Omit meta to use /uv.html?url= instead. -->
+  <meta name="void-uv-base" content="https://void.tailf49039.ts.net:8443"/>
+  <meta name="void-uv-path" content="/"/>
   <!-- Client mode: full CORS proxy base including ?url= (must match your Worker) -->
   <meta name="void-cors-proxy-base" content="https://void-proxy.aadizzz786.workers.dev/?url="/>
   <title>Void</title>
@@ -369,10 +373,13 @@
       cursor: pointer; font-family: inherit;
     }
     .void-embed-top button:hover { border-color: var(--border2); background: var(--surface2); }
+    .void-embed-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .void-embed-nav button { padding: 6px 12px; font-size: .72rem; }
     .void-embed-top .void-embed-url {
       font-size: .65rem; color: var(--muted); flex: 1; min-width: 120px; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
+      text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
     }
+    .void-embed-top .void-embed-url[title] { border-bottom: 1px dashed rgba(255,255,255,.12); }
     .void-embed-wrap { flex: 1; position: relative; min-height: 0; }
     .void-embed-wrap iframe {
       position: absolute; inset: 0; width: 100%; height: 100%; border: none;
@@ -750,20 +757,6 @@
         </label>
       </div>
 
-      <div id="cfg-uv" class="opts opts-backend" style="display:none;margin-top:10px;">
-        <label class="opt opt-backend">
-          <span class="opt-label">UV backend URL</span>
-          <input type="url" id="uv-backend" placeholder="Blank = Ultraviolet on this host (/uv.html)" autocomplete="off"/>
-        </label>
-      </div>
-
-      <div id="cfg-scramjet" class="opts opts-backend" style="display:none;margin-top:10px;">
-        <label class="opt opt-backend">
-          <span class="opt-label">Scramjet backend URL</span>
-          <input type="url" id="scramjet-backend" placeholder="Blank = /scramjet.html on this host" autocomplete="off"/>
-        </label>
-      </div>
-
       <div class="section-hdr"><span>Search Engine</span></div>
       <div class="engines" id="engines">
         <button class="eng-btn active" data-e="brave">
@@ -798,7 +791,7 @@
           <img class="ico" src="https://www.google.com/s2/favicons?domain=yandex.com&sz=32" alt=""/>Yandex
         </button>
         <button class="eng-btn" data-e="searxng">
-          <img class="ico" src="https://www.google.com/s2/favicons?domain=searx.be&sz=32" alt=""/>SearXNG
+          <img class="ico" src="https://icons.duckduckgo.com/ip3/searx.be.ico" alt=""/>
         </button>
         <button class="eng-btn" data-e="mojeek">
           <img class="ico" src="https://www.google.com/s2/favicons?domain=mojeek.com&sz=32" alt=""/>Mojeek
@@ -873,7 +866,12 @@
 
 <div class="void-embed-overlay" id="void-embed-overlay" aria-hidden="true">
   <div class="void-embed-top">
-    <button type="button" id="void-embed-close">← Back</button>
+    <button type="button" id="void-embed-close" title="Close overlay and return to Void">← Void</button>
+    <div class="void-embed-nav" id="void-embed-nav" aria-label="Proxy navigation">
+      <button type="button" id="void-embed-home" title="Proxy home (shell)">Home</button>
+      <button type="button" id="void-embed-back" title="Back in proxy (Alt+←)">Back</button>
+      <button type="button" id="void-embed-reload" title="Reload frame">Reload</button>
+    </div>
     <div class="void-embed-music" id="music-ctrl-embed" title="Play / pause — volume">
       <div class="music-ico">
         <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
@@ -881,7 +879,7 @@
       <span class="music-label" id="music-label-embed">Music</span>
       <input type="range" class="music-vol" id="music-vol-embed" min="0" max="100" value="25"/>
     </div>
-    <span id="void-embed-label" class="void-embed-url">Proxy</span>
+    <span id="void-embed-label" class="void-embed-url" title="What you typed in Void — click to copy">Proxy</span>
   </div>
   <div class="void-embed-wrap">
     <iframe id="void-embed-frame" title="Proxy view" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay"></iframe>
@@ -918,7 +916,7 @@
       <div class="settings-sec-title">Update</div>
       <p class="settings-info" style="margin-top:0;margin-bottom:.6rem">Current version: <code id="s-cur-ver"></code> <span id="s-ver-status"></span></p>
       <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
-      <p class="settings-info">Fetches <code>void.html</code> from this site when hosted (HTTPS). Add <code>&lt;meta name=&quot;void-update-url&quot; content=&quot;https://&hellip;/void.html&quot;&gt;</code> to point elsewhere.</p>
+      <p class="settings-info">Compares your <code>void-version</code> to <code>void-update-url</code> (default: GitHub raw <code>wiizzz786/math-quiz</code> main). Override the meta if you fork. Hosted over HTTPS with no meta, it uses same-origin <code>void.html</code>.</p>
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">Keyboard Shortcuts</div>
@@ -957,7 +955,7 @@ try {
     document.body.appendChild(_bd);
     setTimeout(function(){ if(_bd.parentNode) _bd.parentNode.removeChild(_bd); }, 8000);
   } else { localStorage.removeItem('void_bounce'); }
-} catch(e){}
+} catch(_e){}
 
 /* ──────────── State ──────────── */
 var engine = 'brave';
@@ -1228,12 +1226,37 @@ function _voidEmbedFinishLoading(){
   _voidEmbedSetLoadingState('loading');
 }
 
-function showVoidEmbedOverlay(url){
+function voidPostMessageFillProxyFrame(){
+  var fr = $('void-embed-frame');
+  if(!fr || !fr.contentWindow) return;
+  var text = _voidEmbedPostText || '';
+  var resolved = _voidEmbedPostResolved || '';
+  var payload = { source: 'void', voidFillQuery: true, text: text, resolvedUrl: resolved };
+  function send(){
+    try { fr.contentWindow.postMessage(payload, '*'); } catch(e){}
+  }
+  send();
+  setTimeout(send, 50);
+  setTimeout(send, 200);
+  setTimeout(send, 800);
+  setTimeout(send, 2000);
+}
+
+/* proxyUrl = iframe src; userTypedBar = EXACT characters from Void search box; resolvedUrl = normalized https URL for proxy. */
+function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
+  _voidEmbedLastSrc = proxyUrl || '';
+  var typed = userTypedBar != null ? String(userTypedBar) : '';
+  _voidEmbedPostText = typed;
+  _voidEmbedPostResolved = resolvedUrl != null ? String(resolvedUrl) : '';
+  _voidEmbedBarCopy = typed;
+  _voidEmbedBridgePending = voidShouldUseProxyBridge();
+  var bridgeHint = typed.trim() || proxyUrl || '';
+  var frameSrc = _voidEmbedBridgePending ? voidCreateProxyBridgeBlobUrl(proxyUrl, bridgeHint) : proxyUrl;
   var ov = $('void-embed-overlay');
   var fr = $('void-embed-frame');
   var lb = $('void-embed-label');
   var ld = $('void-embed-loading');
-  if(lb) lb.textContent = url;
+  if(lb) lb.textContent = typed.trim() ? typed : 'Proxy home';
   _voidEmbedClearLoadTimer();
   _voidEmbedClearReadyTimer();
   _voidEmbedSetLoadingState('loading');
@@ -1241,11 +1264,17 @@ function showVoidEmbedOverlay(url){
     fr.onload = null;
     fr.onerror = null;
     fr.onload = function(){
+      if(_voidEmbedBridgePending){
+        _voidEmbedBridgePending = false;
+        return;
+      }
       _voidEmbedClearLoadTimer();
       if(ov) ov.classList.remove('loading');
       _voidEmbedSetLoadingState('ready');
+      voidPostMessageFillProxyFrame();
       _voidEmbedReadyTimer = setTimeout(function(){
         _voidEmbedReadyTimer = null;
+        voidPostMessageFillProxyFrame();
         _voidEmbedFinishLoading();
       }, 420);
     };
@@ -1264,7 +1293,7 @@ function showVoidEmbedOverlay(url){
     ld.classList.add('show');
     ld.setAttribute('aria-hidden', 'false');
   }
-  if(fr) fr.src = url;
+  if(fr) fr.src = frameSrc;
   _voidEmbedLoadTimer = setTimeout(function(){
     _voidEmbedLoadTimer = null;
     var still = $('void-embed-loading');
@@ -1280,6 +1309,15 @@ function showVoidEmbedOverlay(url){
   }, 55000);
 }
 function hideVoidEmbedOverlay(){
+  _voidEmbedLastSrc = '';
+  _voidEmbedBarCopy = '';
+  _voidEmbedPostText = '';
+  _voidEmbedPostResolved = '';
+  _voidEmbedBridgePending = false;
+  if(_voidLastBridgeBlob){
+    try { URL.revokeObjectURL(_voidLastBridgeBlob); } catch(e){}
+    _voidLastBridgeBlob = null;
+  }
   _voidEmbedClearLoadTimer();
   _voidEmbedClearReadyTimer();
   var ov = $('void-embed-overlay');
@@ -1318,8 +1356,6 @@ function getServerBase(){
 function updateModeUI(){
   var m = getMode();
   $('cfg-server').style.display   = (m === 'server' || m === 'experimental') ? '' : 'none';
-  $('cfg-uv').style.display       = m === 'uv' ? '' : 'none';
-  $('cfg-scramjet').style.display = m === 'scramjet' ? '' : 'none';
 }
 
 /* ──────────── Client-side proxy engine ──────────── */
@@ -1553,27 +1589,78 @@ function _clientInjection(){
   }
 
   /* ── Link clicks (named so _reattach can re-bind after document.write) ── */
-  function _handleClick(e){
-    var el = e.target;
-    var a = null;
+  function _linkHrefFrom(el){
+    if(!el) return '';
+    var h = el.getAttribute('href');
+    if(h != null && h !== '') return h;
+    try {
+      if(typeof el.href === 'string' && /^https?:\/\//i.test(el.href)) return el.href;
+    } catch(e){}
+    try {
+      if(el.getAttributeNS){
+        var x = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if(x) return x;
+      }
+    } catch(e2){}
+    return '';
+  }
+  function _findLinkEl(t, ev){
+    if(t && t.nodeType === 3 && t.parentElement) t = t.parentElement;
+    if(!t || t.nodeType !== 1) return null;
+    var i, el, path, tn;
+    if(ev && typeof ev.composedPath === 'function'){
+      try {
+        path = ev.composedPath();
+        for(i = 0; i < path.length; i++){
+          el = path[i];
+          if(!el || el.nodeType !== 1) continue;
+          if(el === document || el === document.documentElement) break;
+          tn = el.tagName ? el.tagName.toUpperCase() : '';
+          if(tn === 'A' || tn === 'AREA') return el;
+        }
+      } catch(e0){}
+    }
+    if(t.closest){
+      el = t.closest('a, area');
+      if(el) return el;
+    }
+    el = t;
     while(el){
-      if(el.tagName === 'A'){ a = el; break; }
-      if(el.tagName === 'BUTTON' || el.tagName === 'INPUT') break;
+      tn = el.tagName && el.tagName.toUpperCase();
+      if(tn === 'A' || tn === 'AREA') return el;
       el = el.parentElement;
     }
-    if(a){
-      if(a.hasAttribute('target')) a.removeAttribute('target');
-      var href = a.getAttribute('href');
-      if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/.test(href)) return;
-      var abs = _abs(href);
-      if(!_shouldProxy(abs)) return;
+    return null;
+  }
+  function _followProxiedLink(link, e){
+    if(!link) return false;
+    if(link.hasAttribute('target')) link.removeAttribute('target');
+    var href = _linkHrefFrom(link);
+    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return false;
+    var abs = _abs(href);
+    if(!_shouldProxy(abs)) return false;
+    if(e){
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      _nav(abs);
     }
+    _nav(abs);
+    return true;
+  }
+  function _handleClick(e){
+    if(typeof e.button === 'number' && e.button !== 0) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    _followProxiedLink(link, e);
+  }
+  function _handleAuxClick(e){
+    if(e.button !== 1) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    _followProxiedLink(link, e);
   }
   document.addEventListener('click', _handleClick, true);
+  document.addEventListener('auxclick', _handleAuxClick, true);
 
   /* ── Form submissions (named so _reattach can re-bind after document.write) ── */
   function _handleSubmit(e){
@@ -2014,7 +2101,7 @@ function _clientInjection(){
           if(n.nodeType !== 1) continue;
           _rewriteNode(n);
           if(n.querySelectorAll){
-            var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src],a[target],form[target],meta[http-equiv]');
+            var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src],a,a[target],area,area[target],form[target],meta[http-equiv]');
             for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
           }
         }
@@ -2025,7 +2112,7 @@ function _clientInjection(){
   _setupMO();
 
   function _rewriteNode(el){
-    var tag = el.tagName;
+    var tag = el.tagName ? el.tagName.toUpperCase() : '';
     if(!tag) return;
     if((tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE') && el.getAttribute('src')){
       var s = el.getAttribute('src');
@@ -2046,8 +2133,22 @@ function _clientInjection(){
       var scs = el.getAttribute('src');
       if(_shouldProxy(scs) && scs.indexOf(_cp) === -1) el.setAttribute('src', _proxied(scs));
     }
-    if(tag === 'A' || tag === 'FORM'){
+    if(tag === 'A' || tag === 'AREA' || tag === 'FORM'){
       if(el.hasAttribute('target')) el.removeAttribute('target');
+    }
+    if(tag === 'A' || tag === 'AREA'){
+      var ah = el.getAttribute('href');
+      if((ah == null || ah === '') && el.getAttributeNS){
+        try { ah = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href'); } catch(e){}
+      }
+      if(ah && !/^(javascript:|data:|mailto:|blob:|#)/i.test(ah.trim())){
+        var aAbs = _abs(ah);
+        if(_shouldProxy(aAbs) && ah.indexOf(_cp) === -1){
+          var pu = _proxied(ah);
+          if(el.hasAttribute('href')) el.setAttribute('href', pu);
+          else try { el.setAttributeNS('http://www.w3.org/1999/xlink', 'href', pu); } catch(e2){ el.setAttribute('href', pu); }
+        }
+      }
     }
     if(tag === 'META'){
       var he = (el.getAttribute('http-equiv') || '').toLowerCase();
@@ -2080,6 +2181,7 @@ function _clientInjection(){
       _setupMO();
       _attachTitle();
       document.addEventListener('click', _handleClick, true);
+      document.addEventListener('auxclick', _handleAuxClick, true);
       document.addEventListener('submit', _handleSubmit, true);
       document.addEventListener('touchstart', _handleTouchStart, { passive: true, capture: true });
       document.addEventListener('touchend', _handleTouchEnd, { passive: true, capture: true });
@@ -2214,6 +2316,13 @@ function clientRewrite(html, baseUrl){
     return pre + q + _rwUrl(url) + q;
   });
 
+  html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+  html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
   html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
     return pre + q + _rwUrl(url) + q;
   });
@@ -2301,6 +2410,12 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       return pre + q + _rw(u) + q;
     });
     html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
       return pre + q + _rw(u) + q;
     });
     html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
@@ -2754,9 +2869,44 @@ async function consumeCorsResponse(be, resp, targetUrl){
   return { body: body, contentType: ct, finalUrl: finalUrl };
 }
 
+var _pageFetchCache = new Map();
+var PAGE_CACHE_MAX = 40;
+var PAGE_CACHE_TTL_MS = 120000;
+
+function _pageFetchCacheKey(targetUrl){
+  return targetUrl + '\0' + (_getVoidCookies(targetUrl) || '');
+}
+
+function _pageFetchCacheGet(targetUrl){
+  var e = _pageFetchCache.get(_pageFetchCacheKey(targetUrl));
+  if(!e) return null;
+  if(Date.now() - e.t > PAGE_CACHE_TTL_MS){
+    _pageFetchCache.delete(_pageFetchCacheKey(targetUrl));
+    return null;
+  }
+  return e.v;
+}
+
+function _pageFetchCacheSet(targetUrl, v){
+  var key = _pageFetchCacheKey(targetUrl);
+  if(_pageFetchCache.size >= PAGE_CACHE_MAX){
+    var first = _pageFetchCache.keys().next().value;
+    if(first) _pageFetchCache.delete(first);
+  }
+  _pageFetchCache.set(key, { v: v, t: Date.now() });
+}
+
 async function clientFetch(targetUrl, fetchOpts){
   fetchOpts = _addCookieHeaders(fetchOpts, targetUrl, 'document');
   if(_probePromise) await _probePromise;
+
+  var isPost = fetchOpts && fetchOpts.method && String(fetchOpts.method).toUpperCase() === 'POST';
+  if(!isPost){
+    var hit = _pageFetchCacheGet(targetUrl);
+    if(hit){
+      return { body: hit.body, contentType: hit.contentType, ok: true, finalUrl: hit.finalUrl };
+    }
+  }
 
   var order = [];
   for(var k = 0; k < CORS_BACKENDS.length; k++) order.push(k);
@@ -2784,6 +2934,9 @@ async function clientFetch(targetUrl, fetchOpts){
     var won = await promiseAny(promises);
     controllers.forEach(function(c){ try { c.abort(); } catch(e){} });
     _workingBackendIdx = won.idx;
+    if(!isPost){
+      _pageFetchCacheSet(targetUrl, { body: won.body, contentType: won.contentType, finalUrl: won.finalUrl });
+    }
     return { body: won.body, contentType: won.contentType, ok: true, finalUrl: won.finalUrl };
   } catch(e){
     controllers.forEach(function(c){ try { c.abort(); } catch(err){} });
@@ -2848,6 +3001,82 @@ function buildServerProxyUrl(targetUrl){
   return base.replace(/\/+$/,'') + '/go?' + q + '&engine=' + encodeURIComponent(engine) + '&mode=' + encodeURIComponent(m);
 }
 
+/* UV entry: default /uv.html; meta void-uv-path=/ uses https://host/?url=… (e.g. Funnel proxy / → localhost). */
+function _voidUvUseRoot(){
+  try {
+    var m = document.querySelector('meta[name="void-uv-path"]');
+    if(m){
+      var c = m.getAttribute('content');
+      if(c != null && String(c).trim() === '/') return true;
+    }
+  } catch(e){}
+  return false;
+}
+function _uvEntryShell(base){
+  var b = String(base).replace(/\/+$/, '');
+  if(_voidUvUseRoot()) return b + '/';
+  return b + '/uv.html';
+}
+function _uvEntryBrowse(base, qStr){
+  var b = String(base).replace(/\/+$/, '');
+  if(_voidUvUseRoot()) return b + '/?' + qStr;
+  return b + '/uv.html?' + qStr;
+}
+
+function _voidUvBase(){
+  var ubb = '';
+  try {
+    if(location.protocol === 'http:' || location.protocol === 'https:'){
+      ubb = (location.origin || '').replace(/\/+$/, '');
+    }
+  } catch(e){}
+  if(!ubb){
+    try {
+      var muv = document.querySelector('meta[name="void-uv-base"]');
+      if(muv && muv.getAttribute('content')) ubb = muv.getAttribute('content').trim().replace(/\/+$/, '');
+    } catch(e2){}
+  }
+  return ubb && /^https?:\/\//i.test(ubb) ? ubb : '';
+}
+
+function _voidScramjetUseRoot(){
+  try {
+    var m = document.querySelector('meta[name="void-scramjet-path"]');
+    if(m){
+      var c = m.getAttribute('content');
+      if(c != null && String(c).trim() === '/') return true;
+    }
+  } catch(e){}
+  return false;
+}
+function _sjEntryShell(base){
+  var b = String(base).replace(/\/+$/, '');
+  if(_voidScramjetUseRoot()) return b + '/';
+  return b + '/scramjet.html';
+}
+function _sjEntryBrowse(base, qStr){
+  var b = String(base).replace(/\/+$/, '');
+  if(_voidScramjetUseRoot()) return b + '/?' + qStr;
+  return b + '/scramjet.html?' + qStr;
+}
+function _voidScramjetBase(){
+  var bb = '';
+  try {
+    if(location.protocol === 'http:' || location.protocol === 'https:'){
+      bb = (location.origin || '').replace(/\/+$/, '');
+    }
+  } catch(e){}
+  if(!bb){
+    try {
+      var mb = document.querySelector('meta[name="void-scramjet-base"]');
+      if(mb && mb.getAttribute('content')){
+        bb = mb.getAttribute('content').trim().replace(/\/+$/, '');
+      }
+    } catch(e1){}
+  }
+  return bb && /^https?:\/\//i.test(bb) ? bb : '';
+}
+
 function buildExternalUrl(targetUrl){
   var m = getMode();
   var t = targetUrl != null ? String(targetUrl).trim() : '';
@@ -2860,143 +3089,106 @@ function buildExternalUrl(targetUrl){
     !hasTarget;
   if(wantShellOnly){
     if(m === 'uv'){
-      var uv0 = ($('uv-backend') && $('uv-backend').value.trim()) || '';
-      if(!uv0){
-        var u0 = '';
-        try {
-          if(location.protocol === 'http:' || location.protocol === 'https:'){
-            u0 = (location.origin || '').replace(/\/+$/, '');
-          }
-        } catch(e0){}
-        if(!u0){
-          try {
-            var mu0 = document.querySelector('meta[name="void-uv-base"]');
-            if(mu0 && mu0.getAttribute('content')) u0 = mu0.getAttribute('content').trim().replace(/\/+$/, '');
-          } catch(e1){}
-        }
-        if(u0 && /^https?:\/\//i.test(u0)) return u0 + '/uv.html';
-        if(location.protocol === 'file:' || location.protocol === 'blob:') return null;
-        toast('UV: set a backend URL, host void over http(s), or set meta void-uv-base.');
-        return null;
-      }
-      var b0 = uv0.replace(/\/+$/, '');
-      if(!/^https?:\/\//i.test(b0)) return null;
-      try {
-        var uo0 = new URL(b0);
-        return uo0.origin + '/uv.html';
-      } catch(e2){
-        return null;
-      }
+      var u0 = _voidUvBase();
+      if(u0) return _uvEntryShell(u0);
+      if(location.protocol === 'file:' || location.protocol === 'blob:') return null;
+      toast('UV: set meta void-uv-base or host void over http(s).');
+      return null;
     }
     if(m === 'scramjet'){
-      var sj0 = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
-      if(!sj0){
-        var bb = '';
-        try {
-          if(location.protocol === 'http:' || location.protocol === 'https:'){
-            bb = (location.origin || '').replace(/\/+$/, '');
-          }
-        } catch(e0){}
-        if(!bb){
-          try {
-            var mb = document.querySelector('meta[name="void-scramjet-base"]');
-            if(mb && mb.getAttribute('content')){
-              bb = mb.getAttribute('content').trim().replace(/\/+$/, '');
-            }
-          } catch(e1){}
-        }
-        if(bb && /^https?:\/\//i.test(bb)){
-          return bb + '/scramjet.html' + (($('opt-eruda') && $('opt-eruda').checked) ? '?eruda=1' : '');
-        }
-        if(location.protocol === 'file:' || location.protocol === 'blob:'){
-          return null;
-        }
-        toast('Scramjet: enter a backend URL, host void.html over http/https, or set meta void-scramjet-base.');
-        return null;
+      var bb = _voidScramjetBase();
+      if(bb){
+        return _sjEntryShell(bb);
       }
-      var sjb = sj0.replace(/\/+$/, '');
-      if(!/\/scramjet\.html(\?|$)/i.test(sjb)){
-        sjb = sjb.replace(/\/scramjet\.html$/i, '');
-        sjb = sjb + '/scramjet.html';
-      }
-      sjb = sjb.split('?')[0];
-      return sjb + (($('opt-eruda') && $('opt-eruda').checked) ? '?eruda=1' : '');
+      if(location.protocol === 'file:' || location.protocol === 'blob:') return null;
+      toast('Scramjet: set meta void-scramjet-base or host void.html over http/https.');
+      return null;
     }
   }
   if(m === 'uv'){
-    var uv = ($('uv-backend') && $('uv-backend').value.trim()) || '';
     var qUv = 'url=' + encodeURIComponent(t);
-    if($('opt-eruda') && $('opt-eruda').checked) qUv += '&eruda=1';
-    if(!uv){
-      var ubb = '';
-      try {
-        if(location.protocol === 'http:' || location.protocol === 'https:'){
-          ubb = (location.origin || '').replace(/\/+$/, '');
-        }
-      } catch(e){}
-      if(!ubb){
-        try {
-          var muv = document.querySelector('meta[name="void-uv-base"]');
-          if(muv && muv.getAttribute('content')) ubb = muv.getAttribute('content').trim().replace(/\/+$/, '');
-        } catch(e2){}
-      }
-      if(ubb && /^https?:\/\//i.test(ubb)){
-        return ubb + '/uv.html?' + qUv;
-      }
-      if(location.protocol === 'file:' || location.protocol === 'blob:'){
-        return null;
-      }
-      toast('UV: set a backend URL, host void over http(s), or set meta void-uv-base.');
+    var ubb = _voidUvBase();
+    if(ubb){
+      return _uvEntryBrowse(ubb, qUv);
+    }
+    if(location.protocol === 'file:' || location.protocol === 'blob:'){
       return null;
     }
-    var base = uv.replace(/\/+$/, '');
-    var uo;
-    try {
-      uo = new URL(/^https?:\/\//i.test(base) ? base : 'https://' + base);
-    } catch(e3){
-      toast('Invalid UV backend URL');
-      return null;
-    }
-    /* Always enter through /uv.html so the stock UV boot + xor codec match the service worker. */
-    return uo.origin + '/uv.html?' + qUv;
+    toast('UV: set meta void-uv-base or host void over http(s).');
+    return null;
   }
   if(m === 'scramjet'){
-    var sj = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
-    if(!sj){
-      var builtinBase = '';
-      try {
-        if(location.protocol === 'http:' || location.protocol === 'https:'){
-          builtinBase = (location.origin || '').replace(/\/+$/, '');
-        }
-      } catch(e){}
-      if(!builtinBase){
-        try {
-          var mbase = document.querySelector('meta[name="void-scramjet-base"]');
-          if(mbase && mbase.getAttribute('content')){
-            builtinBase = mbase.getAttribute('content').trim().replace(/\/+$/, '');
-          }
-        } catch(e2){}
-      }
-      if(builtinBase && /^https?:\/\//i.test(builtinBase)){
-        return builtinBase + '/scramjet.html?url=' + encodeURIComponent(t);
-      }
-      if(location.protocol === 'file:' || location.protocol === 'blob:'){
-        return null;
-      }
-      toast('Scramjet: enter a backend URL, host void.html over http/https, or set meta void-scramjet-base.');
+    var builtinBase = _voidScramjetBase();
+    if(builtinBase){
+      var sjQ = 'url=' + encodeURIComponent(t);
+      return _sjEntryBrowse(builtinBase, sjQ);
+    }
+    if(location.protocol === 'file:' || location.protocol === 'blob:'){
       return null;
     }
-    /* Scramjet entry is always /scramjet.html?url=… (Mercury Workshop). Do not use UV’s /service/… pattern. */
-    var sjBase = sj.replace(/\/+$/, '');
-    if(!/\/scramjet\.html(\?|$)/i.test(sjBase)){
-      sjBase = sjBase.replace(/\/scramjet\.html$/i, '');
-      sjBase = sjBase + '/scramjet.html';
-    }
-    var sjQ = 'url=' + encodeURIComponent(t);
-    if($('opt-eruda') && $('opt-eruda').checked) sjQ += '&eruda=1';
-    return sjBase + (sjBase.indexOf('?') >= 0 ? '&' : '?') + sjQ;
+    toast('Scramjet: set meta void-scramjet-base or host void.html over http/https.');
+    return null;
   }
   return null;
+}
+
+/* Proxy “home” URL for UV / Scramjet embed toolbar (matches shell-only navigation). */
+function buildProxyShellUrl(){
+  var m = getMode();
+  if(m === 'uv'){
+    var u0 = _voidUvBase();
+    if(!u0) return null;
+    return _uvEntryShell(u0);
+  }
+  if(m === 'scramjet'){
+    var bb = _voidScramjetBase();
+    if(!bb) return null;
+    var shell = _sjEntryShell(bb);
+    if($('opt-eruda') && $('opt-eruda').checked) shell += (shell.indexOf('?') >= 0 ? '&' : '?') + 'eruda=1';
+    return shell;
+  }
+  return null;
+}
+
+var _voidEmbedLastSrc = '';
+var _voidEmbedBarCopy = '';
+var _voidEmbedPostText = '';
+var _voidEmbedPostResolved = '';
+var _voidEmbedBridgePending = false;
+var _voidLastBridgeBlob = null;
+
+/* One-hop blob page: in-frame loading UI, then location.replace(dest) — same URL as Browse, gives proxy time to read ?url= (Scramjet/UV). */
+function voidCreateProxyBridgeBlobUrl(destUrl, hintText){
+  try {
+    if(_voidLastBridgeBlob){
+      try { URL.revokeObjectURL(_voidLastBridgeBlob); } catch(e1){}
+      _voidLastBridgeBlob = null;
+    }
+    var dest = JSON.stringify(String(destUrl));
+    var hint = JSON.stringify(String(hintText != null ? hintText : destUrl || ''));
+    var html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Loading…</title><style>' +
+      'html,body{height:100%;margin:0;background:#06060b;color:#e8e8ef;font-family:system-ui,sans-serif;}' +
+      'main{display:flex;min-height:100%;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;}' +
+      '.c{text-align:center;max-width:min(94vw,26rem);}' +
+      '.s{width:36px;height:36px;margin:0 auto 16px;border-radius:50%;border:3px solid rgba(124,106,255,.2);border-top-color:#7c6aff;animation:v .9s linear infinite}' +
+      '@keyframes v{to{transform:rotate(360deg)}}' +
+      'h1{font-size:.92rem;font-weight:600;margin:0 0 10px;letter-spacing:.05em}' +
+      'p{font-size:.65rem;opacity:.55;margin:0;word-break:break-all;line-height:1.45}' +
+      '</style></head><body><main><div class="c"><div class="s"></div><h1>Opening in proxy…</h1><p id="h"></p></div></main><script>' +
+      'document.getElementById("h").textContent=' + hint + ';setTimeout(function(){try{location.replace(' + dest + ');}catch(e){location.href=' + dest + ';}},340);<\/script></body></html>';
+    _voidLastBridgeBlob = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    return _voidLastBridgeBlob;
+  } catch(e){
+    return destUrl;
+  }
+}
+function voidShouldUseProxyBridge(){
+  var m = getMode();
+  return m === 'scramjet' || m === 'uv';
+}
+function voidWrapProxyNavigation(proxyUrl){
+  if(!proxyUrl || !voidShouldUseProxyBridge()) return proxyUrl;
+  return voidCreateProxyBridgeBlobUrl(proxyUrl, proxyUrl);
 }
 
 async function navigate(rawOrUrl){
@@ -3043,7 +3235,7 @@ async function navigate(rawOrUrl){
     proxyUrl = buildExternalUrl(url);
   }
   if(!proxyUrl){
-    var sjNav = ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '';
+    var sjNav = _voidScramjetBase();
     if(m === 'scramjet' && !sjNav && (location.protocol === 'file:' || location.protocol === 'blob:')){
       var _vb = location.href.split('?')[0];
       if($('opt-newtab') && $('opt-newtab').checked){
@@ -3065,14 +3257,16 @@ async function navigate(rawOrUrl){
 
   /* Embed before new tab: both options can be on; keep Void visible unless user turned iframe off. */
   if($('opt-iframe') && $('opt-iframe').checked){
-    showVoidEmbedOverlay(proxyUrl);
+    var userRaw = rawOrUrl != null ? String(rawOrUrl) : '';
+    var barUser = (m === 'scramjet' || m === 'uv') ? userRaw : (url || '');
+    showVoidEmbedOverlay(proxyUrl, barUser, url || '');
     return;
   }
   if($('opt-newtab') && $('opt-newtab').checked){
-    window.open(proxyUrl, '_blank');
+    window.open(voidWrapProxyNavigation(proxyUrl), '_blank');
     return;
   }
-  window.location.href = proxyUrl;
+  window.location.href = voidWrapProxyNavigation(proxyUrl);
   } catch(navErr) {
     console.error('[Void navigate]', navErr);
     alert('Navigation error: ' + (navErr.message || navErr));
@@ -3278,6 +3472,14 @@ document.addEventListener('keydown', function(e){
       return;
     }
   }
+  if(e.altKey && e.key === 'ArrowLeft'){
+    var emb2 = $('void-embed-overlay');
+    if(emb2 && emb2.classList.contains('show')){
+      voidEmbedHistoryBack();
+      e.preventDefault();
+      return;
+    }
+  }
   if(e.key === 'Escape' && $('settings-overlay').classList.contains('visible')){
     $('settings-overlay').classList.remove('visible');
     sfxClose();
@@ -3304,8 +3506,6 @@ function savePrefs(){
       inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
       serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
-      uvBackend: ($('uv-backend') && $('uv-backend').value.trim()) || '',
-      scramjetBackend: ($('scramjet-backend') && $('scramjet-backend').value.trim()) || '',
     }));
   } catch(e){}
 }
@@ -3335,13 +3535,11 @@ function loadPrefs(){
     if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
     if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
     if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
-    if(p.uvBackend && $('uv-backend')) $('uv-backend').value = p.uvBackend;
-    if(p.scramjetBackend && $('scramjet-backend')) $('scramjet-backend').value = p.scramjetBackend;
   } catch(e){}
   updateModeUI();
 }
 
-['server-backend','uv-backend','scramjet-backend'].forEach(function(id){
+['server-backend'].forEach(function(id){
   var el = $(id);
   if(el) el.addEventListener('input', savePrefs);
 });
@@ -3350,6 +3548,39 @@ function loadPrefs(){
   if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
 });
 
+function voidEmbedGoHome(){
+  var shell = buildProxyShellUrl();
+  if(!shell){
+    toast('Set UV / Scramjet backends in meta, or switch mode.');
+    return;
+  }
+  sfxClick();
+  showVoidEmbedOverlay(shell, '', '');
+}
+function voidEmbedHistoryBack(){
+  sfxClick();
+  try {
+    var fr = $('void-embed-frame');
+    if(fr && fr.contentWindow) fr.contentWindow.history.back();
+  } catch(e){
+    toast('Back is limited inside the proxy frame.');
+  }
+}
+function voidEmbedReload(){
+  sfxClick();
+  var fr = $('void-embed-frame');
+  if(!fr || !_voidEmbedLastSrc) return;
+  try {
+    if(fr.contentWindow && fr.contentWindow.location && String(fr.contentWindow.location.href).indexOf('about:blank') !== 0){
+      fr.contentWindow.location.reload();
+      return;
+    }
+  } catch(e){}
+  var u = _voidEmbedLastSrc;
+  fr.src = '';
+  fr.src = u;
+}
+
 var _voidEmbedClose = $('void-embed-close');
 if(_voidEmbedClose){
   _voidEmbedClose.addEventListener('click', function(){
@@ -3357,6 +3588,49 @@ if(_voidEmbedClose){
     hideVoidEmbedOverlay();
   });
 }
+var _voidEmbedLabelEl = $('void-embed-label');
+if(_voidEmbedLabelEl){
+  _voidEmbedLabelEl.addEventListener('click', function(){
+    var t = _voidEmbedBarCopy;
+    if(!t){
+      toast('Nothing to copy (open a page from Void first)');
+      return;
+    }
+    sfxClick();
+    function ok(){ toast('Copied'); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(ok).catch(function(){
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = t;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          ok();
+        } catch(e){ toast('Copy failed'); }
+      });
+    } else {
+      try {
+        var ta2 = document.createElement('textarea');
+        ta2.value = t;
+        document.body.appendChild(ta2);
+        ta2.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta2);
+        ok();
+      } catch(e2){ toast('Copy failed'); }
+    }
+  });
+}
+var _voidEmbedHome = $('void-embed-home');
+var _voidEmbedBack = $('void-embed-back');
+var _voidEmbedReload = $('void-embed-reload');
+if(_voidEmbedHome) _voidEmbedHome.addEventListener('click', voidEmbedGoHome);
+if(_voidEmbedBack) _voidEmbedBack.addEventListener('click', voidEmbedHistoryBack);
+if(_voidEmbedReload) _voidEmbedReload.addEventListener('click', voidEmbedReload);
 
 /* ──────────── Settings panel ──────────── */
 $('settings-x').addEventListener('click', function(){

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+    <title>Scramjet — Void Proxy</title>
+    <link rel="icon" href="/scramjet-app/sj.png" type="image/png" />
+    <script src="/scram/scramjet.all.js"></script>
+    <link rel="stylesheet" href="/scramjet-app/index.css" />
+    <script type="module" src="/scramjet-app/app.mjs"></script>
+  </head>
+  <body>
+    <div title="Scramjet Logo" class="flex-center logo-wrapper header-center">
+      <img class="logo" src="/scramjet-app/sj.png" alt="Scramjet" />
+      <h1>Scramjet | MW</h1>
+    </div>
+    <div class="flex-center desc left-margin">
+      <p>
+        Full Mercury Workshop stack on this server: Bare <code>/bare/</code>, Epoxy + Wisp, BareMux, and
+        <code>@mercuryworkshop/scramjet</code>. Enter a URL or search; the proxied page opens below.
+      </p>
+    </div>
+
+    <form id="sj-form" class="flex-center">
+      <input
+        id="sj-search-engine"
+        value="https://www.google.com/search?q=%s"
+        type="hidden"
+      />
+      <input id="sj-address" type="text" placeholder="Search the web freely" autocomplete="off" />
+    </form>
+    <div class="desc left-margin">
+      <p id="sj-error"></p>
+      <pre id="sj-error-code"></pre>
+    </div>
+    <footer>
+      <div>
+        <a title="Mercury Workshop" href="https://github.com/MercuryWorkshop">Mercury Workshop</a>
+        <a title="Scramjet" href="https://github.com/MercuryWorkshop/scramjet">Scramjet</a>
+        <a title="This deployment" href="/">Void home</a>
+      </div>
+      <div>
+        <span>Scramjet &copy; Mercury Workshop</span>
+      </div>
+    </footer>
+    <!-- Fills #sj-address when Void embeds this app (postMessage from parent). -->
+    <script>
+      (function () {
+        window.addEventListener("message", function (ev) {
+          try {
+            var d = ev.data;
+            if (!d || d.source !== "void" || !d.voidFillQuery) return;
+            var el = document.getElementById("sj-address");
+            if (!el) return;
+            var t = typeof d.text === "string" ? d.text : "";
+            if (!t && d.resolvedUrl) t = String(d.resolvedUrl);
+            el.value = t;
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            try {
+              el.focus();
+            } catch (e) {}
+          } catch (e) {}
+        });
+      })();
+    </script>
+  </body>
+</html>

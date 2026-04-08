@@ -3,10 +3,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "VOID_DEBUG=1 node server.js",
+    "build:jar": "bash scripts/build-jar.sh",
+    "postinstall": "node scripts/patch-libcurl-transport.mjs",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
+    "@mercuryworkshop/bare-as-module3": "^2.2.5",
+    "@mercuryworkshop/bare-mux": "^2.1.8",
+    "@mercuryworkshop/epoxy-transport": "^3.0.1",
+    "@mercuryworkshop/libcurl-transport": "^2.0.5",
+    "@mercuryworkshop/scramjet": "^2.0.0-alpha",
+    "@nebula-services/bare-server-node": "^2.0.4",
+    "@titaniumnetwork-dev/ultraviolet": "^3.2.10",
     "cheerio": "^1.2.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "libcurl.js": "^0.7.4"
   }
 }

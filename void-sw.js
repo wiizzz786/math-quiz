@@ -1,7 +1,7 @@
 /* void-sw.js — Void Proxy Service Worker
    Intercepts network requests (import(), CSS @import, fonts, etc.)
    that client-side overrides can't catch, and routes them through
-   the CORS proxy. */
+   the CORS proxy. In-memory cache for faster repeat loads. */
 
 var CFG = { proxy: '', origin: '', cookies: {} };
 
@@ -10,6 +10,37 @@ var VOID_PATHS = new Set([
   '/server.js', '/worker.js', '/favicon.ico', '/index.html',
   '/package.json', '/wrangler.toml', '/package-lock.json'
 ]);
+
+/* ── Response cache (GET only; HTML = short TTL, assets = long TTL) ── */
+var SW_CACHE = new Map();
+var SW_MAX = 450;
+var TTL_HTML_MS = 90000;
+var TTL_ASSET_MS = 86400000 * 3;
+
+function swCacheGet(key) {
+  var e = SW_CACHE.get(key);
+  if (!e) return null;
+  var ttl = e.html ? TTL_HTML_MS : TTL_ASSET_MS;
+  if (Date.now() - e.t > ttl) {
+    SW_CACHE.delete(key);
+    return null;
+  }
+  try {
+    return e.res.clone();
+  } catch (x) {
+    return null;
+  }
+}
+
+function swCacheSet(key, response, isHtml) {
+  try {
+    if (SW_CACHE.size >= SW_MAX) {
+      var first = SW_CACHE.keys().next().value;
+      if (first) SW_CACHE.delete(first);
+    }
+    SW_CACHE.set(key, { res: response.clone(), t: Date.now(), html: !!isHtml });
+  } catch (x) {}
+}
 
 self.addEventListener('install', function() { self.skipWaiting(); });
 self.addEventListener('activate', function(e) { e.waitUntil(self.clients.claim()); });
@@ -24,6 +55,10 @@ self.addEventListener('message', function(e) {
   }
   if (e.data.type === 'void-sw-cookies') {
     CFG.cookies = e.data.cookies || {};
+  }
+  if (e.data.type === 'void-sw-clear-cache') {
+    SW_CACHE.clear();
+    if (e.ports && e.ports[0]) e.ports[0].postMessage('cleared');
   }
 });
 
@@ -81,11 +116,18 @@ self.addEventListener('fetch', function(e) {
       if (ck) h.set('X-Void-Cookie', ck);
       var dest = e.request.destination || 'empty';
       var destMap = { document: 'document', script: 'script', style: 'style', image: 'image', font: 'style', worker: 'script', sharedworker: 'script' };
-      h.set('X-Void-Dest', destMap[dest] || 'empty');
+      var destHdr = destMap[dest] || 'empty';
+      h.set('X-Void-Dest', destHdr);
 
       var init = { method: e.request.method, headers: h, mode: 'cors' };
       if (e.request.method !== 'GET' && e.request.method !== 'HEAD') {
         try { init.body = await e.request.clone().arrayBuffer(); } catch(x) {}
+      }
+
+      var cacheKey = pxyUrl + '\0' + destHdr + '\0' + (ck || '');
+      if (e.request.method === 'GET') {
+        var hit = swCacheGet(cacheKey);
+        if (hit) return hit;
       }
 
       var r = await fetch(pxyUrl, init);
@@ -103,7 +145,16 @@ self.addEventListener('fetch', function(e) {
         });
       }
 
-      return new Response(r.body, { status: r.status, statusText: r.statusText, headers: rh });
+      var ct = (r.headers.get('content-type') || '').toLowerCase();
+      var isHtml = ct.indexOf('text/html') >= 0;
+
+      var out = new Response(r.body, { status: r.status, statusText: r.statusText, headers: rh });
+
+      if (e.request.method === 'GET' && r.ok && r.status === 200) {
+        swCacheSet(cacheKey, out, isHtml);
+      }
+
+      return out;
     } catch(err) {
       return new Response('SW proxy error: ' + err.message, { status: 502 });
     }
