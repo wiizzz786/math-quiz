@@ -4,8 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <!-- Shipped versions (bump when you release). Used by Check for Update. -->
-  <meta name="void-version" content="2.0.0"/>
-  <meta name="void-admin-version" content="2.0.0"/>
+  <meta name="void-version" content="2.1.0"/>
+  <meta name="void-admin-version" content="2.1.0"/>
   <!-- Canonical raw files on GitHub (same repo as void.html). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
@@ -622,8 +622,8 @@ function _meta(name, fallback){
   var c = el && el.getAttribute('content');
   return (c != null && String(c).trim() !== '') ? String(c).trim() : fallback;
 }
-var VER = _meta('void-admin-version', '2.0.0');
-var VOID_VER = _meta('void-version', '2.0.0');
+var VER = _meta('void-admin-version', '2.1.0');
+var VOID_VER = _meta('void-version', '2.1.0');
 
 function parseVersion(v){
   var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
