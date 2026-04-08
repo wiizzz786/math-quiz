@@ -2088,7 +2088,7 @@ function _clientInjection(){
     } catch(e){}
   }
 
-  /* ── Flag real breakouts only (skip when parent replaced document via void MarkInternalNavigation) ── */
+  /* ── Flag real breakouts only (skip when Void replaced the document — see voidMarkInternalNavigation) ── */
   window.addEventListener('beforeunload', function(){
     try {
       var sup = parseInt(localStorage.getItem('void_suppress_bounce') || '0', 10);
