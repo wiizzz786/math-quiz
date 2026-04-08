@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="2.1.1"/>
+  <meta name="void-version" content="2.1.2"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -958,6 +958,10 @@ try {
     setTimeout(function(){ if(_bd.parentNode) _bd.parentNode.removeChild(_bd); }, 8000);
   } else { localStorage.removeItem('void_bounce'); }
 } catch(_e){}
+
+function voidMarkInternalNavigation(){
+  try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(e){}
+}
 
 /* ──────────── State ──────────── */
 var engine = 'brave';
@@ -2084,11 +2088,13 @@ function _clientInjection(){
     } catch(e){}
   }
 
-  /* ── Catch unintended real navigation ── */
-  window.addEventListener('beforeunload', function(e){
-    try { localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() })); } catch(ex){}
-    e.preventDefault();
-    e.returnValue = '';
+  /* ── Flag real breakouts only (skip when parent replaced document via void MarkInternalNavigation) ── */
+  window.addEventListener('beforeunload', function(){
+    try {
+      var sup = parseInt(localStorage.getItem('void_suppress_bounce') || '0', 10);
+      if(sup && Date.now() - sup < 2500) return;
+      localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() }));
+    } catch(ex){}
   });
 
   /* ── MutationObserver: rewrite dynamically added elements ── */
@@ -2501,6 +2507,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
   }
 
   function render(html, url){
+    voidMarkInternalNavigation();
     _curUrl = url;
     try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
     var css = '<style>' + TB_CSS + '</style>';
@@ -2657,6 +2664,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
 }
 
 function renderPage(html, baseUrl){
+  voidMarkInternalNavigation();
   localStorage.setItem('void_nav_history', JSON.stringify(navHistory));
   localStorage.setItem('void_nav_idx', String(navIdx));
   var corsBase = getActiveCorsBase();
