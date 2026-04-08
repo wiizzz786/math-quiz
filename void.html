@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="2.1.0"/>
+  <meta name="void-version" content="2.1.1"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -3930,6 +3930,28 @@ function parseVersion(v){
   return [parseInt(parts[0])||0, parseInt(parts[1])||0, parseInt(parts[2])||0];
 }
 
+/** Read meta tag content by name from fetched HTML (any attribute order). */
+function extractMetaContentFromHtml(html, metaName){
+  if(!html || !metaName) return null;
+  if(typeof html === 'string' && html.charCodeAt(0) === 0xfeff) html = html.slice(1);
+  try {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var meta = doc.querySelector('meta[name="' + String(metaName).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+    if(meta){
+      var c = meta.getAttribute('content');
+      if(c != null && String(c).trim() !== '') return String(c).trim();
+    }
+  } catch(e1){}
+  try {
+    var esc = metaName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var re1 = new RegExp('<meta\\s+[^>]*name\\s*=\\s*["\']' + esc + '["\'][^>]*content\\s*=\\s*["\']([^"\']*)["\']', 'i');
+    var re2 = new RegExp('<meta\\s+[^>]*content\\s*=\\s*["\']([^"\']*)["\'][^>]*name\\s*=\\s*["\']' + esc + '["\']', 'i');
+    var m = html.match(re1) || html.match(re2);
+    if(m && m[1] != null && String(m[1]).trim() !== '') return String(m[1]).trim();
+  } catch(e2){}
+  return null;
+}
+
 function resolveVoidUpdateUrl(){
   var m = document.querySelector('meta[name="void-update-url"]');
   var custom = m && m.content ? m.content.trim() : '';
@@ -3949,11 +3971,13 @@ $('settings-upd-btn').addEventListener('click', function(){
     toast('Host Void over HTTPS (or set <meta name="void-update-url">) to check for updates.');
     return;
   }
-  fetch(rawUrl)
+  fetch(rawUrl, { cache: 'no-store', credentials: 'omit' })
     .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function(html){
-      var m = html.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
-      var remoteVer = m ? m[1] : '0.0.0';
+      var remoteVer = extractMetaContentFromHtml(html, 'void-version');
+      if(!remoteVer){
+        throw new Error('Could not find void-version in remote void.html (malformed or blocked).');
+      }
       var local = parseVersion(VOID_VERSION);
       var remote = parseVersion(remoteVer);
       var isNewer = remote[0] > local[0] || (remote[0] === local[0] && remote[1] > local[1]) || (remote[0] === local[0] && remote[1] === local[1] && remote[2] > local[2]);
@@ -3976,11 +4000,11 @@ $('settings-upd-btn').addEventListener('click', function(){
         sfxSuccess();
       } else {
         if(statusEl){
-          statusEl.textContent = '\u2714 You\'re on the latest version';
+          statusEl.textContent = '\u2714 v' + VOID_VERSION + ' (remote v' + remoteVer + ')';
           statusEl.style.color = '#34d399';
           statusEl.style.fontWeight = '600';
         }
-        btn.textContent = 'Up to date!';
+        btn.textContent = remoteVer === VOID_VERSION ? 'Up to date!' : 'Same or newer locally';
         sfxSuccess();
       }
       setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);

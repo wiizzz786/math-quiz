@@ -4,8 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <!-- Shipped versions (bump when you release). Used by Check for Update. -->
-  <meta name="void-version" content="2.1.0"/>
-  <meta name="void-admin-version" content="2.1.0"/>
+  <meta name="void-version" content="2.1.1"/>
+  <meta name="void-admin-version" content="2.1.1"/>
   <!-- Canonical raw files on GitHub (same repo as void.html). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
@@ -622,8 +622,8 @@ function _meta(name, fallback){
   var c = el && el.getAttribute('content');
   return (c != null && String(c).trim() !== '') ? String(c).trim() : fallback;
 }
-var VER = _meta('void-admin-version', '2.1.0');
-var VOID_VER = _meta('void-version', '2.1.0');
+var VER = _meta('void-admin-version', '2.1.1');
+var VOID_VER = _meta('void-version', '2.1.1');
 
 function parseVersion(v){
   var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
@@ -632,6 +632,26 @@ function parseVersion(v){
 function isNewer(remote, local){
   var r = parseVersion(remote), l = parseVersion(local);
   return r[0] > l[0] || (r[0] === l[0] && r[1] > l[1]) || (r[0] === l[0] && r[1] === l[1] && r[2] > l[2]);
+}
+function extractMetaContentFromHtml(html, metaName){
+  if(!html || !metaName) return null;
+  if(typeof html === 'string' && html.charCodeAt(0) === 0xfeff) html = html.slice(1);
+  try {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var meta = doc.querySelector('meta[name="' + String(metaName).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+    if(meta){
+      var c = meta.getAttribute('content');
+      if(c != null && String(c).trim() !== '') return String(c).trim();
+    }
+  } catch(e1){}
+  try {
+    var esc = String(metaName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var re1 = new RegExp('<meta\\s+[^>]*name\\s*=\\s*["\']' + esc + '["\'][^>]*content\\s*=\\s*["\']([^"\']*)["\']', 'i');
+    var re2 = new RegExp('<meta\\s+[^>]*content\\s*=\\s*["\']([^"\']*)["\'][^>]*name\\s*=\\s*["\']' + esc + '["\']', 'i');
+    var m = html.match(re1) || html.match(re2);
+    if(m && m[1] != null && String(m[1]).trim() !== '') return String(m[1]).trim();
+  } catch(e2){}
+  return null;
 }
 function resolveVoidUpdateUrl(){
   return _meta('void-update-url', 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html');
@@ -757,16 +777,17 @@ $('btn-check-update').addEventListener('click', function(){
   var uVoid = resolveVoidUpdateUrl();
   var uAdmin = resolveVoidAdminUpdateUrl();
 
+  var fetchOpts = { cache: 'no-store', credentials: 'omit' };
   Promise.all([
-    fetch(uVoid).then(function(r){ if(!r.ok) throw new Error('void.html HTTP ' + r.status); return r.text(); }),
-    fetch(uAdmin).then(function(r){ if(!r.ok) throw new Error('void-admin.html HTTP ' + r.status); return r.text(); })
+    fetch(uVoid, fetchOpts).then(function(r){ if(!r.ok) throw new Error('void.html HTTP ' + r.status); return r.text(); }),
+    fetch(uAdmin, fetchOpts).then(function(r){ if(!r.ok) throw new Error('void-admin.html HTTP ' + r.status); return r.text(); })
   ])
     .then(function(pair){
       var voidHtml = pair[0], adminHtml = pair[1];
-      var mv = voidHtml.match(/<meta\s+name=["']void-version["']\s+content=["']([^"']+)["']/i);
-      var ma = adminHtml.match(/<meta\s+name=["']void-admin-version["']\s+content=["']([^"']+)["']/i);
-      var remoteVoid = mv ? mv[1] : '0.0.0';
-      var remoteAdmin = ma ? ma[1] : '0.0.0';
+      var remoteVoid = extractMetaContentFromHtml(voidHtml, 'void-version');
+      var remoteAdmin = extractMetaContentFromHtml(adminHtml, 'void-admin-version');
+      if(!remoteVoid) throw new Error('void.html: missing void-version meta');
+      if(!remoteAdmin) throw new Error('void-admin.html: missing void-admin-version meta');
 
       var dlVoid = isNewer(remoteVoid, VOID_VER);
       var dlAdmin = isNewer(remoteAdmin, VER);
