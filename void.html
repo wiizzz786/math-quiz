@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="2.1.2"/>
+  <meta name="void-version" content="2.1.3"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -1641,6 +1641,7 @@ function _clientInjection(){
   function _followProxiedLink(link, e){
     if(!link) return false;
     if(link.hasAttribute('target')) link.removeAttribute('target');
+    if(link.hasAttribute('download')) try { link.removeAttribute('download'); } catch(e1){}
     var href = _linkHrefFrom(link);
     if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return false;
     var abs = _abs(href);
@@ -1653,8 +1654,32 @@ function _clientInjection(){
     _nav(abs);
     return true;
   }
+  var _voidSupClickTs = 0;
+  function _modifierOpensNewTab(e){
+    return !!(e && (e.ctrlKey || e.metaKey || e.shiftKey));
+  }
+  /* Ctrl/Cmd/Shift+click opens a real tab — navigate in-proxy on pointerdown and swallow duplicate click. */
+  function _handlePointerDown(e){
+    if(typeof e.button === 'number' && e.button !== 0) return;
+    if(!_modifierOpensNewTab(e)) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    var href = _linkHrefFrom(link);
+    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return;
+    var abs = _abs(href);
+    if(!_shouldProxy(abs)) return;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if(link.hasAttribute('target')) link.removeAttribute('target');
+      if(link.hasAttribute('download')) link.removeAttribute('download');
+    } catch(e0){}
+    _voidSupClickTs = Date.now();
+    _nav(abs);
+  }
   function _handleClick(e){
     if(typeof e.button === 'number' && e.button !== 0) return;
+    if(Date.now() - _voidSupClickTs < 700) return;
     var link = _findLinkEl(e.target, e);
     if(!link) return;
     _followProxiedLink(link, e);
@@ -1664,6 +1689,11 @@ function _clientInjection(){
     var link = _findLinkEl(e.target, e);
     if(!link) return;
     _followProxiedLink(link, e);
+  }
+  if(typeof window.PointerEvent !== 'undefined'){
+    document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
+  } else {
+    document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
   }
   document.addEventListener('click', _handleClick, true);
   document.addEventListener('auxclick', _handleAuxClick, true);
@@ -1830,13 +1860,19 @@ function _clientInjection(){
     location: { href: '', replace: function(u){ _nav(_abs(u)); }, assign: function(u){ _nav(_abs(u)); } },
     get innerWidth(){ return window.innerWidth; }, get innerHeight(){ return window.innerHeight; }
   };
-  window.open = function(u){
-    if(u && typeof u === 'string' && u !== 'about:blank'){
-      var a = _abs(u);
+  window.open = function(u, name, features){
+    var first = arguments.length ? arguments[0] : '';
+    if(first != null && typeof first !== 'string') first = String(first);
+    if(first && first !== 'about:blank' && first !== 'about:srcdoc'){
+      var a = _abs(first);
       if(_shouldProxy(a)){ _dbg('open', a); _nav(a); return _fakeWin; }
     }
-    if(!u || u === 'about:blank') return _wo.apply(this, arguments);
-    return _fakeWin;
+    /* Real about:blank lets opener set w.location — breakout. Keep everything in-proxy. */
+    if(!first || first === 'about:blank' || first === 'about:srcdoc'){
+      _dbg('open-blank', first || '(empty)');
+      return _fakeWin;
+    }
+    return _wo.apply(this, arguments);
   };
 
   /* ── WebSocket proxy ── */
@@ -2188,6 +2224,11 @@ function _clientInjection(){
     _reattach: function(){
       _setupMO();
       _attachTitle();
+      if(typeof window.PointerEvent !== 'undefined'){
+        document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
+      } else {
+        document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
+      }
       document.addEventListener('click', _handleClick, true);
       document.addEventListener('auxclick', _handleAuxClick, true);
       document.addEventListener('submit', _handleSubmit, true);
