@@ -9,10 +9,8 @@ const WISP =
   wispFromQuery ||
   (typeof window !== "undefined" && window.__WISP_URL__) ||
   "wss://wisp.mercurywork.shop/";
-/* Epoxy (default) or patched libcurl-transport — see ?transport=libcurl and server /libcurl */
-const useLibcurlTransport =
-  params.get("transport") === "libcurl" ||
-  (typeof window !== "undefined" && window.__VOID_LIBCURL_TRANSPORT__);
+/* Epoxy default. Libcurl needs wasm init in the worker — only use with ?transport=libcurl (not a global flag). */
+const useLibcurlTransport = params.get("transport") === "libcurl";
 const bareTransportModule = useLibcurlTransport
   ? new URL("/libcurl/index.mjs", location.origin).href
   : new URL("/epoxy/index.mjs", location.origin).href;

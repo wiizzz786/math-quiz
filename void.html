@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="2.1.3"/>
+  <meta name="void-version" content="2.1.4"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -3102,13 +3102,15 @@ function _voidScramjetUseRoot(){
 }
 function _sjEntryShell(base){
   var b = String(base).replace(/\/+$/, '');
-  if(_voidScramjetUseRoot()) return b + '/';
-  return b + '/scramjet.html';
+  /* Force Epoxy so hosts that set __VOID_LIBCURL_TRANSPORT__ do not hit libcurl wasm races. */
+  if(_voidScramjetUseRoot()) return b + '/?transport=epoxy';
+  return b + '/scramjet.html?transport=epoxy';
 }
 function _sjEntryBrowse(base, qStr){
   var b = String(base).replace(/\/+$/, '');
-  if(_voidScramjetUseRoot()) return b + '/?' + qStr;
-  return b + '/scramjet.html?' + qStr;
+  var extra = qStr && String(qStr).indexOf('transport=') >= 0 ? qStr : 'transport=epoxy&' + qStr;
+  if(_voidScramjetUseRoot()) return b + '/?' + extra;
+  return b + '/scramjet.html?' + extra;
 }
 function _voidScramjetBase(){
   var bb = '';
@@ -3235,7 +3237,12 @@ function voidCreateProxyBridgeBlobUrl(destUrl, hintText){
 }
 function voidShouldUseProxyBridge(){
   var m = getMode();
-  return m === 'scramjet' || m === 'uv';
+  if(m !== 'scramjet' && m !== 'uv') return false;
+  /* Direct iframe src to ?url= is faster and lands on the target; blob bridge only for file/blob Void. */
+  try {
+    if(location.protocol === 'https:' || location.protocol === 'http:') return false;
+  } catch(e){}
+  return true;
 }
 function voidWrapProxyNavigation(proxyUrl){
   if(!proxyUrl || !voidShouldUseProxyBridge()) return proxyUrl;

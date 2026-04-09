@@ -10,9 +10,7 @@ const WISP =
   params.get("wisp") ||
   (typeof globalThis !== "undefined" && globalThis.__WISP_URL__) ||
   "wss://wisp.mercurywork.shop/";
-const useLibcurl =
-  params.get("transport") === "libcurl" ||
-  (typeof globalThis !== "undefined" && globalThis.__VOID_LIBCURL_TRANSPORT__);
+const useLibcurl = params.get("transport") === "libcurl";
 const transportMod = useLibcurl
   ? new URL("/libcurl/index.mjs", location.origin).href
   : new URL("/epoxy/index.mjs", location.origin).href;
