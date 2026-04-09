@@ -4,37 +4,95 @@ import https from "node:https";
 import http from "node:http";
 import { createGunzip, createInflate, createBrotliDecompress } from "node:zlib";
 import { Transform, Readable } from "node:stream";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import net from "node:net";
 import tls from "node:tls";
 import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promises as fs } from "node:fs";
+import fsSync from "node:fs";
+import { spawn } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set("json spaces", 2);
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 16, timeout: 30000 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 16, timeout: 30000 });
 
-const _resourceCache = new Map();
-const CACHE_MAX_SIZE = 200;
-const CACHE_TTL_MS = 300000;
+const CACHE_MAX_SIZE = 10000;
+const CACHE_FILE = join(__dirname, ".void_cache.warc");
 
-function cacheGet(key) {
-  const entry = _resourceCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > CACHE_TTL_MS) { _resourceCache.delete(key); return null; }
-  return entry;
+let _resourceCache = new Map();
+
+function loadWarc() {
+  if (!fsSync.existsSync(CACHE_FILE)) return;
+  try {
+    const buf = fsSync.readFileSync(CACHE_FILE);
+    const delim = Buffer.from('\r\n\r\n');
+    let offset = 0;
+    while(offset < buf.length) {
+       const headerEnd = buf.indexOf(delim, offset);
+       if (headerEnd === -1) break;
+       const headerStr = buf.toString('utf8', offset, headerEnd);
+       
+       const clMatch = headerStr.match(/Content-Length:\s*(\d+)/i);
+       if (!clMatch) break;
+       const cl = parseInt(clMatch[1], 10);
+       
+       const uriMatch = headerStr.match(/WARC-Target-URI:\s*([^\r\n]+)/i);
+       const dateMatch = headerStr.match(/WARC-Date:\s*([^\r\n]+)/i);
+       
+       const httpOffset = headerEnd + 4;
+       const httpEnd = httpOffset + cl;
+       if (httpEnd > buf.length) break;
+       
+       const rawHttp = buf.subarray(httpOffset, httpEnd);
+       const httpHdrEnd = rawHttp.indexOf(delim);
+       if (httpHdrEnd !== -1) {
+         const httpHdrs = rawHttp.toString('utf8', 0, httpHdrEnd);
+         const ctMatch = httpHdrs.match(/Content-Type:\s*([^\r\n]+)/i);
+         const ct = ctMatch ? ctMatch[1] : '';
+         const body = rawHttp.subarray(httpHdrEnd + 4);
+         
+         if (uriMatch && uriMatch[1] && _resourceCache.size < CACHE_MAX_SIZE) {
+            _resourceCache.set(uriMatch[1], { ct, body, ts: dateMatch ? new Date(dateMatch[1]).getTime() : Date.now() });
+         }
+       }
+       offset = httpEnd + 4; 
+    }
+  } catch(e) {}
+}
+loadWarc();
+
+async function appendWarc(key, ct, bodyBuf, ts) {
+  try {
+    const httpHeaders = `HTTP/1.1 200 OK\r\nContent-Type: ${ct}\r\nContent-Length: ${bodyBuf.length}\r\n\r\n`;
+    const httpBlock = Buffer.concat([Buffer.from(httpHeaders), bodyBuf]);
+    const warcHeaders = `WARC/1.0\r\nWARC-Type: response\r\nWARC-Record-ID: <urn:uuid:${randomUUID()}>\r\nWARC-Date: ${new Date(ts).toISOString()}\r\nWARC-Target-URI: ${key}\r\nContent-Type: application/http; msgtype=response\r\nContent-Length: ${httpBlock.length}\r\n\r\n`;
+    const fullRecord = Buffer.concat([Buffer.from(warcHeaders), httpBlock, Buffer.from('\r\n\r\n')]);
+    await fs.appendFile(CACHE_FILE, fullRecord);
+  } catch(e) {}
 }
 
-function cacheSet(key, ct, body) {
-  if (body.length > 2 * 1024 * 1024) return;
+async function cacheGet(key) {
+  return _resourceCache.get(key) || null;
+}
+
+async function cacheSet(key, ct, body) {
+  if (!body) return;
+  const bodyBuf = Buffer.isBuffer(body) ? body : Buffer.from(body);
+  if (bodyBuf.length > 5 * 1024 * 1024) return;
+
   if (_resourceCache.size >= CACHE_MAX_SIZE) {
     const oldest = _resourceCache.keys().next().value;
     _resourceCache.delete(oldest);
   }
-  _resourceCache.set(key, { ct, body, ts: Date.now() });
+  
+  const ts = Date.now();
+  _resourceCache.set(key, { ct, body: bodyBuf, ts });
+  appendWarc(key, ct, bodyBuf, ts);
 }
 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -45,6 +103,41 @@ app.use(express.static(join(__dirname, "public"), {
   etag: true,
   lastModified: true,
 }));
+
+app.post("/api/cache-site", (req, res) => {
+  const { url, urls } = req.body;
+  const list = urls || (url ? [url] : []);
+  if (!list.length) return res.status(400).json({ error: "Missing URL(s)" });
+  try {
+    for (const u of list) {
+       const child = spawn("node", ["scripts/cache.mjs", u], {
+         cwd: __dirname,
+         stdio: "ignore",
+         detached: true
+       });
+       child.unref();
+    }
+    res.json({ success: true, message: `Caching job started for ${list.length} URL(s)!` });
+  } catch(e) {
+    res.status(500).json({ error: "Failed to start caching job" });
+  }
+});
+
+app.get("/api/cache-links", (req, res) => {
+  const links = [];
+  for (const [key, val] of _resourceCache.entries()) {
+    if (key.startsWith("p:") && val.ct && val.ct.includes("text/html")) {
+      // Decode URL if it was rewritten, mostly it's stored exactly as passing proxy
+      const urlStr = key.substring(2);
+      if (!urlStr.includes("uv.html") && !urlStr.includes("scramjet") && urlStr.includes("http")) {
+        // Strip off base proxy path if accidentally appended, otherwise just the raw url
+        links.push(urlStr);
+      }
+    }
+  }
+  res.json([...new Set(links)]);
+});
+
 
 /* ═══════════════════════════════════════════
    URL encoding / decoding helpers
@@ -451,6 +544,7 @@ async function handleProxy(req, res) {
     nojs: req.query.nojs === "1",
     noimg: req.query.noimg === "1",
     eruda: req.query.eruda === "1",
+    offline: req.query.offline === "1",
   };
 
   // Build query string to preserve options across navigation
@@ -492,8 +586,8 @@ async function handleProxy(req, res) {
     }
 
     if (req.method === "GET") {
-      const cached = cacheGet("p:" + targetUrl);
-      if (cached && cached.ct && !cached.ct.includes("text/html")) {
+      const cached = await cacheGet("p:" + targetUrl);
+      if (cached && (opts.offline || (cached.ct && !cached.ct.includes("text/html")))) {
         res.set("content-type", cached.ct);
         res.set("X-Void-Cache", "HIT");
         return res.send(cached.body);
@@ -537,6 +631,7 @@ async function handleProxy(req, res) {
       // Temporarily patch rewriteUrl to include options
       const patched = text ? rewriteHtmlWithOpts(text, targetUrl, opts, optSuffix) : text;
       res.type("text/html; charset=utf-8").send(patched);
+      cacheSet("p:" + targetUrl, "text/html; charset=utf-8", patched);
       return;
     }
 
@@ -574,6 +669,14 @@ async function handleProxy(req, res) {
     if (buf.length < 2 * 1024 * 1024) cacheSet("p:" + targetUrl, ct, buf);
     res.send(buf);
   } catch (err) {
+    if (req.method === "GET") {
+      const fallback = await cacheGet("p:" + targetUrl);
+      if (fallback) {
+        res.set("content-type", fallback.ct);
+        res.set("X-Void-Cache", "HIT-OFFLINE");
+        return res.send(fallback.body);
+      }
+    }
     const isLogOrAnalytics = /\.(google|googleapis|gstatic)\.com\/(log|analytics|collect|gen_204)/i.test(targetUrl) || /\/(log|analytics|collect|beacon|ping)(\?|&|$)/i.test(targetUrl);
     if (!isLogOrAnalytics) console.error("[proxy error]", targetUrl, err.message);
     const safeTarget = targetUrl.replace(/</g, "&lt;").replace(/>/g, "&gt;");

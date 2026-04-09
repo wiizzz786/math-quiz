@@ -1,6 +1,6 @@
 {
   "name": "void-proxy",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "start": "node server.js",
@@ -22,6 +22,7 @@
     "@titaniumnetwork-dev/ultraviolet": "^3.2.10",
     "cheerio": "^1.2.0",
     "express": "^5.2.1",
-    "libcurl.js": "^0.7.4"
+    "libcurl.js": "^0.7.4",
+    "uuid": "^13.0.0"
   }
 }

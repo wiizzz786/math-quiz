@@ -25,3 +25,4 @@ Thumbs.db
 # Build / misc
 dist/
 .cache/
+.void_cache.warc

@@ -53,7 +53,13 @@ let muxReady = false;
 async function ensureMux() {
   if (muxReady) return;
   const conn = new BareMuxConnection("/baremux/worker.js");
-  await conn.setTransport(transportMod, [{ wisp: WISP }]);
+  if (useLibcurl) {
+    const libcurlMod = await import("/libcurl/index.mjs");
+    try {
+      await libcurlMod.libcurl.load_wasm("/libcurl/libcurl.wasm");
+    } catch (e) {}
+  }
+  await conn.setTransport(transportMod, [{ wisp: WISP, wasm: "/libcurl/libcurl.wasm" }]);
   muxReady = true;
 }
 

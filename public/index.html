@@ -433,7 +433,15 @@
             <span class="toggle-track"></span>
             Inject Eruda
           </label>
+          <label class="opt" title="Force Offline Mode (Load from passive SSD cache)">
+            <input type="checkbox" id="opt-offline" value="1"/>
+            <span class="toggle-track"></span>
+            Offline Cache Viewer
+          </label>
         </div>
+        <button type="button" id="btn-view-cache" style="margin-top: 1rem; width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; cursor: pointer; transition: background 0.2s;">
+          &#128194; Browse Cached Sites
+        </button>
 
       </div>
     </form>
@@ -451,6 +459,29 @@
     <button type="button" class="iframe-close" id="iframe-close">&#x2715; Close</button>
     <div class="iframe-wrap">
       <iframe id="iframe-outer" title="Outer frame"></iframe>
+    </div>
+  </div>
+
+  <div id="cache-modal" class="iframe-overlay hidden" style="z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(10px); display: none;">
+    <div style="background: #0d0f16; border: 1px solid #232532; border-radius: 12px; padding: 2rem; width: 480px; max-width: 90%; max-height: 80%; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="color: #fff; margin:0;">Cached Sites Explorer</h3>
+        <button type="button" id="close-cache" style="background: transparent; border: none; color: #646478; cursor: pointer; font-size: 1.2rem;">&#x2715;</button>
+      </div>
+      
+      <div style="background: rgba(124, 106, 255, 0.1); border: 1px solid rgba(124, 106, 255, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <h4 style="color: #c4c6db; font-size: 0.85rem; margin-bottom: 0.5rem; margin-top: 0;">Cache New Website</h4>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="new-cache-url" placeholder="https://example.com" style="flex:1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px; border-radius: 6px; outline: none; font-family: inherit;">
+          <button type="button" id="btn-start-cache" style="background: linear-gradient(135deg, #7c6aff, #ff5f8f); border: none; color: white; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600;">Go</button>
+        </div>
+        <div id="cache-status" style="color: #a7cf9b; font-size: 0.75rem; margin-top: 0.5rem; height: 14px;"></div>
+      </div>
+      
+      <input type="text" id="cache-search" placeholder="Search saved links..." style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; border-radius: 8px; margin-bottom: 1rem; outline: none; font-family: inherit;">
+      <div id="cache-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+         <span style="color: #646478;">Loading...</span>
+      </div>
     </div>
   </div>
 
@@ -541,16 +572,33 @@
     el.addEventListener('click', goQuickLink, false);
   });
 
+  function formatSearchUrl(val, engine) {
+    if (!val) return "";
+    if (/^https?:\/\//i.test(val)) return val;
+    if (val.includes('.') && !val.includes(' ')) return "https://" + val;
+    var e = engine || 'google';
+    if (e === 'brave') return "https://search.brave.com/search?q=" + encodeURIComponent(val);
+    if (e === 'google') return "https://www.google.com/search?q=" + encodeURIComponent(val);
+    if (e === 'ddg') return "https://duckduckgo.com/?q=" + encodeURIComponent(val);
+    if (e === 'bing') return "https://www.bing.com/search?q=" + encodeURIComponent(val);
+    if (e === 'yahoo') return "https://search.yahoo.com/search?p=" + encodeURIComponent(val);
+    return "https://www.google.com/search?q=" + encodeURIComponent(val);
+  }
+
   function buildGoUrl(optionalTargetUrl) {
-    var urlVal = (optionalTargetUrl != null && optionalTargetUrl !== '') ? String(optionalTargetUrl).trim() : document.getElementById('url').value.trim();
-    if (!urlVal) return null;
+    var rawVal = (optionalTargetUrl != null && optionalTargetUrl !== '') ? String(optionalTargetUrl).trim() : document.getElementById('url').value.trim();
+    if (!rawVal) return null;
+    var urlVal = formatSearchUrl(rawVal, engineInput.value);
     var mode = (document.querySelector('.mode-btn.active') && document.querySelector('.mode-btn.active').dataset.m) || modeInput.value || 'server';
     var uvBackend = (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '';
     var scramjetBackend = (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '';
     var erudaEl = document.getElementById('opt-eruda');
     var eruda = erudaEl && erudaEl.checked;
+    var offlineEl = document.getElementById('opt-offline');
+    var offline = offlineEl && offlineEl.checked;
     var q = 'url=' + encodeURIComponent(urlVal);
     if (eruda) q += '&eruda=1';
+    if (offline) q += '&offline=1';
     if (mode === 'uv' && uvBackend) {
       var sep = uvBackend.indexOf('?') >= 0 ? '&' : '?';
       return uvBackend.replace(/\/+$/, '') + sep + q;
@@ -571,6 +619,7 @@
     }
     var params = 'url=' + encodeURIComponent(urlVal) + '&engine=' + encodeURIComponent(engineInput.value) + '&mode=' + encodeURIComponent(mode);
     if (eruda) params += '&eruda=1';
+    if (offline) params += '&offline=1';
     return '/go?' + params;
   }
 
@@ -604,6 +653,11 @@
       h3.type='hidden'; h3.name='eruda'; h3.value='1'; h3.className='opt-hidden';
       form.appendChild(h3);
     }
+    if(document.getElementById('opt-offline') && document.getElementById('opt-offline').checked){
+      var h4 = document.createElement('input');
+      h4.type='hidden'; h4.name='offline'; h4.value='1'; h4.className='opt-hidden';
+      form.appendChild(h4);
+    }
   });
 
   function savePrefs() {
@@ -613,6 +667,7 @@
         mode: modeInput.value,
         useIframe: optIframe ? optIframe.checked : false,
         eruda: document.getElementById('opt-eruda') ? document.getElementById('opt-eruda').checked : false,
+        offline: document.getElementById('opt-offline') ? document.getElementById('opt-offline').checked : false,
         uvBackend: (document.getElementById('uv-backend') && document.getElementById('uv-backend').value.trim()) || '',
         scramjetBackend: (document.getElementById('scramjet-backend') && document.getElementById('scramjet-backend').value.trim()) || '',
       }));
@@ -636,6 +691,7 @@
     }
     if (saved.useIframe && optIframe) optIframe.checked = true;
     if (saved.eruda && document.getElementById('opt-eruda')) document.getElementById('opt-eruda').checked = true;
+    if (saved.offline && document.getElementById('opt-offline')) document.getElementById('opt-offline').checked = true;
     if (saved.uvBackend && document.getElementById('uv-backend')) document.getElementById('uv-backend').value = saved.uvBackend;
     if (saved.scramjetBackend && document.getElementById('scramjet-backend')) document.getElementById('scramjet-backend').value = saved.scramjetBackend;
   } catch(e){}
@@ -706,6 +762,89 @@
         alert('Download failed: ' + (err.message || 'Ensure void.html is available at the same origin.'));
       });
   });
+
+  // Offline Cache Logic
+  var btnCache = document.getElementById('btn-view-cache');
+  var cacheModal = document.getElementById('cache-modal');
+  var closeCache = document.getElementById('close-cache');
+  var cacheList = document.getElementById('cache-list');
+  var cacheSearch = document.getElementById('cache-search');
+  var newCacheUrl = document.getElementById('new-cache-url');
+  var btnStartCache = document.getElementById('btn-start-cache');
+  var cacheStatus = document.getElementById('cache-status');
+  var loadedLinks = [];
+
+  function fetchCacheLinks() {
+    fetch('/api/cache-links').then(function(r){ return r.json(); }).then(function(lst) {
+      loadedLinks = lst;
+      renderCacheLinks(cacheSearch ? cacheSearch.value : '');
+    }).catch(function(e){ cacheList.innerHTML = '<span style="color: #ff5f8f;">Error loading cache.</span>'; });
+  }
+
+  function renderCacheLinks(query) {
+    cacheList.innerHTML = '';
+    var filtered = loadedLinks.filter(function(l) { return l.toLowerCase().indexOf((query||'').toLowerCase()) !== -1; });
+    if(filtered.length === 0) {
+      cacheList.innerHTML = '<span style="color:#646478;">No matching links.</span>';
+      return;
+    }
+    filtered.forEach(function(link) {
+      var btn = document.createElement('button');
+      btn.textContent = decodeURIComponent(link);
+      btn.style = "text-align: left; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; color: #c4c6db; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 0.15s;";
+      btn.onmouseover = function() { btn.style.background = "rgba(255,255,255,0.08)"; };
+      btn.onmouseleave = function() { btn.style.background = "rgba(255,255,255,0.03)"; };
+      btn.addEventListener('click', function() {
+         cacheModal.style.display = 'none';
+         cacheModal.classList.add('hidden');
+         document.getElementById('url').value = decodeURIComponent(link);
+         var offlineCb = document.getElementById('opt-offline');
+         if(offlineCb) offlineCb.checked = true;
+         // Submit form to navigate
+         if (form.requestSubmit) form.requestSubmit(); else form.submit();
+      });
+      cacheList.appendChild(btn);
+    });
+  }
+
+  if (btnStartCache && newCacheUrl && cacheStatus) {
+    btnStartCache.addEventListener('click', function() {
+      var val = newCacheUrl.value.trim();
+      if(!val) return;
+      if(!/^https?:\/\//i.test(val)) val = 'https://' + val;
+      cacheStatus.textContent = 'Starting...';
+      cacheStatus.style.color = '#c4c6db';
+      fetch('/api/cache-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: val })
+      }).then(function(r){ return r.json(); }).then(function(res){
+         if(res.success) {
+           cacheStatus.textContent = 'Caching in background! (Give it a minute)';
+           cacheStatus.style.color = '#a7cf9b';
+           newCacheUrl.value = '';
+           setTimeout(fetchCacheLinks, 5000); // refresh list actively
+         } else {
+           cacheStatus.textContent = res.error || 'Failed.';
+           cacheStatus.style.color = '#ff5f8f';
+         }
+      }).catch(function(e) {
+         cacheStatus.textContent = 'Network error.';
+         cacheStatus.style.color = '#ff5f8f';
+      });
+    });
+  }
+
+  if (btnCache) {
+    btnCache.addEventListener('click', function() {
+       cacheModal.classList.remove('hidden');
+       cacheModal.style.display = 'flex'; 
+       cacheList.innerHTML = '<span style="color: #646478;">Loading...</span>';
+       fetchCacheLinks();
+    });
+  }
+  if (closeCache) closeCache.addEventListener('click', function(){ cacheModal.classList.add('hidden'); cacheModal.style.display='none'; cacheStatus.textContent=''; });
+  if (cacheSearch) cacheSearch.addEventListener('input', function(e){ renderCacheLinks(e.target.value); });
 })();
 </script>
 </body>

@@ -60,7 +60,15 @@ try {
   try {
     const { BareMuxConnection } = await import("/baremux/index.mjs");
     conn = new BareMuxConnection("/baremux/worker.js");
-    await conn.setTransport(bareTransportModule, [{ wisp: WISP }]);
+    if (useLibcurlTransport) {
+      const libcurlMod = await import("/libcurl/index.mjs");
+      try {
+        await libcurlMod.libcurl.load_wasm("/libcurl/libcurl.wasm");
+      } catch (e) {
+        // May throw if already loaded
+      }
+    }
+    await conn.setTransport(bareTransportModule, [{ wisp: WISP, wasm: "/libcurl/libcurl.wasm" }]);
   } catch (e) {
     throw new Error(
       "BareMux transport / Wisp (is " +
