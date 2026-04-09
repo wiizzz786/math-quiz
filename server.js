@@ -587,7 +587,7 @@ async function handleProxy(req, res) {
 
     if (req.method === "GET") {
       const cached = await cacheGet("p:" + targetUrl);
-      if (cached && (opts.offline || (cached.ct && !cached.ct.includes("text/html")))) {
+      if (cached) {
         res.set("content-type", cached.ct);
         res.set("X-Void-Cache", "HIT");
         return res.send(cached.body);
