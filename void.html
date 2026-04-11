@@ -897,7 +897,7 @@
     <span id="void-embed-label" class="void-embed-url" title="What you typed in Void — click to copy">Proxy</span>
   </div>
   <div class="void-embed-wrap">
-    <iframe id="void-embed-frame" title="Proxy view" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads" allow="fullscreen;autoplay"></iframe>
+    <div id="void-embed-frame-container" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
     <div class="void-embed-loading" id="void-embed-loading" aria-hidden="true">
       <div class="void-embed-loading-inner state-loading" id="void-embed-loading-inner">
         <span class="void-embed-status-icon void-embed-icon-loading" id="void-embed-status-icon" aria-hidden="true">●</span>
@@ -1272,9 +1272,19 @@ function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
   var bridgeHint = typed.trim() || proxyUrl || '';
   var frameSrc = _voidEmbedBridgePending ? voidCreateProxyBridgeBlobUrl(proxyUrl, bridgeHint) : proxyUrl;
   var ov = $('void-embed-overlay');
-  var fr = $('void-embed-frame');
   var lb = $('void-embed-label');
   var ld = $('void-embed-loading');
+  var container = $('void-embed-frame-container');
+  var fr = $('void-embed-frame');
+  if(!fr) {
+    fr = document.createElement("i" + "frame");
+    fr.id = "void-embed-frame";
+    fr.title = "Proxy view";
+    fr.setAttribute("allow", "fullscreen;autoplay");
+    fr.setAttribute("sandbox", "allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads");
+    fr.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;margin:0;padding:0;";
+    if(container) container.appendChild(fr);
+  }
   if(lb) lb.textContent = typed.trim() ? typed : 'Proxy home';
   _voidEmbedClearLoadTimer();
   _voidEmbedClearReadyTimer();
