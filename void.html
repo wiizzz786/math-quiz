@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="3.1.0"/>
+  <meta name="void-version" content="3.2.0"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -962,14 +962,28 @@ var input = $('url-input');
 /* ──────────── Bounce detection ──────────── */
 try {
   var _bounce = JSON.parse(localStorage.getItem('void_bounce') || 'null');
-  if(_bounce && Date.now() - _bounce.ts < 5000){
-    localStorage.removeItem('void_bounce');
+  // Only show the warning if:
+  // 1. A bounce was recorded recently (within 5s)
+  // 2. This is NOT a browser reload (type 1) — reloads legitimately fire beforeunload
+  var _isReload = false;
+  try {
+    if(performance && performance.navigation && performance.navigation.type === 1) _isReload = true;
+    if(performance && performance.getEntriesByType){
+      var _navEntries = performance.getEntriesByType('navigation');
+      if(_navEntries.length && _navEntries[0].type === 'reload') _isReload = true;
+    }
+  } catch(_pe){}
+
+  localStorage.removeItem('void_bounce');
+  localStorage.removeItem('void_suppress_bounce');
+
+  if(_bounce && !_isReload && Date.now() - _bounce.ts < 5000){
     var _bd = document.createElement('div');
     _bd.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:999999;background:rgba(255,60,60,.95);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-family:system-ui;max-width:90vw;word-break:break-all;';
     _bd.textContent = 'Proxy bounce detected! The page tried to leave: ' + _bounce.url;
     document.body.appendChild(_bd);
     setTimeout(function(){ if(_bd.parentNode) _bd.parentNode.removeChild(_bd); }, 8000);
-  } else { localStorage.removeItem('void_bounce'); }
+  }
 } catch(_e){}
 
 function voidMarkInternalNavigation(){
@@ -1297,6 +1311,45 @@ function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
         _voidEmbedBridgePending = false;
         return;
       }
+
+      // Guard: detect if the iframe navigated away from the proxy path
+      // (e.g. a link wasn't rewritten and the iframe went to the raw site)
+      try {
+        var frHref = fr.contentWindow && fr.contentWindow.location && fr.contentWindow.location.href;
+        if(frHref && frHref !== 'about:blank'){
+          var m = getMode();
+          var isProxied = false;
+          if(m === 'server' || m === 'experimental'){
+            // Should be on /p/... or /pe/... paths on our own origin
+            isProxied = frHref.indexOf(location.origin + '/p/') === 0
+                     || frHref.indexOf(location.origin + '/pe/') === 0
+                     || frHref.indexOf('/p/') === 0
+                     || frHref.indexOf('/pe/') === 0;
+          } else if(m === 'scramjet' || m === 'uv'){
+            // Should be on the scramjet/uv base
+            var sjBase = _voidScramjetBase();
+            var uvBase = _voidUvBase();
+            isProxied = (sjBase && frHref.indexOf(sjBase) === 0)
+                     || (uvBase && frHref.indexOf(uvBase) === 0)
+                     || frHref.indexOf('/service/') !== -1
+                     || frHref.indexOf('/scramjet') !== -1
+                     || frHref.indexOf('/uv') !== -1;
+          } else {
+            isProxied = true; // client mode handles itself
+          }
+
+          if(!isProxied && /^https?:\/\//i.test(frHref)){
+            // The iframe escaped the proxy — re-proxy the URL
+            console.warn('[Void] iframe escaped proxy, re-proxying:', frHref);
+            navigate(frHref);
+            return;
+          }
+        }
+      } catch(guardErr){
+        // cross-origin access to contentWindow.location will throw — that's fine,
+        // it means the iframe is on a different origin (the proxy) which is expected
+      }
+
       _voidEmbedClearLoadTimer();
       if(ov) ov.classList.remove('loading');
       _voidEmbedSetLoadingState('ready');
@@ -1620,8 +1673,11 @@ function _clientInjection(){
   /* ── Link clicks (named so _reattach can re-bind after document.write) ── */
   function _linkHrefFrom(el){
     if(!el) return '';
+    // Check data-void-href first (set by server-side rewrite to prevent native navigation)
+    var dvh = el.getAttribute('data-void-href');
+    if(dvh) return dvh;
     var h = el.getAttribute('href');
-    if(h != null && h !== '') return h;
+    if(h != null && h !== '' && h !== 'javascript:void(0)') return h;
     try {
       if(typeof el.href === 'string' && /^https?:\/\//i.test(el.href)) return el.href;
     } catch(e){}
@@ -1667,7 +1723,16 @@ function _clientInjection(){
     if(link.hasAttribute('download')) try { link.removeAttribute('download'); } catch(e1){}
     var href = _linkHrefFrom(link);
     if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return false;
-    var abs = _abs(href);
+    // If href is a CORS proxy URL, extract the real target URL from it
+    var realUrl = href;
+    if(href.indexOf(_cp) === 0){
+      try {
+        var qIdx = href.indexOf('?url=');
+        if(qIdx !== -1) realUrl = decodeURIComponent(href.slice(qIdx + 5).split('&')[0]);
+        else if(_cp.indexOf('?') >= 0) realUrl = decodeURIComponent(href.slice(_cp.length).split('&')[0]);
+      } catch(ex){ realUrl = href; }
+    }
+    var abs = _abs(realUrl);
     if(!_shouldProxy(abs)) return false;
     if(e){
       e.preventDefault();
@@ -2150,8 +2215,11 @@ function _clientInjection(){
   /* ── Flag real breakouts only (skip when Void replaced the document — see voidMarkInternalNavigation) ── */
   window.addEventListener('beforeunload', function(){
     try {
+      // Don't flag if the suppress marker was set recently (document.write navigation)
       var sup = parseInt(localStorage.getItem('void_suppress_bounce') || '0', 10);
       if(sup && Date.now() - sup < 2500) return;
+      // Don't flag if no real proxy navigation has happened yet
+      if(!_cur || !/^https?:\/\//i.test(_cur)) return;
       localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() }));
     } catch(ex){}
   });
@@ -2485,10 +2553,20 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
       return pre + q + _rw(u) + q;
     });
     html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      return pre + q + _rw(u) + q;
+      var rw = _rw(u);
+      // Store the proxied URL in data-void-href; set href to javascript:void(0) so
+      // the browser can never follow it natively and navigate away from void.html
+      if(rw !== u && /^https?:\/\//i.test(rw)){
+        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
+      }
+      return pre + q + rw + q;
     });
     html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      return pre + q + _rw(u) + q;
+      var rw = _rw(u);
+      if(rw !== u && /^https?:\/\//i.test(rw)){
+        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
+      }
+      return pre + q + rw + q;
     });
     html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
       return pre + q + _rw(u) + q;
@@ -2511,59 +2589,95 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     return html;
   }
 
-  var TB_CSS = '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:36px !important;background:rgba(6,6,11,.96) !important;'
-    + 'backdrop-filter:blur(12px) !important;display:flex !important;align-items:center !important;'
-    + 'gap:4px !important;padding:0 6px !important;visibility:visible !important;opacity:1 !important;'
+  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
+    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
+    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
+    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
     + 'transform:none !important;pointer-events:auto !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;font-family:system-ui,-apple-system,sans-serif !important;box-sizing:border-box !important;}'
+    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
     + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
-    + '#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
-    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;display:inline-flex !important;}'
-    + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
-    + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
-    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;display:block !important;}'
-    + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
-    + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
+    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
+    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
+    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
+    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
+    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
+    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
+    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
+    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
+    + '#_vt button:active{transform:scale(.94) !important;}'
+    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
+    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
+    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
+    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
+    + 'transition:border-color .2s,box-shadow .2s !important;}'
+    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
+    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
+    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
+    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
+    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
+    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
+    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
+    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
+    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
+    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
     + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:20px !important;background:rgba(6,6,11,.92) !important;'
-    + 'display:flex !important;align-items:center !important;padding:0 8px !important;'
-    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:system-ui,-apple-system,sans-serif !important;'
+    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
+    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
+    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
     + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
     + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
-    + '#_vs{font-size:9px;color:#666;white-space:nowrap;position:relative;z-index:1;transition:color .3s;}'
-    + '#_vs.ld{color:#ff5f8f;animation:_vblink .8s ease-in-out infinite;}#_vs.ok{color:#4ade80;}'
+    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
+    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
+    + '#_vs.ok{color:#4ade80 !important;}'
     + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
     + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
     + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
-    + 'background-size:200% 100% !important;border-radius:0 !important;}'
+    + 'background-size:200% 100% !important;}'
     + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
     + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
-    + '#_vjp{position:fixed !important;top:36px !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
-    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
-    + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
-    + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
-    + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
-    + '#_vjp>div{display:flex;gap:5px;margin-top:5px;}'
-    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;'
-    + 'border-radius:5px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;}'
-    + '#_vjp .cb{background:rgba(255,255,255,.05);color:#888;border:none;border-radius:5px;'
-    + 'padding:4px 12px;font-size:10px;cursor:pointer;}'
+    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
+    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
+    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
+    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
+    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
+    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
+    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
     + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
-    + '@supports (padding:env(safe-area-inset-top)){#_vt{padding-left:max(6px,env(safe-area-inset-left)) !important;padding-right:max(6px,env(safe-area-inset-right)) !important;}'
-    + '#_vsb{padding-left:max(8px,env(safe-area-inset-left)) !important;padding-right:max(8px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
-    + '@media (pointer:coarse){#_vt{height:44px !important;}#_vt button{padding:6px 12px !important;font-size:13px !important;min-height:36px !important;min-width:36px !important;justify-content:center !important;}'
-    + '#_vt input{padding:6px 10px !important;font-size:16px !important;}html body{margin-top:48px !important;margin-bottom:28px !important;}'
-    + '#_vjp{top:44px !important;}#_vjp textarea{min-height:80px;font-size:14px !important;}}'
-    + 'html body{margin-top:40px !important;margin-bottom:24px !important;}';
+    + '@supports (padding:env(safe-area-inset-top)){'
+    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
+    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
+    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
+    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
+    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
+    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
+    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
+    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
 
   function tbHtml(url){
     return '<div id="_vt">'
-      + '<button id="_vb">\u2190</button><button id="_vf">\u2192</button><button id="_vr">\u21bb</button>'
-      + '<input id="_va" type="text" value="' + escH(url) + '" spellcheck="false"/>'
-      + '<div class="sp"></div>'
-      + '<button id="_vbk">\u2606</button><button id="_vjs">JS</button><button id="_vh">\u2302 Home</button>'
+      + '<span id="_vt-brand">void</span>'
+      + '<span id="_vt-sep"></span>'
+      + '<div id="_vt-nav">'
+      + '<button id="_vb" title="Back">&#8592;</button>'
+      + '<button id="_vf" title="Forward">&#8594;</button>'
+      + '<button id="_vr" title="Reload">&#8635;</button>'
+      + '</div>'
+      + '<div id="_vt-url-wrap">'
+      + '<input id="_va" type="text" value="' + escH(url) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
+      + '<button id="_vt-go">Go</button>'
+      + '</div>'
+      + '<button id="_vbk" title="Bookmark">&#9734;</button>'
+      + '<button id="_vh" title="Home">&#8962;</button>'
       + '</div>'
       + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
       + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
@@ -2571,7 +2685,9 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
   }
 
   function render(html, url){
-    voidMarkInternalNavigation();
+    // Inline voidMarkInternalNavigation — the outer-scope function is destroyed
+    // after document.write() replaces the document, so we can't call it by name.
+    try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
     _curUrl = url;
     try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
     var css = '<style>' + TB_CSS + '</style>';
@@ -2691,36 +2807,48 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
   var $vf = document.getElementById('_vf');
   var $vr = document.getElementById('_vr');
   var $va = document.getElementById('_va');
+  var $vgo = document.getElementById('_vt-go');
   var $vbk = document.getElementById('_vbk');
-  var $vjs = document.getElementById('_vjs');
   var $vjr = document.getElementById('_vjr');
   var $vjx = document.getElementById('_vjx');
+
+  function _doNav(){
+    var u = $va ? $va.value.trim() : '';
+    if(!u) return;
+    if(!/^https?:\/\//i.test(u)){
+      u = u.includes('.') && !u.includes(' ') ? 'https://' + u : 'https://search.brave.com/search?q=' + encodeURIComponent(u);
+    }
+    nav(u, true);
+  }
+
   if($vh) $vh.onclick = function(){ if(window.__voidRealReload) window.__voidRealReload(); else location.href = '/'; };
   if($vb) $vb.onclick = function(){ if(_navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); } };
   if($vf) $vf.onclick = function(){ if(_navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); } };
   if($vr) $vr.onclick = function(){ nav(_curUrl, false); };
-  if($va) $va.addEventListener('keydown', function(e){
-    if(e.key === 'Enter'){
-      var u = this.value.trim(); if(!u) return;
-      if(!/^https?:\/\//i.test(u)){ u = u.includes('.') && !u.includes(' ') ? 'https://' + u : 'https://search.brave.com/search?q=' + encodeURIComponent(u); }
-      nav(u, true);
-    }
-  });
+  if($vgo) $vgo.onclick = _doNav;
+  if($va){
+    $va.addEventListener('focus', function(){ this.select(); });
+    $va.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); _doNav(); }
+      if(e.key === 'Escape'){ this.value = _curUrl; this.blur(); }
+    });
+    // Prevent the proxied page from stealing focus away from the address bar
+    $va.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
   if($vbk) $vbk.onclick = function(){
     try {
       var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
-      if(bks.some(function(b){ return b.url === _curUrl; })){ bks = bks.filter(function(b){ return b.url !== _curUrl; }); this.innerHTML = '\u2606'; }
+      if(bks.some(function(b){ return b.url === _curUrl; })){ bks = bks.filter(function(b){ return b.url !== _curUrl; }); this.innerHTML = '\u2605'; }
       else { var d = ''; try{d = new URL(_curUrl).hostname;}catch(e){} bks.unshift({url:_curUrl,title:d}); this.innerHTML = '\u2605'; }
       localStorage.setItem('void_bookmarks', JSON.stringify(bks));
     } catch(e){}
   };
   try { var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
     if(bks.some(function(b){ return b.url === _curUrl; }) && $vbk) $vbk.innerHTML = '\u2605'; } catch(e){}
-  if($vjs) $vjs.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.className = p.className.indexOf('on') >= 0 ? '' : 'on'; };
   if($vjr) $vjr.onclick = function(){ var c = document.getElementById('_vjc'); if(c && c.value.trim()) try{(0,eval)(c.value);}catch(e){alert(e.message);} };
-  if($vjx) $vjx.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.className = ''; };
+  if($vjx) $vjx.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; };
   document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape'){ var p = document.getElementById('_vjp'); if(p) p.className = ''; }
+    if(e.key === 'Escape'){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; }
     if((e.ctrlKey || e.metaKey) && e.key === 'l'){ e.preventDefault(); if($va){ $va.focus(); $va.select(); } }
     if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); if($vb) $vb.click(); }
     if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); if($vf) $vf.click(); }
@@ -2728,7 +2856,7 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
 }
 
 function renderPage(html, baseUrl){
-  voidMarkInternalNavigation();
+  try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
   localStorage.setItem('void_nav_history', JSON.stringify(navHistory));
   localStorage.setItem('void_nav_idx', String(navIdx));
   var corsBase = getActiveCorsBase();
@@ -2741,58 +2869,94 @@ function renderPage(html, baseUrl){
     + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
     + '<\/scr' + 'ipt>';
 
-  var TB_CSS = '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:36px !important;background:rgba(6,6,11,.96) !important;'
-    + 'backdrop-filter:blur(12px) !important;display:flex !important;align-items:center !important;'
-    + 'gap:4px !important;padding:0 6px !important;visibility:visible !important;opacity:1 !important;'
+  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
+    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
+    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
+    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
     + 'transform:none !important;pointer-events:auto !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;font-family:system-ui,-apple-system,sans-serif !important;box-sizing:border-box !important;}'
+    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
     + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
-    + '#_vt button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);'
-    + 'color:#aaa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;display:inline-flex !important;}'
-    + '#_vt button:hover{background:rgba(124,106,255,.14);color:#fff;border-color:rgba(124,106,255,.25);}'
-    + '#_vt input{flex:1;min-width:0;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);color:#ddd;'
-    + 'border-radius:5px;padding:4px 8px;font-family:monospace;font-size:10.5px;outline:none;display:block !important;}'
-    + '#_vt input:focus{border-color:rgba(124,106,255,.35);}'
-    + '#_vt .sp{width:1px;height:14px;background:rgba(255,255,255,.05);flex-shrink:0;}'
+    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
+    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
+    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
+    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
+    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
+    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
+    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
+    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
+    + '#_vt button:active{transform:scale(.94) !important;}'
+    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
+    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
+    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
+    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
+    + 'transition:border-color .2s,box-shadow .2s !important;}'
+    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
+    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
+    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
+    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
+    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
+    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
+    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
+    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
+    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
+    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
     + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:20px !important;background:rgba(6,6,11,.92) !important;'
-    + 'display:flex !important;align-items:center !important;padding:0 8px !important;'
-    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:system-ui,-apple-system,sans-serif !important;'
+    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
+    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
+    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
     + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
     + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
-    + '#_vs{font-size:9px;color:#666;white-space:nowrap;position:relative;z-index:1;transition:color .3s;}'
-    + '#_vs.ld{color:#ff5f8f;animation:_vblink .8s ease-in-out infinite;}#_vs.ok{color:#4ade80;}'
+    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
+    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
+    + '#_vs.ok{color:#4ade80 !important;}'
     + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
     + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
     + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
-    + 'background-size:200% 100% !important;border-radius:0 !important;}'
+    + 'background-size:200% 100% !important;}'
     + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
     + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
-    + '#_vjp{position:fixed !important;top:36px !important;left:0 !important;right:0 !important;z-index:2147483647 !important;background:rgba(6,6,11,.97) !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07);padding:10px 14px;display:none;}'
-    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100%;min-height:50px;padding:6px;border-radius:5px;'
-    + 'border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.4);color:#ddd;'
-    + 'font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;outline:none;}'
-    + '#_vjp textarea:focus{border-color:rgba(124,106,255,.35);}'
-    + '#_vjp>div{display:flex;gap:5px;margin-top:5px;}'
-    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;'
-    + 'border-radius:5px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;}'
-    + '#_vjp .cb{background:rgba(255,255,255,.05);color:#888;border:none;border-radius:5px;'
-    + 'padding:4px 12px;font-size:10px;cursor:pointer;}'
+    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
+    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
+    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
+    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
+    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
+    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
+    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
     + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
-    + '@supports (padding:env(safe-area-inset-top)){#_vt{padding-left:max(6px,env(safe-area-inset-left)) !important;padding-right:max(6px,env(safe-area-inset-right)) !important;}'
-    + '#_vsb{padding-left:max(8px,env(safe-area-inset-left)) !important;padding-right:max(8px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
-    + '@media (pointer:coarse){#_vt{height:44px !important;}#_vt button{padding:6px 12px !important;font-size:13px !important;min-height:36px !important;min-width:36px !important;justify-content:center !important;}'
-    + '#_vt input{padding:6px 10px !important;font-size:16px !important;}html body{margin-top:48px !important;margin-bottom:28px !important;}'
-    + '#_vjp{top:44px !important;}#_vjp textarea{min-height:80px;font-size:14px !important;}}'
-    + 'html body{margin-top:40px !important;margin-bottom:24px !important;}';
+    + '@supports (padding:env(safe-area-inset-top)){'
+    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
+    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
+    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
+    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
+    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
+    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
+    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
+    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
 
   var tbHtml = '<div id="_vt">'
-    + '<button id="_vb">\u2190</button><button id="_vf">\u2192</button><button id="_vr">\u21bb</button>'
-    + '<input id="_va" type="text" value="' + escHtml(baseUrl) + '" spellcheck="false"/>'
-    + '<div class="sp"></div>'
-    + '<button id="_vbk">\u2606</button><button id="_vjs">JS</button><button id="_vh">\u2302 Home</button>'
+    + '<span id="_vt-brand">void</span>'
+    + '<span id="_vt-sep"></span>'
+    + '<div id="_vt-nav">'
+    + '<button id="_vb" title="Back">&#8592;</button>'
+    + '<button id="_vf" title="Forward">&#8594;</button>'
+    + '<button id="_vr" title="Reload">&#8635;</button>'
+    + '</div>'
+    + '<div id="_vt-url-wrap">'
+    + '<input id="_va" type="text" value="' + escHtml(baseUrl) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
+    + '<button id="_vt-go">Go</button>'
+    + '</div>'
+    + '<button id="_vbk" title="Bookmark">&#9734;</button>'
+    + '<button id="_vh" title="Home">&#8962;</button>'
     + '</div>'
     + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
     + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
@@ -4256,6 +4420,51 @@ if(landing) landing.style.opacity = '0';
       });
     });
   }
+
+  /* ──────────── Embed iframe navigation interception ────────────
+     When a link is clicked inside the proxy iframe (server / experimental /
+     scramjet / uv modes), the injected script posts void_navigate to window.top
+     which is void.html. Without this handler the browser would follow the
+     encoded /p/… or /pe/… URL directly, navigating void.html away.
+     We intercept it here and route through navigate() so the embed overlay
+     stays open and void.html never leaves. ──────────── */
+  window.addEventListener('message', function(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+
+    if (e.data.type === 'void_navigate' && e.data.url) {
+      var targetUrl = e.data.url;
+      if (typeof targetUrl !== 'string' || !/^https?:\/\//i.test(targetUrl)) return;
+
+      var m = getMode();
+      var embedOpen = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
+
+      if (embedOpen && (m === 'server' || m === 'experimental' || m === 'scramjet' || m === 'uv')) {
+        // Route through navigate() — it will call showVoidEmbedOverlay() which
+        // updates the iframe src without ever touching window.location.
+        navigate(targetUrl);
+      }
+      // client mode is handled by its own inner message listener inside renderPage()
+    }
+
+    if (e.data.type === 'void_post' && e.data.url) {
+      var postUrl = e.data.url;
+      if (typeof postUrl !== 'string' || !/^https?:\/\//i.test(postUrl)) return;
+
+      var m2 = getMode();
+      var embedOpen2 = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
+
+      if (embedOpen2 && (m2 === 'server' || m2 === 'experimental')) {
+        navigate(postUrl);
+      }
+    }
+
+    // Keep the embed overlay URL bar in sync when the iframe reports its current URL
+    if (e.data.type === 'void_url' && e.data.url) {
+      var lb = $('void-embed-label');
+      if (lb) lb.textContent = e.data.url;
+      _voidEmbedBarCopy = e.data.url;
+    }
+  });
 
 })();
 </script>

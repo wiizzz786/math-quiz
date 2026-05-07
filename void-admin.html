@@ -4,8 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <!-- Shipped versions (bump when you release). Used by Check for Update. -->
-  <meta name="void-version" content="2.1.1"/>
-  <meta name="void-admin-version" content="2.1.1"/>
+  <meta name="void-version" content="3.2.0"/>
+  <meta name="void-admin-version" content="3.2.0"/>
   <!-- Canonical raw files on GitHub (same repo as void.html). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
@@ -370,6 +370,7 @@
     <div class="nav-item" data-panel="activity"><span class="nav-ico">&#9776;</span><span>Activity</span></div>
     <div class="nav-sep"></div>
     <div class="nav-item" data-panel="proxy"><span class="nav-ico">&#9658;</span><span>Test Proxy</span></div>
+    <div class="nav-item" data-panel="modes"><span class="nav-ico">&#9636;</span><span>Proxy Modes</span></div>
     <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug</span></div>
     <div class="nav-item" data-panel="devtools"><span class="nav-ico">&#10095;</span><span>Dev Tools</span></div>
     <div class="nav-sep"></div>
@@ -388,8 +389,13 @@
         <div class="stat"><div class="stat-label">Firestore Users</div><div class="stat-value yellow" id="d-fb-total">&mdash;</div></div>
         <div class="stat"><div class="stat-label">Online Now</div><div class="stat-value green" id="d-fb-online">0</div></div>
         <div class="stat"><div class="stat-label">Banned</div><div class="stat-value pink" id="d-fb-banned">0</div></div>
+        <div class="stat"><div class="stat-label">Pending Requests</div><div class="stat-value yellow" id="d-fb-requests">0</div></div>
         <div class="stat"><div class="stat-label">Total Searches</div><div class="stat-value purple" id="d-fb-searches">&mdash;</div></div>
         <div class="stat"><div class="stat-label">Local UIDs</div><div class="stat-value" id="d-total">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Proxy Mode Distribution</div>
+        <div id="d-mode-dist" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
       <div class="card">
         <div class="card-title">Quick Actions</div>
@@ -476,6 +482,36 @@
           <button class="btn btn-primary" id="btn-ping">Run Ping Test</button>
         </div>
         <div class="ping-results" id="ping-results"></div>
+      </div>
+    </div>
+
+    <!-- Proxy Modes -->
+    <div class="panel" id="p-modes">
+      <div class="card">
+        <div class="card-title">Active Proxy Configuration</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Read from <code>void.html</code> meta tags. These are the values users see.</p>
+        <table class="headers-table" id="modes-config-table">
+          <tr><th>Setting</th><th>Value</th></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Mode Descriptions</div>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="modes-desc-list">
+          <div class="uid-row"><span class="uid-tag" style="background:rgba(124,106,255,.15);color:var(--accent);min-width:90px;text-align:center;">client</span><span class="uid-meta" style="flex:1;">CORS proxy via Cloudflare Worker. No server needed. Default mode.</span></div>
+          <div class="uid-row"><span class="uid-tag" style="background:rgba(52,211,153,.15);color:var(--green);min-width:90px;text-align:center;">server</span><span class="uid-meta" style="flex:1;">Server-side proxy. Requires a custom backend URL (e.g. http://localhost:8080).</span></div>
+          <div class="uid-row"><span class="uid-tag" style="background:rgba(255,95,143,.15);color:var(--accent2);min-width:90px;text-align:center;">experimental</span><span class="uid-meta" style="flex:1;">Bare-metal Node.js proxy engine. No UV/Scramjet. Best stealth headers.</span></div>
+          <div class="uid-row"><span class="uid-tag" style="background:rgba(240,192,64,.15);color:var(--yellow);min-width:90px;text-align:center;">scramjet</span><span class="uid-meta" style="flex:1;">Scramjet service worker proxy. Requires scramjet host (void-scramjet-base).</span></div>
+          <div class="uid-row"><span class="uid-tag" style="background:rgba(255,255,255,.08);color:var(--sub);min-width:90px;text-align:center;">uv</span><span class="uid-meta" style="flex:1;">Ultraviolet service worker proxy. Requires UV host on port 8443 (void-uv-base).</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Test Each Mode</div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Verify the CORS proxy is reachable and returning valid responses.</p>
+        <div class="debug-bar">
+          <input type="text" class="debug-url" id="mode-test-url" placeholder="https://example.com" value="https://example.com" autocomplete="off"/>
+          <button class="btn btn-primary" id="btn-mode-test">Test CORS Proxy</button>
+        </div>
+        <div id="mode-test-result" style="margin-top:10px;font-size:.72rem;color:var(--sub);"></div>
       </div>
     </div>
 
@@ -615,7 +651,23 @@
 'use strict';
 
 var $ = function(id){ return document.getElementById(id); };
-var CORS_PROXY = 'https://void-proxy.aadizzz786.workers.dev';
+
+// Read CORS proxy from meta tag (same source as void.html uses)
+function _meta(name, fallback){
+  var el = document.querySelector('meta[name="' + name + '"]');
+  var c = el && el.getAttribute('content');
+  return (c != null && String(c).trim() !== '') ? String(c).trim() : (fallback || '');
+}
+
+var CORS_PROXY_BASE = _meta('void-cors-proxy-base', 'https://void-proxy.aadizzz786.workers.dev/?url=');
+// Also allow localStorage override (set by void.html settings)
+try {
+  var _lsPrefs = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+  if(_lsPrefs.corsProxy) CORS_PROXY_BASE = _lsPrefs.corsProxy;
+} catch(e){}
+
+// Legacy compat: CORS_PROXY without ?url= suffix for display
+var CORS_PROXY = CORS_PROXY_BASE.replace(/[?&]url=$/, '').replace(/\/+$/, '');
 
 function _meta(name, fallback){
   var el = document.querySelector('meta[name="' + name + '"]');
@@ -694,7 +746,8 @@ function getUserLabel(uid){ return _userLabels[uid] || ''; }
 function getUserDisplay(uid){ var l = getUserLabel(uid); return l || uid; }
 
 function makeProxyUrl(target){
-  return CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=') + encodeURIComponent(target);
+  if(CORS_PROXY_BASE.includes('?')) return CORS_PROXY_BASE + encodeURIComponent(target);
+  return CORS_PROXY_BASE + '?url=' + encodeURIComponent(target);
 }
 
 function timeAgo(ts){
@@ -744,8 +797,34 @@ function refreshDashboard(){
   $('d-fb-online').textContent = onlineCount;
   $('d-fb-banned').textContent = _allUsers.filter(function(u){ return u.banned; }).length;
   $('d-fb-searches').textContent = _allSearches.length || '\u2014';
+  var pendingReqs = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
+  $('d-fb-requests').textContent = pendingReqs || '0';
   $('nav-user-count').textContent = _allUsers.length;
   $('nav-history-count').textContent = _allSearches.length;
+
+  // Mode distribution from user prefs stored in Firestore
+  var modeCounts = {};
+  _allUsers.forEach(function(u){
+    var m = u.mode || 'client';
+    modeCounts[m] = (modeCounts[m] || 0) + 1;
+  });
+  var modeColors = { client:'rgba(124,106,255,.2)', server:'rgba(52,211,153,.15)', experimental:'rgba(255,95,143,.15)', scramjet:'rgba(240,192,64,.15)', uv:'rgba(255,255,255,.06)' };
+  var modeTextColors = { client:'var(--accent)', server:'var(--green)', experimental:'var(--accent2)', scramjet:'var(--yellow)', uv:'var(--sub)' };
+  var distEl = $('d-mode-dist');
+  if(distEl){
+    if(!_allUsers.length){ distEl.innerHTML = '<span style="font-size:.7rem;color:var(--muted);">No users yet.</span>'; }
+    else {
+      distEl.innerHTML = '';
+      ['client','server','experimental','scramjet','uv'].forEach(function(m){
+        var count = modeCounts[m] || 0;
+        var pct = _allUsers.length ? Math.round(count / _allUsers.length * 100) : 0;
+        var chip = document.createElement('div');
+        chip.style.cssText = 'padding:6px 12px;border-radius:8px;background:' + (modeColors[m]||'rgba(255,255,255,.05)') + ';border:1px solid rgba(255,255,255,.06);font-size:.65rem;font-weight:700;color:' + (modeTextColors[m]||'var(--sub)') + ';';
+        chip.textContent = m + ': ' + count + ' (' + pct + '%)';
+        distEl.appendChild(chip);
+      });
+    }
+  }
 }
 refreshDashboard();
 
@@ -1210,14 +1289,16 @@ $('btn-refresh-requests').addEventListener('click', fetchRequests);
 
 
 /* ──── User Search ──── */
-$('user-search').addEventListener('input', function(){
-  var q = this.value.trim().toLowerCase();
-  var rows = document.querySelectorAll('.uid-row');
+function applyUserSearch(){
+  var q = ($('user-search') && $('user-search').value || '').trim().toLowerCase();
+  var rows = document.querySelectorAll('#fb-uid-list .uid-row');
   rows.forEach(function(row){
-    var text = row.textContent.toLowerCase();
+    var text = (row.textContent + ' ' + (row.getAttribute('data-uid')||'') + ' ' + (row.getAttribute('data-label')||'')).toLowerCase();
     row.style.display = (!q || text.includes(q)) ? '' : 'none';
   });
-});
+}
+
+$('user-search').addEventListener('input', applyUserSearch);
 
 /* ──── Broadcast ──── */
 $('btn-broadcast').addEventListener('click', function(){
@@ -1594,10 +1675,17 @@ document.querySelectorAll('.tool-output').forEach(function(el){
 });
 
 /* ──── Settings ──── */
-$('tool-cors-url').value = CORS_PROXY;
+$('tool-cors-url').value = CORS_PROXY_BASE;
 $('btn-save-cors').addEventListener('click', function(){
   var url = $('tool-cors-url').value.trim(); if(!url) return;
-  try { var p = JSON.parse(localStorage.getItem('void_prefs')||'{}'); p.corsProxy = url; localStorage.setItem('void_prefs',JSON.stringify(p)); CORS_PROXY = url; alert('Saved.'); } catch(e){ alert(e.message); }
+  try {
+    var p = JSON.parse(localStorage.getItem('void_prefs')||'{}');
+    p.corsProxy = url;
+    localStorage.setItem('void_prefs', JSON.stringify(p));
+    CORS_PROXY_BASE = url;
+    CORS_PROXY = url.replace(/[?&]url=$/, '').replace(/\/+$/, '');
+    alert('Saved. Reload void.html for changes to take effect.');
+  } catch(e){ alert(e.message); }
 });
 
 function refreshLS(){
@@ -1622,6 +1710,59 @@ $('btn-nuke').addEventListener('click', function(){
   var keys = []; for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(k.startsWith('void')) keys.push(k); }
   keys.forEach(function(k){ localStorage.removeItem(k); }); refreshDashboard(); refreshLS();
 });
+
+/* ──── Proxy Modes Panel ──── */
+function initModesPanel(){
+  var table = $('modes-config-table');
+  if(!table) return;
+  var rows = [
+    ['CORS Proxy Base', _meta('void-cors-proxy-base', CORS_PROXY_BASE)],
+    ['Default Mode', _meta('void-default-mode', 'client')],
+    ['Scramjet Base', _meta('void-scramjet-base', '(not set)')],
+    ['Scramjet Path', _meta('void-scramjet-path', '/scramjet.html')],
+    ['UV Base', _meta('void-uv-base', '(not set)')],
+    ['UV Path', _meta('void-uv-path', '/uv.html')],
+    ['void.html Version', _meta('void-version', VER)],
+    ['void-admin.html Version', _meta('void-admin-version', VER)],
+    ['Update URL (void)', _meta('void-update-url', '(not set)')],
+    ['Update URL (admin)', _meta('void-admin-update-url', '(not set)')],
+  ];
+  var html = '<tr><th>Setting</th><th>Value</th></tr>';
+  rows.forEach(function(r){
+    html += '<tr><td>' + r[0].replace(/</g,'&lt;') + '</td><td style="word-break:break-all;">' + r[1].replace(/</g,'&lt;') + '</td></tr>';
+  });
+  table.innerHTML = html;
+}
+initModesPanel();
+
+$('btn-mode-test').addEventListener('click', function(){
+  var url = $('mode-test-url').value.trim();
+  if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var result = $('mode-test-result');
+  var btn = $('btn-mode-test');
+  btn.disabled = true; btn.textContent = 'Testing\u2026';
+  result.innerHTML = '<span style="color:var(--muted);">Fetching via CORS proxy\u2026</span>';
+  var proxyUrl = makeProxyUrl(url);
+  var start = performance.now();
+  fetch(proxyUrl, { cache: 'no-store' }).then(function(r){
+    var ms = Math.round(performance.now() - start);
+    var ct = r.headers.get('content-type') || '(none)';
+    var finalUrl = r.headers.get('x-void-final-url') || url;
+    result.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:6px;">'
+      + '<div><span style="color:' + (r.ok ? 'var(--green)' : 'var(--accent2)') + ';font-weight:700;">' + (r.ok ? '\u2713' : '\u2717') + ' HTTP ' + r.status + '</span> &nbsp; <span style="color:var(--muted);">' + ms + 'ms</span></div>'
+      + '<div style="color:var(--sub);">Content-Type: <code>' + ct.replace(/</g,'&lt;') + '</code></div>'
+      + '<div style="color:var(--sub);">Final URL: <code style="word-break:break-all;">' + finalUrl.replace(/</g,'&lt;') + '</code></div>'
+      + '<div style="color:var(--sub);">Proxy URL: <code style="word-break:break-all;">' + proxyUrl.replace(/</g,'&lt;') + '</code></div>'
+      + '</div>';
+    btn.disabled = false; btn.textContent = 'Test CORS Proxy';
+  }).catch(function(err){
+    result.innerHTML = '<span style="color:var(--accent2);">\u2717 Failed: ' + err.message.replace(/</g,'&lt;') + '</span>';
+    btn.disabled = false; btn.textContent = 'Test CORS Proxy';
+  });
+});
+$('mode-test-url').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('btn-mode-test').click(); });
 
 })();
 </script>

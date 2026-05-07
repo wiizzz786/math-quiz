@@ -32,37 +32,45 @@ function loadWarc() {
     const buf = fsSync.readFileSync(CACHE_FILE);
     const delim = Buffer.from('\r\n\r\n');
     let offset = 0;
-    while(offset < buf.length) {
-       const headerEnd = buf.indexOf(delim, offset);
-       if (headerEnd === -1) break;
-       const headerStr = buf.toString('utf8', offset, headerEnd);
-       
-       const clMatch = headerStr.match(/Content-Length:\s*(\d+)/i);
-       if (!clMatch) break;
-       const cl = parseInt(clMatch[1], 10);
-       
-       const uriMatch = headerStr.match(/WARC-Target-URI:\s*([^\r\n]+)/i);
-       const dateMatch = headerStr.match(/WARC-Date:\s*([^\r\n]+)/i);
-       
-       const httpOffset = headerEnd + 4;
-       const httpEnd = httpOffset + cl;
-       if (httpEnd > buf.length) break;
-       
-       const rawHttp = buf.subarray(httpOffset, httpEnd);
-       const httpHdrEnd = rawHttp.indexOf(delim);
-       if (httpHdrEnd !== -1) {
-         const httpHdrs = rawHttp.toString('utf8', 0, httpHdrEnd);
-         const ctMatch = httpHdrs.match(/Content-Type:\s*([^\r\n]+)/i);
-         const ct = ctMatch ? ctMatch[1] : '';
-         const body = rawHttp.subarray(httpHdrEnd + 4);
-         
-         if (uriMatch && uriMatch[1] && _resourceCache.size < CACHE_MAX_SIZE) {
-            _resourceCache.set(uriMatch[1], { ct, body, ts: dateMatch ? new Date(dateMatch[1]).getTime() : Date.now() });
-         }
-       }
-       offset = httpEnd + 4; 
+    while (offset < buf.length) {
+      const headerEnd = buf.indexOf(delim, offset);
+      if (headerEnd === -1) break;
+      const headerStr = buf.toString('utf8', offset, headerEnd);
+
+      const clMatch = headerStr.match(/Content-Length:\s*(\d+)/i);
+      if (!clMatch) break;
+      const cl = parseInt(clMatch[1], 10);
+      if (!Number.isFinite(cl) || cl < 0 || cl > 50 * 1024 * 1024) break;
+
+      const uriMatch = headerStr.match(/WARC-Target-URI:\s*([^\r\n]+)/i);
+      const dateMatch = headerStr.match(/WARC-Date:\s*([^\r\n]+)/i);
+
+      const httpOffset = headerEnd + 4;
+      const httpEnd = httpOffset + cl;
+      if (httpEnd > buf.length) break;
+
+      const rawHttp = buf.subarray(httpOffset, httpEnd);
+      const httpHdrEnd = rawHttp.indexOf(delim);
+      if (httpHdrEnd !== -1) {
+        const httpHdrs = rawHttp.toString('utf8', 0, httpHdrEnd);
+        const ctMatch = httpHdrs.match(/Content-Type:\s*([^\r\n]+)/i);
+        const ct = ctMatch ? ctMatch[1] : '';
+        const body = rawHttp.subarray(httpHdrEnd + 4);
+
+        if (uriMatch && uriMatch[1] && _resourceCache.size < CACHE_MAX_SIZE) {
+          // Only cache http/https URIs
+          const uri = uriMatch[1].trim();
+          if (/^https?:\/\//i.test(uri)) {
+            _resourceCache.set(uri, { ct, body, ts: dateMatch ? new Date(dateMatch[1]).getTime() : Date.now() });
+          }
+        }
+      }
+      offset = httpEnd + 4;
     }
-  } catch(e) {}
+    console.log(`[cache] Loaded ${_resourceCache.size} entries from WARC`);
+  } catch (e) {
+    console.error("[cache] Failed to load WARC:", e.message);
+  }
 }
 loadWarc();
 
@@ -73,7 +81,9 @@ async function appendWarc(key, ct, bodyBuf, ts) {
     const warcHeaders = `WARC/1.0\r\nWARC-Type: response\r\nWARC-Record-ID: <urn:uuid:${randomUUID()}>\r\nWARC-Date: ${new Date(ts).toISOString()}\r\nWARC-Target-URI: ${key}\r\nContent-Type: application/http; msgtype=response\r\nContent-Length: ${httpBlock.length}\r\n\r\n`;
     const fullRecord = Buffer.concat([Buffer.from(warcHeaders), httpBlock, Buffer.from('\r\n\r\n')]);
     await fs.appendFile(CACHE_FILE, fullRecord);
-  } catch(e) {}
+  } catch (e) {
+    console.error("[cache] Failed to append WARC record:", e.message);
+  }
 }
 
 async function cacheGet(key) {
@@ -108,17 +118,34 @@ app.post("/api/cache-site", (req, res) => {
   const { url, urls } = req.body;
   const list = urls || (url ? [url] : []);
   if (!list.length) return res.status(400).json({ error: "Missing URL(s)" });
-  try {
-    for (const u of list) {
-       const child = spawn("node", ["scripts/cache.mjs", u], {
-         cwd: __dirname,
-         stdio: "ignore",
-         detached: true
-       });
-       child.unref();
+
+  // Validate each URL before spawning — prevents command injection via malformed input
+  const validList = [];
+  for (const u of list) {
+    if (typeof u !== "string") continue;
+    try {
+      const parsed = new URL(u);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+      if (isBlockedUrl(u)) continue;
+      validList.push(u);
+    } catch {
+      // skip invalid URLs
     }
-    res.json({ success: true, message: `Caching job started for ${list.length} URL(s)!` });
-  } catch(e) {
+  }
+  if (!validList.length) return res.status(400).json({ error: "No valid URL(s) provided" });
+
+  try {
+    for (const u of validList) {
+      const child = spawn("node", ["scripts/cache.mjs", u], {
+        cwd: __dirname,
+        stdio: "ignore",
+        detached: true,
+      });
+      child.unref();
+    }
+    res.json({ success: true, message: `Caching job started for ${validList.length} URL(s)!` });
+  } catch (e) {
+    console.error("[cache-site] Failed to start caching job:", e.message);
     res.status(500).json({ error: "Failed to start caching job" });
   }
 });
@@ -148,10 +175,19 @@ function enc(url) {
 }
 
 function dec(encoded) {
-  const normalized = String(encoded).replace(/-/g, "+").replace(/_/g, "/");
-  const padding = normalized.length % 4;
-  const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
-  return Buffer.from(padded, "base64").toString("utf8");
+  try {
+    const str = String(encoded);
+    // Accept both base64url (- _) and standard base64 (+ /)
+    const normalized = str.replace(/-/g, "+").replace(/_/g, "/");
+    const padding = normalized.length % 4;
+    const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
+    const decoded = Buffer.from(padded, "base64").toString("utf8");
+    // Must decode to a valid http/https URL
+    if (!/^https?:\/\//i.test(decoded)) throw new Error("Decoded value is not an http/https URL");
+    return decoded;
+  } catch (e) {
+    throw new Error(`URL decode failed: ${e.message}`);
+  }
 }
 
 function rewriteUrl(raw, base) {
@@ -367,12 +403,12 @@ function injectionScript(base) {
    ═══════════════════════════════════════════ */
 
 function proxyBar(displayUrl) {
-  const safe = displayUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+  const safe = displayUrl.replace(/&/g, "&amp;").replace(/'/g, "&#39;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   let domain = "";
   try { domain = new URL(displayUrl).hostname; } catch {}
-  const favicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : "";
+  const favicon = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32` : "";
   const faviconHtml = favicon
-    ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'"/>`
+    ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'" alt=""/>`
     : "";
   return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:rgba(6,6,11,.94);backdrop-filter:blur(16px) saturate(1.2);border-bottom:1px solid rgba(255,255,255,.06);font-family:-apple-system,system-ui,sans-serif;font-size:12px;color:#9a9bb8;box-shadow:0 4px 24px rgba(0,0,0,.3);">
 <a href="/" target="_top" style="background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;text-decoration:none;letter-spacing:-.04em;font-size:16px;">void</a><span style="color:rgba(255,255,255,.4);font-size:12px;font-weight:500;margin-left:2px;">Go Anywhere</span>
@@ -381,16 +417,8 @@ function proxyBar(displayUrl) {
 <button onclick="history.forward()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Forward">&#8594;</button>
 <button onclick="location.reload()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Reload">&#8635;</button>
 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.35);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.05);font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:11px;color:#646478;display:flex;align-items:center;gap:6px;">${faviconHtml}${safe}</span>
-<button id="__vjstog" onclick="var p=document.getElementById('__vjspanel');if(p)p.style.display=p.style.display==='flex'?'none':'flex';" style="padding:5px 10px;border-radius:8px;background:rgba(124,106,255,.15);color:#a78bfa;border:1px solid rgba(124,106,255,.25);cursor:pointer;font-weight:600;font-size:11px;" title="Inject JS">JS</button>
 <a href="/" target="_top" style="padding:5px 14px;border-radius:8px;background:rgba(255,255,255,.05);color:#ccc;text-decoration:none;font-weight:600;font-size:11px;border:1px solid rgba(255,255,255,.06);transition:background .15s;">Home</a>
-<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';var p=document.getElementById('__vjspanel');if(p)p.style.display='none';" style="padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.04);color:#ff5f8f;border:1px solid rgba(255,255,255,.06);cursor:pointer;font-weight:700;font-size:13px;">&#x2715;</button>
-</div>
-<div id="__vjspanel" style="display:none;position:fixed;top:42px;left:0;right:0;z-index:2147483646;flex-direction:column;gap:8px;padding:12px;background:rgba(6,6,11,.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08);font-family:-apple-system,system-ui,sans-serif;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);">
-<textarea id="__vjst" placeholder="Enter JavaScript to run in this page... e.g. document.body.style.background='#111'" style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.4);color:#e0e0e0;font-family:monospace;font-size:12px;resize:vertical;box-sizing:border-box;"></textarea>
-<div style="display:flex;gap:8px;align-items:center;">
-<button onclick="try{var c=document.getElementById('__vjst').value;if(c){(0,eval)(c);}}catch(e){console.error(e);alert('Error: '+e.message);}" style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,#7c6aff,#6d28d9);color:#fff;border:none;cursor:pointer;font-weight:600;font-size:12px;">Run</button>
-<button onclick="document.getElementById('__vjspanel').style.display='none';" style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.06);color:#9a9bb8;border:1px solid rgba(255,255,255,.08);cursor:pointer;font-size:12px;">Close</button>
-</div>
+<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';" style="padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.04);color:#ff5f8f;border:1px solid rgba(255,255,255,.06);cursor:pointer;font-weight:700;font-size:13px;" aria-label="Close toolbar">&#x2715;</button>
 </div>
 <div id="__vsp" style="height:42px;"></div>`;
 }
@@ -502,7 +530,9 @@ function buildHeaders(req, targetUrl) {
     h["host"] = u.host;
     h["referer"] = u.origin + "/";
     h["origin"] = u.origin;
-  } catch {}
+  } catch (e) {
+    console.error("[proxy] buildHeaders: invalid targetUrl:", e.message);
+  }
   const scoped = scopeCookiesForTarget(req.headers.cookie, targetUrl);
   if (scoped) h["cookie"] = scoped;
   h["accept-encoding"] = "gzip, deflate, br";
@@ -533,11 +563,13 @@ async function handleProxy(req, res) {
     try {
       const u = new URL(targetUrl);
       for (const [k, v] of Object.entries(req.query)) {
-        if (k === "nojs" || k === "noimg" || k === "eruda") continue;
+        if (k === "nojs" || k === "noimg" || k === "eruda" || k === "offline") continue;
         u.searchParams.set(k, v);
       }
       targetUrl = u.href;
-    } catch {}
+    } catch (e) {
+      console.error("[proxy] Failed to merge query params:", e.message);
+    }
   }
 
   const opts = {
@@ -553,10 +585,6 @@ async function handleProxy(req, res) {
   if (opts.noimg) optQs.push("noimg=1");
   if (opts.eruda) optQs.push("eruda=1");
   const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
-
-  // Temporarily override enc() to append options
-  const _enc = (url) => enc(url) + optSuffix;
-  const origRewriteUrl = rewriteUrl;
 
   try {
     const headers = buildHeaders(req, targetUrl);
@@ -588,8 +616,14 @@ async function handleProxy(req, res) {
     if (req.method === "GET") {
       const cached = await cacheGet("p:" + targetUrl);
       if (cached) {
-        res.set("content-type", cached.ct);
         res.set("X-Void-Cache", "HIT");
+        if (cached.ct && cached.ct.includes("text/html")) {
+          // Re-rewrite cached HTML with current options
+          const rawHtml = cached.body.toString("utf8");
+          const patched = rewriteHtmlWithOpts(rawHtml, targetUrl, opts, optSuffix);
+          return res.type("text/html; charset=utf-8").send(patched);
+        }
+        res.set("content-type", cached.ct);
         return res.send(cached.body);
       }
     }
@@ -617,7 +651,7 @@ async function handleProxy(req, res) {
     ]);
     for (const [k, v] of response.headers.entries()) {
       if (STRIP_RES.has(k.toLowerCase())) continue;
-      try { res.set(k, v); } catch {}
+      try { res.set(k, v); } catch (e) { /* skip headers that Express rejects (e.g. invalid chars) */ }
     }
     const setCookies = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
     for (const raw of setCookies) {
@@ -631,7 +665,8 @@ async function handleProxy(req, res) {
       // Temporarily patch rewriteUrl to include options
       const patched = text ? rewriteHtmlWithOpts(text, targetUrl, opts, optSuffix) : text;
       res.type("text/html; charset=utf-8").send(patched);
-      cacheSet("p:" + targetUrl, "text/html; charset=utf-8", patched);
+      // Cache the raw (pre-rewrite) HTML so it can be re-rewritten on cache hit with fresh options
+      cacheSet("p:" + targetUrl, "text/html; charset=utf-8", text || "");
       return;
     }
 
@@ -663,7 +698,9 @@ async function handleProxy(req, res) {
       try {
         Readable.fromWeb(response.body).pipe(res);
         return;
-      } catch {}
+      } catch (streamErr) {
+        console.error("[proxy] Stream pipe failed, falling back to buffer:", streamErr.message);
+      }
     }
     const buf = Buffer.from(await response.arrayBuffer());
     if (buf.length < 2 * 1024 * 1024) cacheSet("p:" + targetUrl, ct, buf);
@@ -716,7 +753,9 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   if (baseTag.length) {
     try {
       resolveBase = new URL(baseTag.attr("href"), base).href;
-    } catch {}
+    } catch (e) {
+      console.error("[rewrite] Invalid <base href>:", e.message);
+    }
     baseTag.remove();
   }
 
@@ -856,10 +895,17 @@ function encPe(url) {
 }
 
 function decPe(encoded) {
-  const normalized = String(encoded).replace(/-/g, "+").replace(/_/g, "/");
-  const padding = normalized.length % 4;
-  const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
-  return Buffer.from(padded, "base64").toString("utf8");
+  try {
+    const str = String(encoded);
+    const normalized = str.replace(/-/g, "+").replace(/_/g, "/");
+    const padding = normalized.length % 4;
+    const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
+    const decoded = Buffer.from(padded, "base64").toString("utf8");
+    if (!/^https?:\/\//i.test(decoded)) throw new Error("Decoded value is not an http/https URL");
+    return decoded;
+  } catch (e) {
+    throw new Error(`URL decode failed: ${e.message}`);
+  }
 }
 
 const STEALTH_UA =
@@ -951,7 +997,9 @@ function experimentalRewriteHtml(html, base, optSuffix) {
   if ((m = baseRegex.exec(html))) {
     try {
       resolveBase = new URL(m[1], base).href;
-    } catch {}
+    } catch (e) {
+      console.error("[experimental rewrite] Invalid <base href>:", e.message);
+    }
   }
   html = html.replace(baseRegex, "");
 
@@ -1271,7 +1319,9 @@ async function handleExperimentalProxy(req, res) {
         u.searchParams.set(k, v);
       }
       targetUrl = u.href;
-    } catch {}
+    } catch (e) {
+      console.error("[experimental proxy] Failed to merge query params:", e.message);
+    }
   }
 
   const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
@@ -1345,7 +1395,7 @@ async function handleExperimentalProxy(req, res) {
       if (!decompressed && (kl === "content-encoding" || kl === "content-length")) continue;
       try {
         if (!Array.isArray(v)) res.set(k, v);
-      } catch {}
+      } catch (e) { /* skip headers that Express rejects */ }
     }
 
     if (contentType.includes("text/html")) {
@@ -1447,7 +1497,7 @@ function handlePeWsUpgrade(req, socket, head) {
   const isWss = u.protocol === "wss:";
   const port = parseInt(u.port, 10) || (isWss ? 443 : 80);
   const key = req.headers["sec-websocket-key"] || "";
-  const accept = createHash("sha1").update(key + "258EAFA5-E907-79C0-96EC-E2C3F2E2612D").digest("base64");
+  const accept = createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
 
   socket.write(
     `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
@@ -1480,11 +1530,13 @@ function handlePeWsUpgrade(req, socket, head) {
     socket.write(chunk);
   });
 
-  conn.on("error", () => {
+  conn.on("error", (err) => {
+    console.error("[ws-proxy] Target connection error:", err.message);
     socket.destroy();
     conn.destroy();
   });
-  socket.on("error", () => {
+  socket.on("error", (err) => {
+    console.error("[ws-proxy] Client socket error:", err.message);
     socket.destroy();
     conn.destroy();
   });

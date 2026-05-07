@@ -7,8 +7,9 @@ var CFG = { proxy: '', origin: '', cookies: {} };
 
 var VOID_PATHS = new Set([
   '/', '/void.html', '/void-admin.html', '/void-sw.js',
-  '/server.js', '/worker.js', '/favicon.ico', '/index.html',
-  '/package.json', '/wrangler.toml', '/package-lock.json'
+  '/server.js', '/worker.js', '/favicon.ico', '/favicon.svg', '/index.html',
+  '/package.json', '/wrangler.toml', '/package-lock.json',
+  '/scramjet.html', '/uv.html', '/uv-boot.mjs', '/scramjet-boot.mjs',
 ]);
 
 /* ── Response cache (GET only; HTML = short TTL, assets = long TTL) ── */
@@ -156,7 +157,11 @@ self.addEventListener('fetch', function(e) {
 
       return out;
     } catch(err) {
-      return new Response('SW proxy error: ' + err.message, { status: 502 });
+      console.error('[void-sw] Proxy error for', targetUrl, err.message);
+      return new Response('SW proxy error: ' + err.message, {
+        status: 502,
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
   })());
 });
