@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="3.2.0"/>
+  <meta name="void-version" content="3.2.1"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -1945,7 +1945,12 @@ function _clientInjection(){
     closed: false, opener: window, document: document,
     close: function(){ this.closed = true; }, focus: function(){}, blur: function(){},
     postMessage: function(){}, addEventListener: function(){}, removeEventListener: function(){},
-    location: { href: '', replace: function(u){ _nav(_abs(u)); }, assign: function(u){ _nav(_abs(u)); } },
+    location: {
+      href: '',
+      replace: function(u){ _nav(_abs(u)); },
+      assign: function(u){ _nav(_abs(u)); },
+      set href(u){ _nav(_abs(u)); }
+    },
     get innerWidth(){ return window.innerWidth; }, get innerHeight(){ return window.innerHeight; }
   };
   window.open = function(u, name, features){
@@ -2057,6 +2062,27 @@ function _clientInjection(){
       });
     }
   } catch(e){}
+  // Intercept anchor href setter — use data-void-href to prevent native navigation
+  try {
+    var _anchorHrefDesc = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, 'href');
+    if(_anchorHrefDesc && _anchorHrefDesc.set){
+      Object.defineProperty(HTMLAnchorElement.prototype, 'href', {
+        set: function(v){
+          if(v && typeof v === 'string' && !/^(javascript:|data:|mailto:|blob:|#)/i.test(v.trim())){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1){
+              _origSetAttribute.call(this, 'data-void-href', _proxied(a));
+              _anchorHrefDesc.set.call(this, 'javascript:void(0)');
+              return;
+            }
+          }
+          _anchorHrefDesc.set.call(this, v);
+        },
+        get: _anchorHrefDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
   try {
     var _imgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
     if(_imgSrcDesc && _imgSrcDesc.set){
@@ -2109,6 +2135,15 @@ function _clientInjection(){
       } else if(n === 'href' && tag === 'LINK'){
         var a = _abs(value);
         if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
+      } else if(n === 'href' && (tag === 'A' || tag === 'AREA')){
+        // Use data-void-href so the browser can never follow natively
+        if(!/^(javascript:|data:|mailto:|blob:|#)/i.test(value.trim())){
+          var a = _abs(value);
+          if(_shouldProxy(a) && a.indexOf(_cp) === -1){
+            _origSetAttribute.call(this, 'data-void-href', _proxied(a));
+            value = 'javascript:void(0)';
+          }
+        }
       } else if(n === 'srcset'){
         value = _rewriteSrcset(value);
       } else if(n === 'target' && (tag === 'A' || tag === 'FORM' || tag === 'AREA' || tag === 'BASE')){
@@ -2190,8 +2225,16 @@ function _clientInjection(){
   var _origWriteln = document.writeln.bind(document);
   var _origOpen = document.open.bind(document);
   var _docLoaded = false;
-  document.write = function(s){ if(!_docLoaded) return _origWrite(s); };
-  document.writeln = function(s){ if(!_docLoaded) return _origWriteln(s); };
+  function _rwDocStr(s){
+    if(!s || typeof s !== 'string') return s;
+    // Rewrite src/href/action attributes in injected HTML strings
+    return s.replace(/((?:src|href|action)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+      if(url.indexOf(_cp) !== -1) return m;
+      return attr + q + _proxied(url) + q;
+    });
+  }
+  document.write = function(s){ if(!_docLoaded) return _origWrite(_rwDocStr(s)); };
+  document.writeln = function(s){ if(!_docLoaded) return _origWriteln(_rwDocStr(s)); };
   document.open = function(){ if(!_docLoaded) return _origOpen.apply(document, arguments); return document; };
   if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
   else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
@@ -2211,6 +2254,38 @@ function _clientInjection(){
       });
     } catch(e){}
   }
+
+  /* ── innerHTML / insertAdjacentHTML interception ── */
+  try {
+    var _origInnerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    if(_origInnerHTMLDesc && _origInnerHTMLDesc.set){
+      Object.defineProperty(Element.prototype, 'innerHTML', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            v = v.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+              if(url.indexOf(_cp) !== -1) return m;
+              return attr + q + _proxied(url) + q;
+            });
+          }
+          _origInnerHTMLDesc.set.call(this, v);
+        },
+        get: _origInnerHTMLDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _origInsAdj = Element.prototype.insertAdjacentHTML;
+    Element.prototype.insertAdjacentHTML = function(pos, html){
+      if(html && typeof html === 'string'){
+        html = html.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+          if(url.indexOf(_cp) !== -1) return m;
+          return attr + q + _proxied(url) + q;
+        });
+      }
+      return _origInsAdj.call(this, pos, html);
+    };
+  } catch(e){}
 
   /* ── Flag real breakouts only (skip when Void replaced the document — see voidMarkInternalNavigation) ── */
   window.addEventListener('beforeunload', function(){
@@ -2279,9 +2354,11 @@ function _clientInjection(){
       if(ah && !/^(javascript:|data:|mailto:|blob:|#)/i.test(ah.trim())){
         var aAbs = _abs(ah);
         if(_shouldProxy(aAbs) && ah.indexOf(_cp) === -1){
-          var pu = _proxied(ah);
-          if(el.hasAttribute('href')) el.setAttribute('href', pu);
-          else try { el.setAttributeNS('http://www.w3.org/1999/xlink', 'href', pu); } catch(e2){ el.setAttribute('href', pu); }
+          // Use data-void-href + javascript:void(0) so the browser can never
+          // follow the link natively — same pattern as the static HTML rewriter
+          _origSetAttribute.call(el, 'data-void-href', _proxied(aAbs));
+          _origSetAttribute.call(el, 'href', 'javascript:void(0)');
+          if(el.hasAttribute('target')) el.removeAttribute('target');
         }
       }
     }
