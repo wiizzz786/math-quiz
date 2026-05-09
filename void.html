@@ -6,7 +6,7 @@
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
   <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
   <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <meta name="void-version" content="3.2.3"/>
+  <meta name="void-version" content="3.2.4"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
@@ -1543,21 +1543,26 @@ function _clientInjection(){
   }
   var _top = window.top || window.parent;
   var _navHandled = false;
+  // Generation counter: incremented each time render() replaces the document.
+  // The fallback checks this so a stale timeout from a previous nav never fires.
+  var _navGen = 0;
   function _nav(url){
     _navHandled = false;
+    var myGen = ++_navGen;
     _top.postMessage({ type: 'void_navigate', url: url }, '*');
     setTimeout(function(){
-      if(!_navHandled){
-        _dbg('nav-fallback', url);
-        var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
-        var fo = { headers: { 'X-Void-Dest': 'document' } };
-        var ck = _getCookiesFor(url);
-        if(ck) fo.headers['X-Void-Cookie'] = ck;
-        window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
-          _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
-        }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
-      }
-    }, 200);
+      // Bail if the engine already ack'd, or if a newer render has happened
+      if(_navHandled || _navGen !== myGen) return;
+      _dbg('nav-fallback', url);
+      var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
+      var fo = { headers: { 'X-Void-Dest': 'document' } };
+      var ck = _getCookiesFor(url);
+      if(ck) fo.headers['X-Void-Cookie'] = ck;
+      window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
+        if(_navGen !== myGen) return; // another nav happened while we were fetching
+        _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
+      }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
+    }, 600);
   }
   window.addEventListener('message', function(e){
     if(e.data && e.data.type === 'void_nav_ack') _navHandled = true;
@@ -2765,6 +2770,8 @@ function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
     // Inline voidMarkInternalNavigation — the outer-scope function is destroyed
     // after document.write() replaces the document, so we can't call it by name.
     try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
+    // Invalidate any pending nav-fallback timers from the previous page
+    _navGen++;
     _curUrl = url;
     try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
     var css = '<style>' + TB_CSS + '</style>';
