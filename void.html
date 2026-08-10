@@ -1,0 +1,4360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+  <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
+  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
+  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
+  <meta name="void-version" content="3.2.4"/>
+  <meta name="void-uid" content=""/>
+  <meta name="void-owner" content=""/>
+  <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
+  <meta name="void-default-mode" content="client"/>
+  <!-- Scramjet: void-scramjet-path=/ → https://host/?url=… (no /scramjet.html in the link). Omit meta to use /scramjet.html?url= instead. -->
+  <meta name="void-scramjet-base" content="https://scuv2.tailf49039.ts.net"/>
+  <meta name="void-scramjet-path" content="/"/>
+  <!-- UV: void-uv-path=/ → https://host:8443/?url=… (no /uv.html in the link). Omit meta to use /uv.html?url= instead. -->
+  <meta name="void-uv-base" content="https://scuv2.tailf49039.ts.net:8443"/>
+  <meta name="void-uv-path" content="/"/>
+  <!-- Client mode: full CORS proxy base including ?url= (must match your Worker) -->
+  <meta name="void-cors-proxy-base" content="https://void-proxy.aadizzz786.workers.dev/?url="/>
+  <!-- hello from the void 🌌 -->
+  <!-- frogs are just software bugs that escaped -->
+  <title>Void</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #06060b;
+      --surface: rgba(255,255,255,.022);
+      --surface2: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.055);
+      --border2: rgba(255,255,255,.1);
+      --accent: #7c6aff;
+      --accent-glow: rgba(124,106,255,.15);
+      --accent2: #ff5f8f;
+      --accent2-glow: rgba(255,95,143,.12);
+      --green: #34d399;
+      --text: #eef0f8;
+      --sub: #9a9bb8;
+      --muted: #464660;
+      --dim: #2a2a3d;
+      --rad: 20px;
+      --rad-sm: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-y: hidden; -webkit-text-size-adjust: 100%; }
+    button, a, input, textarea, select, .ql, .eng-btn, .eng-more-btn, .h-item, .opt { touch-action: manipulation; }
+
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .wavy-grad {
+      position: absolute; inset: -20%;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(124,106,255,.18) 40%, transparent 70%),
+        linear-gradient(260deg, transparent 0%, rgba(255,95,143,.12) 35%, transparent 70%),
+        linear-gradient(380deg, transparent 0%, rgba(52,211,153,.08) 40%, transparent 75%);
+      background-size: 150% 150%;
+      animation: wavy-drift 30s linear infinite;
+      filter: blur(50px);
+      opacity: 0.9;
+    }
+    @keyframes wavy-drift {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { .wavy-grad { animation: none; } }
+    .bg .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .bg .noise-grad {
+      position: absolute; inset: -15%;
+      background:
+        radial-gradient(ellipse 70% 50% at 25% 35%, rgba(124,106,255,.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 70% at 75% 65%, rgba(255,95,143,.08) 0%, transparent 50%);
+      opacity: 0.9;
+    }
+
+    .app {
+      position: relative; z-index: 1;
+      height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
+      min-height: 0;
+      display: flex; flex-direction: column;
+    }
+
+    .brand, .card, .hint-row, .foot {
+      opacity: 0; transform: translateY(18px);
+      animation: enter .7s cubic-bezier(.16,1,.3,1) forwards;
+    }
+    .brand    { animation-delay: .15s; }
+    .card     { animation-delay: .28s; }
+    .hint-row { animation-delay: .4s; }
+    .foot     { animation-delay: .5s; }
+    @keyframes enter { to { opacity: 1; transform: translateY(0); } }
+
+    .landing {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: max(2rem, env(safe-area-inset-top, 0px));
+      padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(2.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+      gap: 1.5rem;
+      overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      transition: opacity .3s, transform .3s;
+    }
+    .landing.hidden { opacity: 0; pointer-events: none; transform: scale(.97); position: absolute; inset: 0; }
+
+    .brand { text-align: center; }
+    .brand .logo-text {
+      font-size: clamp(4.5rem, 14vw, 8rem); font-weight: 900;
+      letter-spacing: -.08em; line-height: .82;
+      background: linear-gradient(135deg, #fff 0%, #d0cbff 25%, #a78bfa 50%, #ff5f8f 75%, #ff8f5f 100%);
+      background-size: 200% 200%;
+      animation: grad-shift 6s ease infinite;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 50px rgba(124,106,255,.2));
+    }
+    @keyframes grad-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .brand p {
+      font-size: .68rem; font-weight: 600; letter-spacing: .45em;
+      text-transform: uppercase; color: var(--muted); margin-top: .6rem;
+    }
+
+    .card {
+      width: 100%; max-width: 660px;
+      background: linear-gradient(170deg, rgba(255,255,255,.028) 0%, rgba(255,255,255,.008) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--rad);
+      padding: 2rem;
+      backdrop-filter: blur(20px) saturate(1.1);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 0 0 1px rgba(0,0,0,.4),
+        0 25px 80px -15px rgba(0,0,0,.55),
+        0 0 120px rgba(124,106,255,.035);
+    }
+
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,.45);
+      border: 1.5px solid var(--border);
+      border-radius: var(--rad-sm);
+      padding: 5px 6px 5px 16px;
+      transition: border-color .3s, box-shadow .3s;
+      position: relative;
+    }
+    .search-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 0 40px rgba(124,106,255,.06);
+    }
+    .search-ico { width: 18px; height: 18px; flex-shrink: 0; opacity: .3; transition: opacity .2s; }
+    .search-wrap:focus-within .search-ico { opacity: .6; }
+    .search-wrap input[type="text"] {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .88rem;
+      padding: .55rem 0; caret-color: var(--accent); min-width: 0;
+    }
+    .search-wrap input::placeholder { color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 400; }
+    .go-btn {
+      padding: .65rem 2rem;
+      background: linear-gradient(135deg, var(--accent), #9f8aff 50%, var(--accent2));
+      background-size: 200% 200%;
+      border: none; border-radius: 10px; color: #fff;
+      font-family: inherit; font-weight: 700; font-size: .82rem;
+      cursor: pointer; letter-spacing: .04em;
+      transition: transform .15s, box-shadow .25s, background-position .4s;
+      box-shadow: 0 4px 24px rgba(124,106,255,.3), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .go-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(124,106,255,.45), inset 0 1px 0 rgba(255,255,255,.15); background-position: 100% 50%; }
+    .go-btn:active { transform: scale(.96) translateY(0); }
+
+    .section-hdr { display: flex; align-items: center; gap: 10px; margin-top: 1.5rem; margin-bottom: .7rem; }
+    .section-hdr span { font-size: .6rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+    .section-hdr::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent 80%); }
+
+    .engines { display: flex; gap: 6px; flex-wrap: wrap; }
+    .eng-btn {
+      position: relative; display: flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: 10px; background: var(--surface);
+      border: 1.5px solid var(--border); color: var(--sub);
+      font-family: inherit; font-size: .74rem; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; white-space: nowrap;
+    }
+    .eng-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-2px) scale(1.03); }
+    .eng-btn:active { transform: scale(.94); }
+    .eng-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 20px rgba(124,106,255,.1); }
+    .eng-btn .ico { width: 16px; height: 16px; border-radius: 3px; }
+    .eng-more-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.03);
+      border: 1.5px dashed var(--border); color: var(--muted);
+      font-family: inherit; font-size: .7rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .eng-more-btn:hover { background: var(--surface); color: var(--sub); border-color: var(--border2); }
+    .eng-more-btn .arrow { font-size: .55rem; transition: transform .2s; }
+    .eng-more-btn.open .arrow { transform: rotate(180deg); }
+    .engines-extra {
+      display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .engines-extra.show { display: flex; }
+    .rec-badge {
+      position: absolute; top: -7px; right: -5px;
+      font-size: .5rem; font-weight: 800; letter-spacing: .06em;
+      padding: 2px 6px; border-radius: 5px;
+      background: linear-gradient(135deg, #34d399, #2ac88e);
+      color: #000; box-shadow: 0 2px 8px rgba(52,211,153,.3);
+    }
+
+    .opts { display: flex; gap: 16px; flex-wrap: wrap; }
+    .opt {
+      display: flex; align-items: center; gap: 9px;
+      font-size: .74rem; font-weight: 500; color: var(--sub);
+      cursor: pointer; user-select: none; transition: color .2s;
+    }
+    .opt:hover { color: var(--text); }
+    .opt input { display: none; }
+    .toggle-track {
+      width: 36px; height: 20px; border-radius: 10px;
+      background: var(--dim); border: 1px solid var(--border);
+      position: relative; transition: all .3s cubic-bezier(.16,1,.3,1); flex-shrink: 0;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--sub); transition: all .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .opt input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,106,255,.3); }
+    .opt input:checked ~ .toggle-track::after { transform: translateX(16px); background: #fff; }
+    .opt.opt-backend { flex-direction: column; align-items: stretch; cursor: default; }
+    .opt.opt-backend input[type=url] { display: block; width: 100%; padding: 8px 12px; margin-top: 4px; font-size: .75rem; font-family: 'JetBrains Mono', monospace; background: var(--dim); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+    .opt.opt-backend input[type=url]::placeholder { color: var(--muted); }
+    .opt.opt-backend .opt-label { display: block; font-size: .7rem; color: var(--sub); }
+    .opts-backend { flex-direction: column; }
+
+    .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+    .ql {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; border-radius: 10px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--sub);
+      font-family: inherit; font-size: .74rem; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; text-decoration: none;
+    }
+    .ql:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 28px rgba(0,0,0,.25); }
+    .ql:active { transform: scale(.95); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .ql img { width: 18px; height: 18px; border-radius: 4px; border: none; background: transparent; }
+
+    .ql .ql-rm {
+      margin-left: auto; font-size: .55rem; color: var(--muted); opacity: 0;
+      background: none; border: none; cursor: pointer; padding: 2px 4px; transition: .15s;
+    }
+    .ql:hover .ql-rm { opacity: 1; }
+    .ql .ql-rm:hover { color: var(--accent2); }
+
+    .section-row { display: flex; align-items: center; justify-content: space-between; }
+    .section-row .section-hdr { flex: 1; }
+    .section-row .sec-action {
+      font-size: .55rem; font-weight: 700; color: var(--accent); cursor: pointer;
+      background: none; border: none; padding: 2px 8px; letter-spacing: .06em;
+      text-transform: uppercase; transition: .15s;
+    }
+    .section-row .sec-action:hover { color: var(--text); }
+
+    .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+    .h-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 10px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--sub);
+      font-size: .7rem; font-weight: 500; cursor: pointer;
+      transition: all .2s; text-decoration: none; overflow: hidden;
+    }
+    .h-item:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+    .h-item img { width: 16px; height: 16px; border: none; border-radius: 3px; flex-shrink: 0; }
+    .h-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-item .h-rm {
+      margin-left: auto; font-size: .5rem; color: var(--muted); opacity: 0;
+      background: none; border: none; cursor: pointer; padding: 2px; flex-shrink: 0;
+    }
+    .h-item:hover .h-rm { opacity: 1; }
+    .h-item .h-rm:hover { color: var(--accent2); }
+
+    .search-suggest {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+      background: rgba(10,10,20,.97); border: 1px solid var(--border);
+      border-radius: 0 0 12px 12px; max-height: 220px; overflow-y: auto;
+      display: none;
+    }
+    .search-suggest.show { display: block; }
+    .sug-item {
+      padding: 8px 14px; font-size: .75rem; color: var(--sub);
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: background .1s;
+    }
+    .sug-item:hover, .sug-item.active { background: rgba(124,106,255,.1); color: var(--text); }
+    .sug-item img { width: 14px; height: 14px; border: none; border-radius: 3px; }
+    .sug-tag {
+      font-size: .48rem; font-weight: 700; letter-spacing: .06em; padding: 1px 5px;
+      border-radius: 3px; margin-left: auto; text-transform: uppercase;
+    }
+    .sug-tag.bk { background: rgba(124,106,255,.12); color: var(--accent); }
+    .sug-tag.hist { background: rgba(52,211,153,.1); color: var(--green); }
+
+    .hint-row {
+      font-size: .62rem; color: var(--muted); letter-spacing: .02em;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hint-row kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 7px; border-radius: 5px;
+      background: rgba(255,255,255,.035); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .56rem;
+      color: var(--sub); line-height: 1.4;
+    }
+    .foot {
+      display: flex; align-items: center; gap: 10px;
+      font-size: .6rem; color: var(--muted); letter-spacing: .08em; font-weight: 500;
+    }
+    .foot .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); opacity: .35; }
+
+    .mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mode-btn {
+      padding: 6px 12px; border-radius: var(--rad-sm); font-size: .72rem; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); color: var(--sub);
+      cursor: pointer; transition: all .25s cubic-bezier(.16,1,.3,1);
+    }
+    .mode-btn:hover { transform: translateY(-1px); }
+    .mode-btn:active { transform: scale(.94); }
+    .mode-btn.active { background: var(--accent-glow); border-color: rgba(124,106,255,.35); color: #fff; box-shadow: 0 0 16px rgba(124,106,255,.15); }
+    .mode-btn .tag { font-size: .6rem; opacity: .9; margin-left: 4px; }
+
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      padding: 10px 22px; border-radius: 10px; background: rgba(0,0,0,.85);
+      border: 1px solid var(--border); color: var(--text); font-size: .78rem;
+      font-weight: 500; opacity: 0; pointer-events: none; z-index: 10072;
+      transition: all .3s cubic-bezier(.16,1,.3,1);
+      backdrop-filter: blur(12px);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .void-embed-overlay {
+      position: fixed; inset: 0; z-index: 10050;
+      background: var(--bg);
+      display: none; flex-direction: column;
+    }
+    .void-embed-overlay.show { display: flex; }
+    .void-embed-top {
+      flex-shrink: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      background: rgba(6,6,11,.96); backdrop-filter: blur(12px);
+      position: relative;
+    }
+    .void-embed-overlay.loading .void-embed-top::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #ff5f8f, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+      pointer-events: none;
+    }
+    .void-embed-top button {
+      padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: .76rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .void-embed-top button:hover { border-color: var(--border2); background: var(--surface2); }
+    .void-embed-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .void-embed-nav button { padding: 6px 12px; font-size: .72rem; }
+    .void-embed-top .void-embed-url {
+      font-size: .65rem; color: var(--muted); flex: 1; min-width: 120px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+    }
+    .void-embed-top .void-embed-url[title] { border-bottom: 1px dashed rgba(255,255,255,.12); }
+    .void-embed-wrap { flex: 1; position: relative; min-height: 0; }
+    .void-embed-wrap iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+      z-index: 1;
+    }
+    .void-embed-loading {
+      position: absolute; inset: 0; z-index: 2;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(6,6,11,.94); backdrop-filter: blur(10px);
+      padding: 1.5rem;
+    }
+    .void-embed-loading.show { display: flex; }
+    .void-embed-loading-inner {
+      text-align: center; max-width: 22rem;
+      display: flex; flex-direction: column; align-items: center; gap: .5rem;
+    }
+    .void-embed-status-icon {
+      font-size: 1.75rem; line-height: 1; font-weight: 800; user-select: none;
+    }
+    .void-embed-icon-loading {
+      color: #a78bfa;
+      text-shadow: 0 0 18px rgba(167, 139, 250, .55);
+      animation: void-embed-status-blink .85s ease-in-out infinite;
+    }
+    .void-embed-icon-ready { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, .35); }
+    .void-embed-icon-error { color: #f87171; }
+    @keyframes void-embed-status-blink { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+    .void-embed-loading-inner p {
+      font-size: .78rem; font-weight: 600; color: var(--sub); letter-spacing: .06em;
+      text-transform: uppercase; margin: 0;
+    }
+    .void-embed-loading-inner.state-ready p,
+    .void-embed-loading-inner.state-error p { text-transform: none; letter-spacing: normal; font-size: .85rem; }
+    .void-embed-loading-bar {
+      height: 4px; width: 100%; max-width: 260px; margin: .25rem auto 0; border-radius: 3px;
+      overflow: hidden;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #c4b5fd, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+      box-shadow: 0 0 24px rgba(124,106,255,.25);
+    }
+    .void-embed-loading-inner.state-ready .void-embed-loading-bar,
+    .void-embed-loading-inner.state-error .void-embed-loading-bar { display: none; }
+    .void-embed-loading-sub {
+      margin-top: .35rem; font-size: .65rem; color: var(--muted); line-height: 1.45;
+    }
+
+    /* ── Ambient music player ── */
+    .music-ctrl {
+      position: fixed; bottom: 18px; right: 18px; z-index: 10070;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 12px;
+      background: rgba(6,6,11,.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); cursor: pointer;
+      transition: all .25s; opacity: .5; user-select: none;
+    }
+    .music-ctrl:hover { opacity: 1; border-color: var(--accent); box-shadow: 0 4px 20px rgba(124,106,255,.15); }
+    .music-ctrl.playing { opacity: .85; }
+    .music-ico {
+      width: 16px; height: 16px; display: flex; align-items: flex-end; gap: 2px;
+    }
+    .music-ico .bar {
+      width: 3px; border-radius: 2px;
+      background: linear-gradient(to top, var(--accent), var(--accent2));
+      transition: height .15s;
+    }
+    .music-ctrl:not(.playing) .music-ico .bar { height: 4px !important; }
+    .music-ctrl.playing .music-ico .bar { animation: music-bars .8s ease infinite alternate; }
+    .music-ico .bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+    .music-ico .bar:nth-child(2) { height: 10px; animation-delay: .15s; }
+    .music-ico .bar:nth-child(3) { height: 7px; animation-delay: .3s; }
+    .music-ico .bar:nth-child(4) { height: 12px; animation-delay: .1s; }
+    @keyframes music-bars {
+      0% { height: 4px; }
+      100% { height: 14px; }
+    }
+    .music-label {
+      font-size: .6rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); transition: color .2s;
+    }
+    .music-ctrl.playing .music-label { color: var(--sub); }
+    .music-vol {
+      -webkit-appearance: none; appearance: none; width: 50px; height: 3px;
+      border-radius: 2px; background: rgba(255,255,255,.1); outline: none;
+      cursor: pointer; margin-left: 2px;
+    }
+    .music-vol::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
+
+    /* In-page embed: music strip in header (same audio as floating control) */
+    .void-embed-music {
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+      padding: 5px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      cursor: pointer; user-select: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .void-embed-music:hover { border-color: var(--border2); box-shadow: 0 2px 12px rgba(124,106,255,.12); }
+    .void-embed-music.playing { border-color: rgba(124,106,255,.35); }
+    .void-embed-music .music-label { font-size: .55rem; max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .void-embed-music .music-vol { width: 72px; margin-left: 0; }
+    @media (max-width: 520px) {
+      .void-embed-music .music-vol { width: 56px; }
+    }
+
+    /* ── Boot screen ── */
+    .boot-screen {
+      position: fixed; inset: 0; z-index: 10000;
+      background: #06060b;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1.2rem;
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .boot-screen.done { opacity: 0; pointer-events: none; transform: scale(1.05); }
+    .boot-logo {
+      font-size: 5rem; font-weight: 900; letter-spacing: -.06em;
+      background: linear-gradient(135deg, #fff, #a78bfa, #ff5f8f);
+      background-size: 300% 300%;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: boot-grad 1.5s ease infinite;
+      opacity: 0; transform: scale(.7);
+    }
+    .boot-logo { opacity: 1; transform: scale(1); animation: boot-pop .35s cubic-bezier(.16,1,.3,1) both; }
+    @keyframes boot-pop { from { opacity: 0; transform: scale(.7); } }
+    @keyframes boot-grad { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+    .boot-lines {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted);
+      opacity: 0;
+    }
+    .boot-lines.show { opacity: 1; transition: opacity .2s; }
+    .boot-line { opacity: 0; transform: translateY(6px); }
+    .boot-line.show { opacity: 1; transform: translateY(0); transition: all .15s cubic-bezier(.16,1,.3,1); }
+    .boot-bar-wrap {
+      width: 200px; height: 3px; border-radius: 3px;
+      background: rgba(255,255,255,.06); overflow: hidden;
+      opacity: 0;
+    }
+    .boot-bar-wrap.show { opacity: 1; transition: opacity .2s; }
+    .boot-bar {
+      height: 100%; width: 0; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .15s ease;
+    }
+    .boot-status {
+      font-family: 'JetBrains Mono', monospace; font-size: .55rem;
+      color: var(--green); letter-spacing: .08em; opacity: 0;
+    }
+    .boot-status.show { opacity: 1; transition: opacity .15s; }
+
+    /* ── Settings overlay ── */
+    .settings-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(6,6,11,.85); backdrop-filter: blur(20px);
+      opacity: 0; pointer-events: none; transition: opacity .3s ease;
+    }
+    .settings-overlay.visible { opacity: 1; pointer-events: all; }
+    .settings-card {
+      width: 100%; max-width: 460px;
+      background: linear-gradient(170deg, rgba(255,255,255,.035) 0%, rgba(255,255,255,.01) 100%);
+      border: 1px solid var(--border); border-radius: var(--rad); padding: 2rem;
+      backdrop-filter: blur(20px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 25px 80px -15px rgba(0,0,0,.55);
+      transform: translateY(20px) scale(.95); opacity: 0;
+      transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .3s;
+    }
+    .settings-overlay.visible .settings-card { transform: translateY(0) scale(1); opacity: 1; }
+    .settings-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .settings-title {
+      font-size: 1.4rem; font-weight: 800;
+      background: linear-gradient(135deg, #fff, #a78bfa, #ff5f8f);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .settings-x {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: rgba(255,255,255,.06); color: var(--sub); font-size: 16px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .settings-x:hover { background: rgba(255,95,143,.15); color: var(--accent2); transform: scale(1.1); }
+    .settings-sec { padding: 1rem 0; border-top: 1px solid var(--border); }
+    .settings-sec:first-of-type { border-top: none; padding-top: 0; }
+    .settings-sec-title {
+      font-size: .6rem; font-weight: 700; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: .75rem;
+    }
+    .settings-upd-btn {
+      width: 100%; padding: .75rem 1.5rem;
+      background: linear-gradient(135deg, var(--accent), #9f8aff 50%, var(--accent2));
+      background-size: 200% 200%;
+      border: none; border-radius: 10px; color: #fff;
+      font-family: inherit; font-weight: 700; font-size: .85rem;
+      cursor: pointer; transition: all .2s;
+      box-shadow: 0 4px 20px rgba(124,106,255,.3);
+    }
+    .settings-upd-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,106,255,.45); background-position: 100% 50%; }
+    .settings-upd-btn:active { transform: scale(.97); }
+    .settings-upd-btn:disabled { opacity: .6; cursor: wait; transform: none; }
+    .settings-info { font-size: .72rem; color: var(--muted); margin-top: .6rem; line-height: 1.6; }
+    .settings-info a { color: var(--accent); text-decoration: none; }
+    .settings-info a:hover { text-decoration: underline; }
+    .settings-info code { padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,.06); color: #ff8f5f; font-size: .7rem; }
+    .s-kbd {
+      display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px;
+      background: rgba(255,255,255,.035); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .58rem; color: var(--sub);
+    }
+
+    /* ── User ID badge ── */
+    .uid-badge {
+      position: fixed; top: 10px; right: 10px; z-index: 50;
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 8px;
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: .58rem;
+      color: var(--muted); cursor: default; user-select: all;
+      backdrop-filter: blur(8px); transition: opacity .3s;
+    }
+    .uid-badge:hover { color: var(--sub); border-color: var(--border2); }
+    .uid-badge .uid-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+    }
+
+    /* ── Ban screen ── */
+    .void-msg-toast {
+      position: fixed; top: 16px; right: 16px; z-index: 99998;
+      max-width: 340px; width: calc(100% - 32px);
+      background: rgba(15,15,25,.92); backdrop-filter: blur(16px);
+      border: 1px solid rgba(124,106,255,.25); border-radius: 14px;
+      padding: 14px 16px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transform: translateX(120%); transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .3s;
+      opacity: 0; pointer-events: none;
+    }
+    .void-msg-toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+    .void-msg-hdr {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    }
+    .void-msg-from {
+      font-size: .55rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--accent);
+    }
+    .void-msg-x {
+      width: 20px; height: 20px; border-radius: 6px; border: none;
+      background: rgba(255,255,255,.06); color: var(--muted); font-size: .7rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: .15s; flex-shrink: 0;
+    }
+    .void-msg-x:hover { background: rgba(255,95,143,.15); color: var(--accent2); }
+    .void-msg-text {
+      font-size: .82rem; color: var(--text); line-height: 1.55;
+      word-break: break-word;
+    }
+    .void-msg-time { font-size: .58rem; color: var(--muted); margin-top: 6px; }
+
+    .ban-screen {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #06060b; gap: 1rem; padding: 2rem; text-align: center;
+    }
+    .ban-screen h1 {
+      font-size: 3rem; font-weight: 900;
+      background: linear-gradient(135deg, #ff5f8f, #ff3333);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .ban-screen p { color: var(--muted); font-size: .85rem; max-width: 400px; line-height: 1.7; }
+    .ban-screen code {
+      display: inline-block; margin-top: .5rem; padding: 6px 14px;
+      border-radius: 8px; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,95,143,.2);
+      font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #ff5f8f;
+    }
+
+    body.void-fetching::after {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      z-index: 50000;
+      pointer-events: none;
+      background: linear-gradient(90deg, #4c1d95, #7c6aff, #ff5f8f, #7c6aff, #4c1d95);
+      background-size: 200% 100%;
+      animation: void-landing-load 1.2s linear infinite;
+    }
+    @keyframes void-landing-load {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    @media (max-width: 600px) {
+      .card { padding: 1.5rem; border-radius: 16px; }
+      .links { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .engines { gap: 4px; }
+      .eng-btn { padding: 7px 11px; font-size: .7rem; }
+      .opts { gap: 12px; }
+      .brand .logo-text { filter: none; }
+    }
+    /* ── Touch / iPad optimizations ── */
+    @media (pointer: coarse) {
+      .search-wrap input[type="text"] { font-size: 16px; }
+      .go-btn { padding: .85rem 2.2rem; font-size: .88rem; min-height: 48px; }
+      .eng-btn { padding: 11px 18px; font-size: .78rem; min-height: 44px; }
+      .eng-more-btn { padding: 11px 16px; min-height: 44px; }
+      .ql { padding: 12px 14px; min-height: 48px; font-size: .78rem; }
+      .h-item { padding: 12px 14px; min-height: 48px; font-size: .74rem; }
+      .opt { gap: 12px; min-height: 44px; }
+      .toggle-track { width: 44px; height: 24px; }
+      .toggle-track::after { width: 18px; height: 18px; }
+      .opt input:checked ~ .toggle-track::after { transform: translateX(20px); }
+      .ql .ql-rm { opacity: .7; padding: 8px; font-size: .65rem; }
+      .section-row .sec-action { padding: 6px 12px; font-size: .6rem; min-height: 36px; display: inline-flex; align-items: center; }
+    }
+    @media (min-width: 601px) and (max-width: 1024px) {
+      .card { max-width: 580px; }
+      .history-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+      .links { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div class="boot-screen" id="boot-screen">
+  <div class="boot-logo" id="boot-logo">void</div>
+  <div class="boot-lines" id="boot-lines">
+    <div class="boot-line" id="bl-0">initializing proxy engine...</div>
+    <div class="boot-line" id="bl-1">CORS worker…</div>
+    <div class="boot-line" id="bl-2">injecting rewrite module...</div>
+    <div class="boot-line" id="bl-3">mounting browser frame...</div>
+    <div class="boot-line" id="bl-4">sound system online</div>
+  </div>
+  <div class="boot-bar-wrap" id="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+  <div class="boot-status" id="boot-status">READY</div>
+</div>
+
+<div class="bg">
+  <div class="wavy-grad"></div>
+  <div class="noise-grad"></div>
+  <div class="grid"></div>
+</div>
+
+<div class="app">
+  <div class="landing" id="landing">
+    <div class="brand">
+      <h1 class="logo-text">void</h1>
+      <p>Go Anywhere</p>
+    </div>
+
+    <div class="card">
+      <div class="search-wrap">
+        <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="url-input" placeholder="Search the web or enter a URL..." autocomplete="off" spellcheck="false" autofocus/>
+        <button class="go-btn" id="go-btn">Browse</button>
+        <div class="search-suggest" id="search-suggest"></div>
+      </div>
+
+      <div class="section-hdr"><span>Proxy Mode</span></div>
+      <div class="mode-btns" id="mode-btns">
+        <button type="button" class="mode-btn active" data-m="custom">Custom Proxy <span class="tag">DEFAULT</span></button>
+      </div>
+
+      <div id="cfg-server" class="opts opts-backend" style="margin-top:10px;">
+        <label class="opt opt-backend">
+          <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Hosted Void Server URL</span>
+          <input type="url" id="server-backend" placeholder="https://your-void-server.example.com" autocomplete="off"/>
+        </label>
+      </div>
+
+      <div class="section-hdr"><span>Search Engine</span></div>
+      <div class="engines" id="engines">
+        <button class="eng-btn active" data-e="brave">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=brave.com&sz=32" alt=""/>Brave
+          <span class="rec-badge">BEST</span>
+        </button>
+        <button class="eng-btn" data-e="google">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/>Google
+        </button>
+        <button class="eng-btn" data-e="ddg">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=duckduckgo.com&sz=32" alt=""/>DuckDuckGo
+        </button>
+        <button class="eng-btn" data-e="bing">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=bing.com&sz=32" alt=""/>Bing
+        </button>
+        <button class="eng-btn" data-e="yahoo">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=yahoo.com&sz=32" alt=""/>Yahoo
+        </button>
+        <button class="eng-more-btn" id="eng-more-btn">More <span class="arrow">&#9660;</span></button>
+      </div>
+      <div class="engines engines-extra" id="engines-extra">
+        <button class="eng-btn" data-e="ecosia">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=ecosia.org&sz=32" alt=""/>Ecosia
+        </button>
+        <button class="eng-btn" data-e="startpage">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=startpage.com&sz=32" alt=""/>Startpage
+        </button>
+        <button class="eng-btn" data-e="qwant">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=qwant.com&sz=32" alt=""/>Qwant
+        </button>
+        <button class="eng-btn" data-e="yandex">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=yandex.com&sz=32" alt=""/>Yandex
+        </button>
+        <button class="eng-btn" data-e="searxng">
+          <img class="ico" src="https://icons.duckduckgo.com/ip3/searx.be.ico" alt=""/>
+        </button>
+        <button class="eng-btn" data-e="mojeek">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=mojeek.com&sz=32" alt=""/>Mojeek
+        </button>
+        <button class="eng-btn" data-e="swisscows">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=swisscows.com&sz=32" alt=""/>Swisscows
+        </button>
+        <button class="eng-btn" data-e="ask">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=ask.com&sz=32" alt=""/>Ask
+        </button>
+      </div>
+
+      <div class="section-hdr"><span>Options</span></div>
+      <div class="opts">
+        <label class="opt" title="Opens the proxy URL in a new browser tab. If In-page iframe is on, the embed wins — you stay in Void.">
+          <input type="checkbox" id="opt-newtab"/>
+          <span class="toggle-track"></span>
+          New Tab
+        </label>
+        <label class="opt" title="Keep Void visible: load the proxy in the panel below. Empty search opens the proxy home. Overrides New Tab when both are on.">
+          <input type="checkbox" id="opt-iframe" checked/>
+          <span class="toggle-track"></span>
+          In-page iframe
+        </label>
+        <label class="opt" title="Inject Eruda mobile console">
+          <input type="checkbox" id="opt-eruda"/>
+          <span class="toggle-track"></span>
+          Eruda
+        </label>
+        <label class="opt" title="Force Offline Mode (Load from passive SSD cache)">
+          <input type="checkbox" id="opt-offline"/>
+          <span class="toggle-track"></span>
+          Offline Cache Viewer
+        </label>
+      </div>
+
+      <div class="opts" style="display: block; margin-top: 12px; margin-bottom: 24px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <textarea id="void-cache-input" placeholder="Cache multiple URLs (separated by spaces or newlines)..." autocomplete="off" style="flex:1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; border-radius: 6px; outline: none; font-family: inherit; font-size: 0.85rem; resize: vertical; min-height: 40px;"></textarea>
+          <button type="button" id="void-cache-btn" style="background: linear-gradient(135deg, rgba(124,106,255,0.5), rgba(255,95,143,0.5)); border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer; transition: opacity 0.2s; font-weight: 600;">Go</button>
+        </div>
+        <div id="void-cache-status" style="font-size: 0.75rem; color: #a7cf9b; margin-top: 6px; min-height: 14px;"></div>
+      </div>
+
+      <div class="section-row">
+        <div class="section-hdr"><span>Bookmarks</span></div>
+        <button class="sec-action" id="btn-add-bk">+ Add</button>
+      </div>
+      <div class="links" id="bookmarks-grid"></div>
+
+      <div class="section-hdr"><span>Quick Access</span></div>
+      <div class="links">
+        <a class="ql" href="javascript:void(0)" data-url="https://www.google.com"><img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/>Google</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://www.youtube.com"><img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=32" alt=""/>YouTube</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://discord.com/app"><img src="https://www.google.com/s2/favicons?domain=discord.com&sz=32" alt=""/>Discord</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://reddit.com"><img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=32" alt=""/>Reddit</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://twitch.tv"><img src="https://www.google.com/s2/favicons?domain=twitch.tv&sz=32" alt=""/>Twitch</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://spotify.com"><img src="https://www.google.com/s2/favicons?domain=spotify.com&sz=32" alt=""/>Spotify</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://tiktok.com"><img src="https://www.google.com/s2/favicons?domain=tiktok.com&sz=32" alt=""/>TikTok</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://chat.openai.com"><img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" alt=""/>ChatGPT</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://duckduckgo.com"><img src="https://www.google.com/s2/favicons?domain=duckduckgo.com&sz=32" alt=""/>DuckDuckGo</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://wikipedia.org"><img src="https://www.google.com/s2/favicons?domain=wikipedia.org&sz=32" alt=""/>Wikipedia</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://now.gg"><img src="https://www.google.com/s2/favicons?domain=now.gg&sz=32" alt=""/>now.gg</a>
+        <a class="ql" href="javascript:void(0)" data-url="https://twitter.com"><img src="https://www.google.com/s2/favicons?domain=x.com&sz=32" alt=""/>Twitter</a>
+      </div>
+
+      <div class="section-row" id="history-section" style="display:none;">
+        <div class="section-hdr"><span>Recent</span></div>
+        <button class="sec-action" id="btn-clear-hist">Clear</button>
+      </div>
+      <div class="history-grid" id="history-grid"></div>
+    </div>
+
+    <div class="hint-row">
+      Press <kbd>Enter</kbd> to browse
+    </div>
+
+    <div class="foot">
+      <span>VOID</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="void-embed-overlay" id="void-embed-overlay" aria-hidden="true">
+  <div class="void-embed-top">
+    <button type="button" id="void-embed-close" title="Close overlay and return to Void">← Void</button>
+    <div class="void-embed-nav" id="void-embed-nav" aria-label="Proxy navigation">
+      <button type="button" id="void-embed-home" title="Proxy home (shell)">Home</button>
+      <button type="button" id="void-embed-back" title="Back in proxy (Alt+←)">Back</button>
+      <button type="button" id="void-embed-reload" title="Reload frame">Reload</button>
+    </div>
+    <div class="void-embed-music" id="music-ctrl-embed" title="Play / pause — volume">
+      <div class="music-ico">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+      <span class="music-label" id="music-label-embed">Music</span>
+      <input type="range" class="music-vol" id="music-vol-embed" min="0" max="100" value="25"/>
+    </div>
+    <span id="void-embed-label" class="void-embed-url" title="What you typed in Void — click to copy">Proxy</span>
+  </div>
+  <div class="void-embed-wrap">
+    <div id="void-embed-frame-container" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
+    <div class="void-embed-loading" id="void-embed-loading" aria-hidden="true">
+      <div class="void-embed-loading-inner state-loading" id="void-embed-loading-inner">
+        <span class="void-embed-status-icon void-embed-icon-loading" id="void-embed-status-icon" aria-hidden="true">●</span>
+        <p id="void-embed-loading-title">Loading proxy…</p>
+        <div class="void-embed-loading-bar" id="void-embed-loading-bar" role="progressbar" aria-label="Loading"></div>
+        <div class="void-embed-loading-sub" id="void-embed-loading-sub">Scramjet / UV may take a few seconds. Press Esc or Back to cancel.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="music-ctrl" id="music-ctrl" title="Ambient Music">
+  <div class="music-ico">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+  </div>
+  <span class="music-label" id="music-label">Music</span>
+  <input type="range" class="music-vol" id="music-vol" min="0" max="100" value="25"/>
+</div>
+<audio id="ambient-audio" loop preload="none">
+  <source src="https://cdn.freesafemusic.com/audio/jnk0.mp3" type="audio/mpeg"/>
+</audio>
+<div class="uid-badge" id="uid-badge" title="Your User ID"><span class="uid-dot"></span><span id="uid-text"></span></div>
+
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-card">
+    <div class="settings-hdr">
+      <span class="settings-title">Settings</span>
+      <button class="settings-x" id="settings-x">&#x2715;</button>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">Update</div>
+      <p class="settings-info" style="margin-top:0;margin-bottom:.6rem">Current version: <code id="s-cur-ver"></code> <span id="s-ver-status"></span></p>
+      <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
+      <p class="settings-info">Compares your <code>void-version</code> to <code>void-update-url</code> (default: GitHub raw <code>wiizzz786/math-quiz</code> main). Override the meta if you fork. Hosted over HTTPS with no meta, it uses same-origin <code>void.html</code>.</p>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">Keyboard Shortcuts</div>
+      <p class="settings-info">
+        <span class="s-kbd">Q</span> Settings &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Esc</span> Close &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Alt+&#x2190;</span> Back &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Alt+&#x2192;</span> Forward &nbsp;&middot;&nbsp;
+        <span class="s-kbd">Ctrl+L</span> Address bar
+      </p>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">About</div>
+      <p class="settings-info">Void Proxy &mdash; client-side web proxy.<br>
+        User ID: <code id="s-uid"></code>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var $ = function(id){ return document.getElementById(id); };
+var input = $('url-input');
+
+/* ──────────── Bounce detection ──────────── */
+try {
+  var _bounce = JSON.parse(localStorage.getItem('void_bounce') || 'null');
+  // Only show the warning if:
+  // 1. A bounce was recorded recently (within 5s)
+  // 2. This is NOT a browser reload (type 1) — reloads legitimately fire beforeunload
+  var _isReload = false;
+  try {
+    if(performance && performance.navigation && performance.navigation.type === 1) _isReload = true;
+    if(performance && performance.getEntriesByType){
+      var _navEntries = performance.getEntriesByType('navigation');
+      if(_navEntries.length && _navEntries[0].type === 'reload') _isReload = true;
+    }
+  } catch(_pe){}
+
+  localStorage.removeItem('void_bounce');
+  localStorage.removeItem('void_suppress_bounce');
+
+  if(_bounce && !_isReload && Date.now() - _bounce.ts < 5000){
+    var _bd = document.createElement('div');
+    _bd.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:999999;background:rgba(255,60,60,.95);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-family:system-ui;max-width:90vw;word-break:break-all;';
+    _bd.textContent = 'Proxy bounce detected! The page tried to leave: ' + _bounce.url;
+    document.body.appendChild(_bd);
+    setTimeout(function(){ if(_bd.parentNode) _bd.parentNode.removeChild(_bd); }, 8000);
+  }
+} catch(_e){}
+
+function voidMarkInternalNavigation(){
+  try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(e){}
+}
+
+/* ──────────── State ──────────── */
+var engine = 'brave';
+var mode = 'client';
+var navHistory = [];
+var navIdx = -1;
+var currentUrl = '';
+
+/* ──────────── Sound engine (Web Audio API) ──────────── */
+var _audioCtx = null;
+function getAudio(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function _unlockAudio(){
+  if(_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+}
+document.addEventListener('click', _unlockAudio, { once: false });
+document.addEventListener('keydown', _unlockAudio, { once: false });
+document.addEventListener('touchstart', _unlockAudio, { once: false });
+
+function playTone(freq, dur, type, vol){
+  try {
+    var ctx = getAudio();
+    if(ctx.state === 'suspended') return;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol || 0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (dur || 0.1));
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (dur || 0.1));
+  } catch(e){}
+}
+function sfxClick(){ playTone(800, 0.07, 'sine', 0.18); }
+function sfxNav(){ playTone(600, 0.09, 'sine', 0.15); setTimeout(function(){ playTone(900, 0.12, 'sine', 0.15); }, 60); }
+function sfxOpen(){ playTone(400, 0.12, 'sine', 0.14); setTimeout(function(){ playTone(600, 0.14, 'sine', 0.16); }, 80); setTimeout(function(){ playTone(900, 0.18, 'sine', 0.14); }, 160); }
+function sfxClose(){ playTone(700, 0.09, 'sine', 0.15); setTimeout(function(){ playTone(400, 0.14, 'sine', 0.12); }, 70); }
+function sfxError(){ playTone(300, 0.18, 'triangle', 0.2); setTimeout(function(){ playTone(200, 0.25, 'triangle', 0.16); }, 120); }
+function sfxToggle(){ playTone(1200, 0.05, 'sine', 0.14); }
+function sfxSuccess(){ playTone(523, 0.1, 'sine', 0.15); setTimeout(function(){ playTone(659, 0.1, 'sine', 0.15); }, 80); setTimeout(function(){ playTone(784, 0.15, 'sine', 0.14); }, 160); }
+
+function sfxBoot(){
+  var t = 0;
+  var notes = [
+    [261, 0.08, 'sine', 0.12],
+    [329, 0.08, 'sine', 0.13],
+    [392, 0.08, 'sine', 0.14],
+    [523, 0.1,  'sine', 0.15],
+    [659, 0.1,  'sine', 0.14],
+    [784, 0.15, 'sine', 0.16],
+    [1046,0.25, 'sine', 0.13],
+  ];
+  for(var i = 0; i < notes.length; i++){
+    (function(n, delay){
+      setTimeout(function(){ playTone(n[0], n[1], n[2], n[3]); }, delay);
+    })(notes[i], t);
+    t += 65;
+  }
+}
+
+function sfxBootTick(){ playTone(1400, 0.02, 'square', 0.06); }
+function sfxBootDone(){
+  playTone(523, 0.12, 'sine', 0.18);
+  setTimeout(function(){ playTone(784, 0.12, 'sine', 0.18); }, 80);
+  setTimeout(function(){ playTone(1046, 0.2, 'sine', 0.16); }, 160);
+  setTimeout(function(){ playTone(1318, 0.3, 'sine', 0.12); }, 260);
+}
+
+/* ──────────── CORS proxy (single Worker — meta void-cors-proxy-base) ──────────── */
+var _workingBackendIdx = 0;
+var _backendLatencies = {};
+var _probePromise = null;
+
+function getVoidCorsBase(){
+  var def = 'https://void-proxy.aadizzz786.workers.dev/?url=';
+  try {
+    var m = document.querySelector('meta[name="void-cors-proxy-base"]');
+    if(m){
+      var c = (m.getAttribute('content') || '').trim();
+      if(c){
+        if(c.indexOf('?') >= 0) return c;
+        return c.replace(/\/+$/, '') + '/?url=';
+      }
+    }
+  } catch(e){}
+  return def;
+}
+
+var CORS_BACKENDS = [
+  {
+    name: 'void-worker',
+    fn: function(u){ return getVoidCorsBase() + encodeURIComponent(u); },
+    get corsBase(){ return getVoidCorsBase(); },
+    type: 'raw',
+  },
+];
+
+function probeBackends(){
+  if(_probePromise) return _probePromise;
+  var testUrl = 'https://httpbin.org/status/200';
+  _probePromise = Promise.allSettled(CORS_BACKENDS.map(function(be, idx){
+    var t0 = performance.now();
+    return fetchWithTimeout(be.fn(testUrl), {method:'GET'}, 6000).then(function(r){
+      var ms = Math.round(performance.now() - t0);
+      _backendLatencies[idx] = ms;
+      return { idx: idx, ms: ms, ok: r.ok };
+    });
+  })).then(function(results){
+    var best = null;
+    results.forEach(function(r){
+      if(r.status === 'fulfilled' && r.value.ok){
+        if(!best || r.value.ms < best.ms) best = r.value;
+      }
+    });
+    if(best) _workingBackendIdx = best.idx;
+  });
+  return _probePromise;
+}
+
+function getActiveCorsBase(){
+  return getVoidCorsBase();
+}
+
+function makeCorsUrl(targetUrl){
+  var base = getActiveCorsBase();
+  if(base.includes('?')) return base + encodeURIComponent(targetUrl);
+  return base + '?url=' + encodeURIComponent(targetUrl);
+}
+
+function looksLikeBlockPage(text){
+  if(!text || text.length < 50) return true;
+  var low = text.slice(0, 4000).toLowerCase();
+  if(low.includes('sorry, you have been blocked') && text.length < 5000) return true;
+  if(low.includes('access denied') && text.length < 2000) return true;
+  return false;
+}
+
+function detectCharset(headers, htmlBytes){
+  var ct = headers.get('content-type') || '';
+  var m = ct.match(/charset=([^\s;]+)/i);
+  if(m) return m[1].replace(/['"]/g,'');
+  var peek = new TextDecoder('ascii', { fatal: false }).decode(htmlBytes.slice(0, 4096));
+  var metaM = peek.match(/<meta[^>]*charset=["']?([^"'\s;>]+)/i);
+  if(metaM) return metaM[1];
+  var httpM = peek.match(/<meta[^>]*content=["'][^"']*charset=([^"'\s;]+)/i);
+  if(httpM) return httpM[1];
+  return 'utf-8';
+}
+
+function decodeBody(buf, headers){
+  var charset = detectCharset(headers, new Uint8Array(buf));
+  try { return new TextDecoder(charset, { fatal: false }).decode(buf); }
+  catch(e){ return new TextDecoder('utf-8', { fatal: false }).decode(buf); }
+}
+
+
+try {
+  var _corsOrigin = (function(){
+    try { return new URL(getVoidCorsBase()).origin; } catch(e){ return 'https://void-proxy.aadizzz786.workers.dev'; }
+  })();
+  var link = document.createElement('link');
+  link.rel = 'preconnect';
+  link.href = _corsOrigin;
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+} catch(e){}
+
+/* ──────────── Search Engines ──────────── */
+var SEARCH = {
+  brave:     function(q){ return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
+  google:    function(q){ return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
+  ddg:       function(q){ return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); },
+  bing:      function(q){ return 'https://www.bing.com/search?q=' + encodeURIComponent(q); },
+  yahoo:     function(q){ return 'https://search.yahoo.com/search?p=' + encodeURIComponent(q); },
+  ecosia:    function(q){ return 'https://www.ecosia.org/search?q=' + encodeURIComponent(q); },
+  startpage: function(q){ return 'https://www.startpage.com/do/search?q=' + encodeURIComponent(q); },
+  qwant:     function(q){ return 'https://www.qwant.com/?q=' + encodeURIComponent(q); },
+  yandex:    function(q){ return 'https://yandex.com/search/?text=' + encodeURIComponent(q); },
+  searxng:   function(q){ return 'https://searx.be/search?q=' + encodeURIComponent(q); },
+  mojeek:    function(q){ return 'https://www.mojeek.com/search?q=' + encodeURIComponent(q); },
+  swisscows: function(q){ return 'https://swisscows.com/web?query=' + encodeURIComponent(q); },
+  ask:       function(q){ return 'https://www.ask.com/web?q=' + encodeURIComponent(q); },
+};
+
+function toUrl(raw){
+  raw = raw.trim();
+  if(!raw) return null;
+  if(/^https?:\/\//i.test(raw)) return raw;
+  if(raw.includes('.') && !raw.includes(' ')) return 'https://' + raw;
+  return SEARCH[engine](raw);
+}
+
+/* ──────────── Helpers ──────────── */
+function toast(msg){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3500);
+}
+
+var _voidEmbedLoadTimer = null;
+var _voidEmbedReadyTimer = null;
+
+function _voidEmbedClearLoadTimer(){
+  if(_voidEmbedLoadTimer){
+    clearTimeout(_voidEmbedLoadTimer);
+    _voidEmbedLoadTimer = null;
+  }
+}
+function _voidEmbedClearReadyTimer(){
+  if(_voidEmbedReadyTimer){
+    clearTimeout(_voidEmbedReadyTimer);
+    _voidEmbedReadyTimer = null;
+  }
+}
+
+function _voidEmbedSetLoadingState(state, msg){
+  var inner = $('void-embed-loading-inner');
+  var bar = $('void-embed-loading-bar');
+  var title = $('void-embed-loading-title');
+  var icon = $('void-embed-status-icon');
+  var sub = $('void-embed-loading-sub');
+  if(inner){
+    inner.className = 'void-embed-loading-inner state-' + state;
+  }
+  if(state === 'loading'){
+    if(icon){
+      icon.textContent = '\u25cf';
+      icon.className = 'void-embed-status-icon void-embed-icon-loading';
+    }
+    if(title) title.textContent = msg || 'Loading proxy\u2026';
+    if(bar) bar.style.display = '';
+    if(sub) sub.textContent = 'Scramjet / UV may take a few seconds. Press Esc or Back to cancel.';
+  } else if(state === 'ready'){
+    if(icon){
+      icon.textContent = '\u2713';
+      icon.className = 'void-embed-status-icon void-embed-icon-ready';
+    }
+    if(title) title.textContent = 'Ready';
+    if(bar) bar.style.display = 'none';
+    if(sub) sub.textContent = '';
+  } else {
+    if(icon){
+      icon.textContent = '\u2715';
+      icon.className = 'void-embed-status-icon void-embed-icon-error';
+    }
+    if(title) title.textContent = msg || 'Could not load';
+    if(bar) bar.style.display = 'none';
+    if(sub) sub.textContent = 'Try a new tab or check the URL.';
+  }
+}
+
+function _voidEmbedFinishLoading(){
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  var ov = $('void-embed-overlay');
+  var ld = $('void-embed-loading');
+  if(ov) ov.classList.remove('loading');
+  if(ld){
+    ld.classList.remove('show');
+    ld.setAttribute('aria-hidden', 'true');
+  }
+  _voidEmbedSetLoadingState('loading');
+}
+
+function voidPostMessageFillProxyFrame(){
+  var fr = $('void-embed-frame');
+  if(!fr || !fr.contentWindow) return;
+  var text = _voidEmbedPostText || '';
+  var resolved = _voidEmbedPostResolved || '';
+  var payload = { source: 'void', voidFillQuery: true, text: text, resolvedUrl: resolved };
+  function send(){
+    try { fr.contentWindow.postMessage(payload, '*'); } catch(e){}
+  }
+  send();
+  setTimeout(send, 50);
+  setTimeout(send, 200);
+  setTimeout(send, 800);
+  setTimeout(send, 2000);
+}
+
+/* proxyUrl = iframe src; userTypedBar = EXACT characters from Void search box; resolvedUrl = normalized https URL for proxy. */
+function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
+  _voidEmbedLastSrc = proxyUrl || '';
+  var typed = userTypedBar != null ? String(userTypedBar) : '';
+  _voidEmbedPostText = typed;
+  _voidEmbedPostResolved = resolvedUrl != null ? String(resolvedUrl) : '';
+  _voidEmbedBarCopy = typed;
+  _voidEmbedBridgePending = voidShouldUseProxyBridge();
+  var bridgeHint = typed.trim() || proxyUrl || '';
+  var frameSrc = _voidEmbedBridgePending ? voidCreateProxyBridgeBlobUrl(proxyUrl, bridgeHint) : proxyUrl;
+  var ov = $('void-embed-overlay');
+  var lb = $('void-embed-label');
+  var ld = $('void-embed-loading');
+  var container = $('void-embed-frame-container');
+  var fr = $('void-embed-frame');
+  if(!fr) {
+    fr = document.createElement("i" + "frame");
+    fr.id = "void-embed-frame";
+    fr.title = "Proxy view";
+    fr.setAttribute("allow", "fullscreen;autoplay");
+    fr.setAttribute("sandbox", "allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-downloads");
+    fr.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;margin:0;padding:0;";
+    if(container) container.appendChild(fr);
+  }
+  if(lb) lb.textContent = typed.trim() ? typed : 'Proxy home';
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  _voidEmbedSetLoadingState('loading');
+  if(fr){
+    fr.onload = null;
+    fr.onerror = null;
+    fr.onload = function(){
+      if(_voidEmbedBridgePending){
+        _voidEmbedBridgePending = false;
+        return;
+      }
+
+      // Guard: detect if the iframe navigated away from the proxy path
+      // (e.g. a link wasn't rewritten and the iframe went to the raw site)
+      try {
+        var frHref = fr.contentWindow && fr.contentWindow.location && fr.contentWindow.location.href;
+        if(frHref && frHref !== 'about:blank'){
+          var m = getMode();
+          var isProxied = true;
+          if(m === 'custom'){
+            isProxied = true;
+          }
+
+          if(!isProxied && /^https?:\/\//i.test(frHref)){
+            // The iframe escaped the proxy — re-proxy the URL
+            console.warn('[Void] iframe escaped proxy, re-proxying:', frHref);
+            navigate(frHref);
+            return;
+          }
+        }
+      } catch(guardErr){
+        // cross-origin access to contentWindow.location will throw — that's fine,
+        // it means the iframe is on a different origin (the proxy) which is expected
+      }
+
+      _voidEmbedClearLoadTimer();
+      if(ov) ov.classList.remove('loading');
+      _voidEmbedSetLoadingState('ready');
+      voidPostMessageFillProxyFrame();
+      _voidEmbedReadyTimer = setTimeout(function(){
+        _voidEmbedReadyTimer = null;
+        voidPostMessageFillProxyFrame();
+        _voidEmbedFinishLoading();
+      }, 420);
+    };
+    fr.onerror = function(){
+      _voidEmbedClearLoadTimer();
+      if(ov) ov.classList.remove('loading');
+      _voidEmbedSetLoadingState('error', 'Frame failed to load');
+      toast('Embed could not load — try a new tab.');
+    };
+  }
+  if(ov){
+    ov.classList.add('show', 'loading');
+    ov.setAttribute('aria-hidden', 'false');
+  }
+  if(ld){
+    ld.classList.add('show');
+    ld.setAttribute('aria-hidden', 'false');
+  }
+  if(fr) fr.src = frameSrc;
+  _voidEmbedLoadTimer = setTimeout(function(){
+    _voidEmbedLoadTimer = null;
+    var still = $('void-embed-loading');
+    if(still && still.classList.contains('show')){
+      var inner = $('void-embed-loading-inner');
+      if(inner && inner.classList.contains('state-loading')){
+        if(ov) ov.classList.remove('loading');
+        _voidEmbedSetLoadingState('error', 'Taking too long');
+        toast('Still waiting — check the frame or try a new tab.');
+        setTimeout(function(){ _voidEmbedFinishLoading(); }, 2800);
+      }
+    }
+  }, 55000);
+}
+function hideVoidEmbedOverlay(){
+  _voidEmbedLastSrc = '';
+  _voidEmbedBarCopy = '';
+  _voidEmbedPostText = '';
+  _voidEmbedPostResolved = '';
+  _voidEmbedBridgePending = false;
+  if(_voidLastBridgeBlob){
+    try { URL.revokeObjectURL(_voidLastBridgeBlob); } catch(e){}
+    _voidLastBridgeBlob = null;
+  }
+  _voidEmbedClearLoadTimer();
+  _voidEmbedClearReadyTimer();
+  var ov = $('void-embed-overlay');
+  var fr = $('void-embed-frame');
+  var ld = $('void-embed-loading');
+  if(fr){
+    fr.onload = null;
+    fr.onerror = null;
+    fr.src = 'about:blank';
+  }
+  if(ov){
+    ov.classList.remove('show', 'loading');
+    ov.setAttribute('aria-hidden', 'true');
+  }
+  if(ld){
+    ld.classList.remove('show');
+    ld.setAttribute('aria-hidden', 'true');
+  }
+  _voidEmbedSetLoadingState('loading');
+}
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getMode(){
+  var active = document.querySelector('.mode-btn.active');
+  return (active && active.dataset.m) ? active.dataset.m : 'custom';
+}
+
+function getServerBase(){
+  return ($('server-backend') && $('server-backend').value.trim()) || '';
+}
+
+/* ──────────── Mode UI toggling ──────────── */
+function updateModeUI(){
+  var m = getMode();
+  $('cfg-server').style.display = (m === 'custom') ? '' : 'none';
+}
+
+/* ──────────── Client-side proxy engine ──────────── */
+
+function _clientInjection(){
+  var _b = '%%BASE%%';
+  var _cp = '%%CORS%%';
+  var _eruda = '%%ERUDA%%';
+
+  /* ── Prevent override stacking on re-navigation ── */
+  if(window.__voidProxy){
+    window.__voidProxy._setCur(_b);
+    window.__voidProxy._reattach();
+    return;
+  }
+
+  var _cur = _b;
+
+  /* ── Cookie jar ── */
+  var _cookieJar = {};
+  try { _cookieJar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
+  function _saveCookies(){
+    try { localStorage.setItem('void_cookies', JSON.stringify(_cookieJar)); } catch(e){}
+    try {
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage({ type: 'void-sw-cookies', cookies: _cookieJar });
+      }
+    } catch(e){}
+  }
+  function _getDomain(url){ try { return new URL(url).hostname; } catch(e){ return ''; } }
+  function _getCookiesFor(url){
+    var domain = _getDomain(url);
+    if(!domain) return '';
+    var parts = [];
+    for(var d in _cookieJar){
+      if(domain === d || domain.endsWith('.' + d)){
+        for(var name in _cookieJar[d]){
+          parts.push(name + '=' + _cookieJar[d][name]);
+        }
+      }
+    }
+    return parts.join('; ');
+  }
+  function _parseSetCookies(headerVal, url){
+    if(!headerVal) return;
+    var cookies;
+    try { cookies = JSON.parse(headerVal); } catch(e){ cookies = [headerVal]; }
+    var domain = _getDomain(url);
+    cookies.forEach(function(c){
+      var parts = c.split(';');
+      var nv = parts[0].trim().split('=');
+      if(nv.length < 2) return;
+      var name = nv[0].trim();
+      var val = nv.slice(1).join('=').trim();
+      var cDomain = domain;
+      parts.forEach(function(p){
+        var kv = p.trim().split('=');
+        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
+      });
+      if(!_cookieJar[cDomain]) _cookieJar[cDomain] = {};
+      _cookieJar[cDomain][name] = val;
+    });
+    _saveCookies();
+  }
+
+  /* ── document.cookie override ── */
+  try {
+    Object.defineProperty(document, 'cookie', {
+      get: function(){ return _getCookiesFor(_cur); },
+      set: function(val){
+        if(typeof val !== 'string') return;
+        var parts = val.split(';');
+        var nv = parts[0].trim().split('=');
+        if(nv.length < 2) return;
+        var name = nv[0].trim();
+        var value = nv.slice(1).join('=').trim();
+        var domain = _getDomain(_cur);
+        parts.forEach(function(p){
+          var kv = p.trim().split('=');
+          if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) domain = kv[1].trim().replace(/^\./, '');
+        });
+        if(!_cookieJar[domain]) _cookieJar[domain] = {};
+        _cookieJar[domain][name] = value;
+        _saveCookies();
+      },
+      configurable: true
+    });
+  } catch(e){}
+
+  function _abs(u){
+    try { return new URL(u, _cur).href; } catch(e){ return u; }
+  }
+  function _proxied(u){
+    var abs = _abs(u);
+    if(!/^https?:\/\//i.test(abs)) return abs;
+    if(_cp.indexOf('?') >= 0) return _cp + encodeURIComponent(abs);
+    return _cp + '?url=' + encodeURIComponent(abs);
+  }
+  function _shouldProxy(u){
+    if(typeof u !== 'string' || !/^https?:\/\//i.test(u)) return false;
+    if(u.indexOf(_cp) === 0) return false;
+    return true;
+  }
+  var _top = window.top || window.parent;
+  var _navHandled = false;
+  // Generation counter: incremented each time render() replaces the document.
+  // The fallback checks this so a stale timeout from a previous nav never fires.
+  var _navGen = 0;
+  function _nav(url){
+    _navHandled = false;
+    var myGen = ++_navGen;
+    _top.postMessage({ type: 'void_navigate', url: url }, '*');
+    setTimeout(function(){
+      // Bail if the engine already ack'd, or if a newer render has happened
+      if(_navHandled || _navGen !== myGen) return;
+      _dbg('nav-fallback', url);
+      var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
+      var fo = { headers: { 'X-Void-Dest': 'document' } };
+      var ck = _getCookiesFor(url);
+      if(ck) fo.headers['X-Void-Cookie'] = ck;
+      window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
+        if(_navGen !== myGen) return; // another nav happened while we were fetching
+        _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
+      }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
+    }, 600);
+  }
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'void_nav_ack') _navHandled = true;
+  });
+  function _updateBase(url){ _cur = url; _top.postMessage({ type: 'void_url', url: url }, '*'); }
+
+  /* ── Expose real reload for Home button ── */
+  window.__voidRealReload = function(){ _realLoc.reload(); };
+
+  /* ── Spoof iframe detection ── */
+  try { Object.defineProperty(window, 'top', { get: function(){ return window; }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
+
+  /* ── Spoof document + window properties to match proxied site ── */
+  try {
+    Object.defineProperty(document, 'URL', { get: function(){ return _cur; }, configurable: true });
+    Object.defineProperty(document, 'documentURI', { get: function(){ return _cur; }, configurable: true });
+    Object.defineProperty(document, 'referrer', { get: function(){ return ''; }, configurable: true });
+    Object.defineProperty(document, 'domain', { get: function(){ try { return new URL(_cur).hostname; } catch(e){ return ''; } }, set: function(){}, configurable: true });
+  } catch(e){}
+  try { Object.defineProperty(window, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
+  try { Object.defineProperty(self, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
+
+  /* ── Intercept navigation via document.location / window.location setter ── */
+  try {
+    var _realLoc = window.location;
+    var _locProps = new Set(['origin','host','hostname','protocol','port','href','pathname','search','hash']);
+    var _locHandler = {
+      set: function(target, prop, value){
+        if(prop === 'href' || prop === 'pathname' || prop === 'search' || prop === 'hash'){
+          var full = (prop === 'href') ? value : target.href;
+          if(prop !== 'href'){
+            try { var u = new URL(target.href); u[prop] = value; full = u.href; } catch(e){}
+          }
+          var a = _abs(full);
+          if(_shouldProxy(a)){ _nav(a); return true; }
+        }
+        target[prop] = value;
+        return true;
+      },
+      get: function(target, prop){
+        if(_locProps.has(prop)){
+          try { return new URL(_cur)[prop]; } catch(e){}
+        }
+        if(prop === 'toString') return function(){ return _cur; };
+        if(prop === 'valueOf') return function(){ return _cur; };
+        if(prop === 'replace') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.replace(url); };
+        if(prop === 'assign') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.assign(url); };
+        if(prop === 'reload') return function(){ _nav(_cur); };
+        var v = target[prop];
+        return typeof v === 'function' ? v.bind(target) : v;
+      }
+    };
+    if(typeof Proxy !== 'undefined'){
+      try {
+        var _pLoc = new Proxy(_realLoc, _locHandler);
+        var _locGetSet = { get: function(){ return _pLoc; }, set: function(v){
+          var a = _abs(typeof v === 'string' ? v : String(v));
+          if(_shouldProxy(a)){ _nav(a); return; }
+          _realLoc.href = v;
+        }, configurable: true };
+        Object.defineProperty(window, 'location', _locGetSet);
+        try { Object.defineProperty(document, 'location', _locGetSet); } catch(e){}
+        try { Object.defineProperty(Document.prototype, 'location', _locGetSet); } catch(e){}
+      } catch(e){}
+    }
+  } catch(e){}
+
+  /* ── Intercept location changes ── */
+  try {
+    var _origAssign = Location.prototype.assign;
+    Location.prototype.assign = function(url){
+      var a = _abs(url);
+      _dbg('loc.assign', a);
+      if(_shouldProxy(a)){ _nav(a); return; }
+      _origAssign.call(this, url);
+    };
+    var _origReplace = Location.prototype.replace;
+    Location.prototype.replace = function(url){
+      var a = _abs(url);
+      _dbg('loc.replace', a);
+      if(_shouldProxy(a)){ _nav(a); return; }
+      _origReplace.call(this, url);
+    };
+  } catch(e){}
+  try {
+    var _locDesc = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    if(_locDesc && _locDesc.set){
+      Object.defineProperty(Location.prototype, 'href', {
+        set: function(v){
+          var a = _abs(v);
+          _dbg('loc.href', a);
+          if(_shouldProxy(a)){ _nav(a); return; }
+          _locDesc.set.call(this, v);
+        },
+        get: _locDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+
+  if(_eruda){
+    var es = document.createElement('script');
+    /* Always load Eruda from the CDN directly. Routing through the CORS proxy breaks the script (wrong MIME / HTML error pages). */
+    es.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    es.crossOrigin = 'anonymous';
+    es.onload = function(){ try { if(window.eruda) eruda.init(); } catch(_e){} };
+    es.onerror = function(){ try { console.warn('[Void] Eruda failed to load from CDN'); } catch(_e2){} };
+    (document.head || document.documentElement).appendChild(es);
+  }
+
+  /* ── Link clicks (named so _reattach can re-bind after document.write) ── */
+  function _linkHrefFrom(el){
+    if(!el) return '';
+    // Check data-void-href first (set by server-side rewrite to prevent native navigation)
+    var dvh = el.getAttribute('data-void-href');
+    if(dvh) return dvh;
+    var h = el.getAttribute('href');
+    if(h != null && h !== '' && h !== 'javascript:void(0)') return h;
+    try {
+      if(typeof el.href === 'string' && /^https?:\/\//i.test(el.href)) return el.href;
+    } catch(e){}
+    try {
+      if(el.getAttributeNS){
+        var x = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if(x) return x;
+      }
+    } catch(e2){}
+    return '';
+  }
+  function _findLinkEl(t, ev){
+    if(t && t.nodeType === 3 && t.parentElement) t = t.parentElement;
+    if(!t || t.nodeType !== 1) return null;
+    var i, el, path, tn;
+    if(ev && typeof ev.composedPath === 'function'){
+      try {
+        path = ev.composedPath();
+        for(i = 0; i < path.length; i++){
+          el = path[i];
+          if(!el || el.nodeType !== 1) continue;
+          if(el === document || el === document.documentElement) break;
+          tn = el.tagName ? el.tagName.toUpperCase() : '';
+          if(tn === 'A' || tn === 'AREA') return el;
+        }
+      } catch(e0){}
+    }
+    if(t.closest){
+      el = t.closest('a, area');
+      if(el) return el;
+    }
+    el = t;
+    while(el){
+      tn = el.tagName && el.tagName.toUpperCase();
+      if(tn === 'A' || tn === 'AREA') return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function _followProxiedLink(link, e){
+    if(!link) return false;
+    if(link.hasAttribute('target')) link.removeAttribute('target');
+    if(link.hasAttribute('download')) try { link.removeAttribute('download'); } catch(e1){}
+    var href = _linkHrefFrom(link);
+    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return false;
+    // If href is a CORS proxy URL, extract the real target URL from it
+    var realUrl = href;
+    if(href.indexOf(_cp) === 0){
+      try {
+        var qIdx = href.indexOf('?url=');
+        if(qIdx !== -1) realUrl = decodeURIComponent(href.slice(qIdx + 5).split('&')[0]);
+        else if(_cp.indexOf('?') >= 0) realUrl = decodeURIComponent(href.slice(_cp.length).split('&')[0]);
+      } catch(ex){ realUrl = href; }
+    }
+    var abs = _abs(realUrl);
+    if(!_shouldProxy(abs)) return false;
+    if(e){
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+    _nav(abs);
+    return true;
+  }
+  var _voidSupClickTs = 0;
+  function _modifierOpensNewTab(e){
+    return !!(e && (e.ctrlKey || e.metaKey || e.shiftKey));
+  }
+  /* Ctrl/Cmd/Shift+click opens a real tab — navigate in-proxy on pointerdown and swallow duplicate click. */
+  function _handlePointerDown(e){
+    if(typeof e.button === 'number' && e.button !== 0) return;
+    if(!_modifierOpensNewTab(e)) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    var href = _linkHrefFrom(link);
+    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return;
+    var abs = _abs(href);
+    if(!_shouldProxy(abs)) return;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if(link.hasAttribute('target')) link.removeAttribute('target');
+      if(link.hasAttribute('download')) link.removeAttribute('download');
+    } catch(e0){}
+    _voidSupClickTs = Date.now();
+    _nav(abs);
+  }
+  function _handleClick(e){
+    if(typeof e.button === 'number' && e.button !== 0) return;
+    if(Date.now() - _voidSupClickTs < 700) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    _followProxiedLink(link, e);
+  }
+  function _handleAuxClick(e){
+    if(e.button !== 1) return;
+    var link = _findLinkEl(e.target, e);
+    if(!link) return;
+    _followProxiedLink(link, e);
+  }
+  if(typeof window.PointerEvent !== 'undefined'){
+    document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
+  } else {
+    document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
+  }
+  document.addEventListener('click', _handleClick, true);
+  document.addEventListener('auxclick', _handleAuxClick, true);
+
+  /* ── Form submissions (named so _reattach can re-bind after document.write) ── */
+  function _handleSubmit(e){
+    var f = e.target;
+    if(!f || f.tagName !== 'FORM') return;
+    e.preventDefault();
+    e.stopPropagation();
+    var action = f.getAttribute('action') || _cur;
+    var abs = _abs(action);
+    var method = (f.method || 'GET').toUpperCase();
+    if(method === 'GET'){
+      var qs = new URLSearchParams(new FormData(f)).toString();
+      var sep = abs.indexOf('?') >= 0 ? '&' : '?';
+      _nav(abs + sep + qs);
+    } else {
+      _top.postMessage({
+        type: 'void_post',
+        url: abs,
+        body: new URLSearchParams(new FormData(f)).toString(),
+        contentType: 'application/x-www-form-urlencoded'
+      }, '*');
+    }
+  }
+  document.addEventListener('submit', _handleSubmit, true);
+
+  /* ── Swipe gestures for back/forward (touch devices) ── */
+  var _swipeX = 0, _swipeY = 0, _swipeT = 0;
+  function _handleTouchStart(e){
+    if(e.touches.length !== 1) return;
+    _swipeX = e.touches[0].clientX;
+    _swipeY = e.touches[0].clientY;
+    _swipeT = Date.now();
+  }
+  function _handleTouchEnd(e){
+    if(e.changedTouches.length !== 1) return;
+    var dx = e.changedTouches[0].clientX - _swipeX;
+    var dy = e.changedTouches[0].clientY - _swipeY;
+    var dt = Date.now() - _swipeT;
+    if(dt > 400 || Math.abs(dy) > 80 || Math.abs(dx) < 80) return;
+    if(dx > 80) _top.postMessage({ type: 'void_swipe', dir: 'back' }, '*');
+    else if(dx < -80) _top.postMessage({ type: 'void_swipe', dir: 'fwd' }, '*');
+  }
+  document.addEventListener('touchstart', _handleTouchStart, { passive: true, capture: true });
+  document.addEventListener('touchend', _handleTouchEnd, { passive: true, capture: true });
+
+  /* ── Debug helper ── */
+  function _dbg(type, detail){
+    try { _top.postMessage({ type: 'void_debug', msg: '[' + type + '] ' + detail }, '*'); } catch(e){}
+  }
+
+  /* ── fetch override ── */
+  var _of = window.fetch;
+  function _inferDest(url, opts){
+    var acc = '';
+    if(opts && opts.headers){
+      if(opts.headers instanceof Headers) acc = opts.headers.get('accept') || '';
+      else if(typeof opts.headers === 'object') acc = opts.headers['Accept'] || opts.headers['accept'] || '';
+    }
+    if(acc.indexOf('text/html') >= 0) return 'document';
+    if(acc.indexOf('text/css') >= 0) return 'style';
+    if(acc.indexOf('image/') >= 0) return 'image';
+    if(/\.(js|mjs)(\?|$)/i.test(url)) return 'script';
+    if(/\.(css)(\?|$)/i.test(url)) return 'style';
+    if(/\.(png|jpg|jpeg|gif|webp|svg|ico|avif)(\?|$)/i.test(url)) return 'image';
+    return 'empty';
+  }
+  window.fetch = function(u, o){
+    o = o || {};
+    if(typeof u === 'string' && /^(blob:|data:|about:)/i.test(u.trim())) return _of.call(this, u, o);
+    if(u && typeof u === 'object' && u.url && /^(blob:|data:|about:)/i.test(String(u.url))) return _of.call(this, u, o);
+    var origUrl = '';
+    if(typeof u === 'string'){
+      var resolved = _abs(u);
+      if(_shouldProxy(resolved)){
+        _dbg('fetch', (o.method || 'GET') + ' ' + resolved);
+        origUrl = resolved;
+        u = _proxied(resolved);
+        if(!o.headers) o.headers = {};
+        var ck = _getCookiesFor(resolved);
+        if(o.headers instanceof Headers){
+          if(ck) o.headers.set('X-Void-Cookie', ck);
+          if(!o.headers.has('X-Void-Dest')) o.headers.set('X-Void-Dest', _inferDest(resolved, o));
+        } else {
+          if(ck) o.headers['X-Void-Cookie'] = ck;
+          if(!o.headers['X-Void-Dest']) o.headers['X-Void-Dest'] = _inferDest(resolved, o);
+        }
+        delete o.credentials;
+        o.mode = 'cors';
+      }
+    } else if(u && typeof u === 'object' && u.url){
+      var resolved = _abs(u.url);
+      if(_shouldProxy(resolved)){
+        _dbg('fetch', (u.method || 'GET') + ' ' + resolved);
+        origUrl = resolved;
+        var h = new Headers(u.headers);
+        var ck = _getCookiesFor(resolved);
+        if(ck) h.set('X-Void-Cookie', ck);
+        if(!h.has('X-Void-Dest')) h.set('X-Void-Dest', _inferDest(resolved, { headers: h }));
+        u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: 'cors' });
+      }
+    }
+    var _ou = origUrl;
+    return _of.call(this, u, o).then(function(r){
+      var sc = r.headers.get('x-void-set-cookie');
+      if(sc && _ou) _parseSetCookies(sc, _ou);
+      if(_ou){
+        var _fin = r.headers.get('x-void-final-url') || _ou;
+        try { Object.defineProperty(r, 'url', { get: function(){ return _fin; }, configurable: true }); } catch(e){}
+      }
+      return r;
+    }).catch(function(e){
+      _dbg('err', e.message);
+      throw e;
+    });
+  };
+
+  /* ── XMLHttpRequest override ── */
+  var _xo = XMLHttpRequest.prototype.open;
+  var _xsr = XMLHttpRequest.prototype.setRequestHeader;
+  XMLHttpRequest.prototype.open = function(){
+    var args = Array.prototype.slice.call(arguments);
+    this._voidOrigUrl = '';
+    if(typeof args[1] === 'string' && /^(blob:|data:|about:)/i.test(args[1].trim())){
+      return _xo.apply(this, args);
+    }
+    if(typeof args[1] === 'string'){
+      var resolved = _abs(args[1]);
+      if(_shouldProxy(resolved)){
+        _dbg('xhr', (args[0] || 'GET') + ' ' + resolved);
+        this._voidOrigUrl = resolved;
+        args[1] = _proxied(resolved);
+      }
+    }
+    var result = _xo.apply(this, args);
+    if(this._voidOrigUrl){
+      try { this.withCredentials = false; } catch(e){}
+      var ck = _getCookiesFor(this._voidOrigUrl);
+      if(ck) try { _xsr.call(this, 'X-Void-Cookie', ck); } catch(e){}
+    }
+    var self = this;
+    this.addEventListener('load', function(){
+      try {
+        var sc = self.getResponseHeader('x-void-set-cookie');
+        if(sc && self._voidOrigUrl) _parseSetCookies(sc, self._voidOrigUrl);
+        if(self._voidOrigUrl){
+          var _fin = null;
+          try { _fin = self.getResponseHeader('x-void-final-url'); } catch(e){}
+          try { Object.defineProperty(self, 'responseURL', { get: function(){ return _fin || self._voidOrigUrl; }, configurable: true }); } catch(e){}
+        }
+      } catch(e){}
+    });
+    return result;
+  };
+
+  /* ── window.open override ── */
+  var _wo = window.open;
+  var _fakeWin = {
+    closed: false, opener: window, document: document,
+    close: function(){ this.closed = true; }, focus: function(){}, blur: function(){},
+    postMessage: function(){}, addEventListener: function(){}, removeEventListener: function(){},
+    location: {
+      href: '',
+      replace: function(u){ _nav(_abs(u)); },
+      assign: function(u){ _nav(_abs(u)); },
+      set href(u){ _nav(_abs(u)); }
+    },
+    get innerWidth(){ return window.innerWidth; }, get innerHeight(){ return window.innerHeight; }
+  };
+  window.open = function(u, name, features){
+    var first = arguments.length ? arguments[0] : '';
+    if(first != null && typeof first !== 'string') first = String(first);
+    if(first && first !== 'about:blank' && first !== 'about:srcdoc'){
+      var a = _abs(first);
+      if(_shouldProxy(a)){ _dbg('open', a); _nav(a); return _fakeWin; }
+    }
+    /* Real about:blank lets opener set w.location — breakout. Keep everything in-proxy. */
+    if(!first || first === 'about:blank' || first === 'about:srcdoc'){
+      _dbg('open-blank', first || '(empty)');
+      return _fakeWin;
+    }
+    return _wo.apply(this, arguments);
+  };
+
+  /* ── WebSocket proxy ── */
+  var _OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols){
+    if(url && typeof url === 'string'){
+      var wsUrl = url;
+      if(/^wss?:\/\//i.test(wsUrl)){
+        try {
+          var httpUrl = wsUrl.replace(/^ws/i, 'http');
+          _dbg('ws', httpUrl);
+        } catch(e){}
+      }
+    }
+    if(protocols !== undefined) return new _OrigWS(url, protocols);
+    return new _OrigWS(url);
+  };
+  window.WebSocket.prototype = _OrigWS.prototype;
+  window.WebSocket.CONNECTING = _OrigWS.CONNECTING;
+  window.WebSocket.OPEN = _OrigWS.OPEN;
+  window.WebSocket.CLOSING = _OrigWS.CLOSING;
+  window.WebSocket.CLOSED = _OrigWS.CLOSED;
+
+  /* ── EventSource override ── */
+  var _OrigES = window.EventSource;
+  if(_OrigES){
+    window.EventSource = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a)){ url = _proxied(a); _dbg('sse', a); }
+      }
+      return new _OrigES(url, opts);
+    };
+    window.EventSource.prototype = _OrigES.prototype;
+  }
+
+  /* ── History API interception (SPAs) ── */
+  var _hps = history.pushState;
+  var _hrs = history.replaceState;
+  history.pushState = function(state, title, url){
+    if(url){ _updateBase(_abs(url)); }
+    try { _hps.call(this, state, title, url); } catch(e){}
+  };
+  history.replaceState = function(state, title, url){
+    if(url){ _updateBase(_abs(url)); }
+    try { _hrs.call(this, state, title, url); } catch(e){}
+  };
+  window.addEventListener('popstate', function(){
+    _updateBase(_cur);
+  });
+
+  /* ── Iframe src interception ── */
+  var _iframeDesc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
+  if(_iframeDesc && _iframeDesc.set){
+    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+      set: function(v){
+        if(v && _shouldProxy(v)) v = _proxied(v);
+        _iframeDesc.set.call(this, v);
+      },
+      get: _iframeDesc.get
+    });
+  }
+
+  /* ── Proxy src/href property setters on element prototypes ── */
+  try {
+    var _scriptSrcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+    if(_scriptSrcDesc && _scriptSrcDesc.set){
+      Object.defineProperty(HTMLScriptElement.prototype, 'src', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _scriptSrcDesc.set.call(this, v);
+        },
+        get: _scriptSrcDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _linkHrefDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
+    if(_linkHrefDesc && _linkHrefDesc.set){
+      Object.defineProperty(HTMLLinkElement.prototype, 'href', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _linkHrefDesc.set.call(this, v);
+        },
+        get: _linkHrefDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  // Intercept anchor href setter — use data-void-href to prevent native navigation
+  try {
+    var _anchorHrefDesc = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, 'href');
+    if(_anchorHrefDesc && _anchorHrefDesc.set){
+      Object.defineProperty(HTMLAnchorElement.prototype, 'href', {
+        set: function(v){
+          if(v && typeof v === 'string' && !/^(javascript:|data:|mailto:|blob:|#)/i.test(v.trim())){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1){
+              _origSetAttribute.call(this, 'data-void-href', _proxied(a));
+              _anchorHrefDesc.set.call(this, 'javascript:void(0)');
+              return;
+            }
+          }
+          _anchorHrefDesc.set.call(this, v);
+        },
+        get: _anchorHrefDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _imgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+    if(_imgSrcDesc && _imgSrcDesc.set){
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            var a = _abs(v);
+            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+          }
+          _imgSrcDesc.set.call(this, v);
+        },
+        get: _imgSrcDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  var _mediaCls = ['HTMLVideoElement','HTMLAudioElement','HTMLSourceElement','HTMLEmbedElement'];
+  for(var _mi = 0; _mi < _mediaCls.length; _mi++){
+    (function(cls){
+      try {
+        var proto = window[cls] && window[cls].prototype;
+        if(!proto) return;
+        var desc = Object.getOwnPropertyDescriptor(proto, 'src');
+        if(desc && desc.set){
+          Object.defineProperty(proto, 'src', {
+            set: function(v){
+              if(v && typeof v === 'string'){
+                var a = _abs(v);
+                if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
+              }
+              desc.set.call(this, v);
+            },
+            get: desc.get,
+            configurable: true
+          });
+        }
+      } catch(e){}
+    })(_mediaCls[_mi]);
+  }
+
+  /* ── Element.setAttribute override ── */
+  var _origSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name, value){
+    if(value && typeof value === 'string'){
+      var n = name.toLowerCase();
+      var tag = this.tagName;
+      if(n === 'src' && (tag === 'SCRIPT' || tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE' || tag === 'EMBED' || tag === 'IFRAME')){
+        var a = _abs(value);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
+      } else if(n === 'href' && tag === 'LINK'){
+        var a = _abs(value);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
+      } else if(n === 'href' && (tag === 'A' || tag === 'AREA')){
+        // Use data-void-href so the browser can never follow natively
+        if(!/^(javascript:|data:|mailto:|blob:|#)/i.test(value.trim())){
+          var a = _abs(value);
+          if(_shouldProxy(a) && a.indexOf(_cp) === -1){
+            _origSetAttribute.call(this, 'data-void-href', _proxied(a));
+            value = 'javascript:void(0)';
+          }
+        }
+      } else if(n === 'srcset'){
+        value = _rewriteSrcset(value);
+      } else if(n === 'target' && (tag === 'A' || tag === 'FORM' || tag === 'AREA' || tag === 'BASE')){
+        return;
+      }
+    }
+    return _origSetAttribute.call(this, name, value);
+  };
+
+  /* ── Worker/SharedWorker proxy ── */
+  var _OrigWorker = window.Worker;
+  if(_OrigWorker){
+    window.Worker = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
+      }
+      return opts ? new _OrigWorker(url, opts) : new _OrigWorker(url);
+    };
+    window.Worker.prototype = _OrigWorker.prototype;
+  }
+  var _OrigSharedWorker = window.SharedWorker;
+  if(_OrigSharedWorker){
+    window.SharedWorker = function(url, opts){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
+      }
+      return opts ? new _OrigSharedWorker(url, opts) : new _OrigSharedWorker(url);
+    };
+    window.SharedWorker.prototype = _OrigSharedWorker.prototype;
+  }
+
+  /* ── navigator.sendBeacon override ── */
+  if(navigator.sendBeacon){
+    var _origBeacon = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = function(url, data){
+      if(url && typeof url === 'string'){
+        var a = _abs(url);
+        if(_shouldProxy(a)) url = _proxied(a);
+      }
+      return _origBeacon(url, data);
+    };
+  }
+
+  /* ── Override HTMLFormElement.prototype.submit() (programmatic submits bypass event) ── */
+  var _origFormSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function(){
+    var action = this.getAttribute('action') || _cur;
+    var abs = _abs(action);
+    if(_shouldProxy(abs)){
+      var method = (this.method || 'GET').toUpperCase();
+      if(method === 'GET'){
+        var qs = new URLSearchParams(new FormData(this)).toString();
+        var sep = abs.indexOf('?') >= 0 ? '&' : '?';
+        _nav(abs + sep + qs);
+      } else {
+        _top.postMessage({ type: 'void_post', url: abs,
+          body: new URLSearchParams(new FormData(this)).toString(),
+          contentType: 'application/x-www-form-urlencoded' }, '*');
+      }
+      return;
+    }
+    _origFormSubmit.call(this);
+  };
+
+  /* ── Block foreign ServiceWorker registration (allow our own void-sw) ── */
+  if(navigator.serviceWorker){
+    var _origSWReg = navigator.serviceWorker.register;
+    navigator.serviceWorker.register = function(url){
+      if(url && typeof url === 'string' && url.indexOf('void-sw') >= 0)
+        return _origSWReg.apply(navigator.serviceWorker, arguments);
+      return Promise.reject(new Error('blocked by proxy'));
+    };
+  }
+
+  /* ── Block document.open/write/writeln from nuking proxy after load ── */
+  var _origWrite = document.write.bind(document);
+  var _origWriteln = document.writeln.bind(document);
+  var _origOpen = document.open.bind(document);
+  var _docLoaded = false;
+  function _rwDocStr(s){
+    if(!s || typeof s !== 'string') return s;
+    // Rewrite src/href/action attributes in injected HTML strings
+    return s.replace(/((?:src|href|action)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+      if(url.indexOf(_cp) !== -1) return m;
+      return attr + q + _proxied(url) + q;
+    });
+  }
+  document.write = function(s){ if(!_docLoaded) return _origWrite(_rwDocStr(s)); };
+  document.writeln = function(s){ if(!_docLoaded) return _origWriteln(_rwDocStr(s)); };
+  document.open = function(){ if(!_docLoaded) return _origOpen.apply(document, arguments); return document; };
+  if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
+  else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
+
+  /* ── Navigation API intercept (modern browsers) ── */
+  if(window.navigation && window.navigation.addEventListener){
+    try {
+      window.navigation.addEventListener('navigate', function(e){
+        var dest = e.destination && e.destination.url;
+        if(!dest) return;
+        if(dest.indexOf(_cp) === 0) return;
+        var a = _abs(dest);
+        if(_shouldProxy(a)){
+          e.preventDefault();
+          _nav(a);
+        }
+      });
+    } catch(e){}
+  }
+
+  /* ── innerHTML / insertAdjacentHTML interception ── */
+  try {
+    var _origInnerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    if(_origInnerHTMLDesc && _origInnerHTMLDesc.set){
+      Object.defineProperty(Element.prototype, 'innerHTML', {
+        set: function(v){
+          if(v && typeof v === 'string'){
+            v = v.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+              if(url.indexOf(_cp) !== -1) return m;
+              return attr + q + _proxied(url) + q;
+            });
+          }
+          _origInnerHTMLDesc.set.call(this, v);
+        },
+        get: _origInnerHTMLDesc.get,
+        configurable: true
+      });
+    }
+  } catch(e){}
+  try {
+    var _origInsAdj = Element.prototype.insertAdjacentHTML;
+    Element.prototype.insertAdjacentHTML = function(pos, html){
+      if(html && typeof html === 'string'){
+        html = html.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
+          if(url.indexOf(_cp) !== -1) return m;
+          return attr + q + _proxied(url) + q;
+        });
+      }
+      return _origInsAdj.call(this, pos, html);
+    };
+  } catch(e){}
+
+  /* ── Flag real breakouts only (skip when Void replaced the document — see voidMarkInternalNavigation) ── */
+  window.addEventListener('beforeunload', function(){
+    try {
+      // Don't flag if the suppress marker was set recently (document.write navigation)
+      var sup = parseInt(localStorage.getItem('void_suppress_bounce') || '0', 10);
+      if(sup && Date.now() - sup < 2500) return;
+      // Don't flag if no real proxy navigation has happened yet
+      if(!_cur || !/^https?:\/\//i.test(_cur)) return;
+      localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() }));
+    } catch(ex){}
+  });
+
+  /* ── MutationObserver: rewrite dynamically added elements ── */
+  var _mo;
+  function _setupMO(){
+    if(_mo) try { _mo.disconnect(); } catch(e){}
+    _mo = new MutationObserver(function(muts){
+      for(var i = 0; i < muts.length; i++){
+        var added = muts[i].addedNodes;
+        for(var j = 0; j < added.length; j++){
+          var n = added[j];
+          if(n.nodeType !== 1) continue;
+          _rewriteNode(n);
+          if(n.querySelectorAll){
+            var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src],a,a[target],area,area[target],form[target],meta[http-equiv]');
+            for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
+          }
+        }
+      }
+    });
+    try { _mo.observe(document.documentElement, { childList: true, subtree: true }); } catch(e){}
+  }
+  _setupMO();
+
+  function _rewriteNode(el){
+    var tag = el.tagName ? el.tagName.toUpperCase() : '';
+    if(!tag) return;
+    if((tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE') && el.getAttribute('src')){
+      var s = el.getAttribute('src');
+      if(_shouldProxy(s) && s.indexOf(_cp) === -1) el.setAttribute('src', _proxied(s));
+    }
+    if((tag === 'IMG' || tag === 'SOURCE') && el.getAttribute('srcset')){
+      el.setAttribute('srcset', _rewriteSrcset(el.getAttribute('srcset')));
+    }
+    if(tag === 'IFRAME' && el.getAttribute('src')){
+      var is = el.getAttribute('src');
+      if(_shouldProxy(is) && is.indexOf(_cp) === -1) el.setAttribute('src', _proxied(is));
+    }
+    if(tag === 'LINK' && el.getAttribute('href')){
+      var lh = el.getAttribute('href');
+      if(_shouldProxy(lh) && lh.indexOf(_cp) === -1) el.setAttribute('href', _proxied(lh));
+    }
+    if(tag === 'SCRIPT' && el.getAttribute('src')){
+      var scs = el.getAttribute('src');
+      if(_shouldProxy(scs) && scs.indexOf(_cp) === -1) el.setAttribute('src', _proxied(scs));
+    }
+    if(tag === 'A' || tag === 'AREA' || tag === 'FORM'){
+      if(el.hasAttribute('target')) el.removeAttribute('target');
+    }
+    if(tag === 'A' || tag === 'AREA'){
+      var ah = el.getAttribute('href');
+      if((ah == null || ah === '') && el.getAttributeNS){
+        try { ah = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href'); } catch(e){}
+      }
+      if(ah && !/^(javascript:|data:|mailto:|blob:|#)/i.test(ah.trim())){
+        var aAbs = _abs(ah);
+        if(_shouldProxy(aAbs) && ah.indexOf(_cp) === -1){
+          // Use data-void-href + javascript:void(0) so the browser can never
+          // follow the link natively — same pattern as the static HTML rewriter
+          _origSetAttribute.call(el, 'data-void-href', _proxied(aAbs));
+          _origSetAttribute.call(el, 'href', 'javascript:void(0)');
+          if(el.hasAttribute('target')) el.removeAttribute('target');
+        }
+      }
+    }
+    if(tag === 'META'){
+      var he = (el.getAttribute('http-equiv') || '').toLowerCase();
+      if(he === 'refresh' || he === 'content-security-policy') { try { el.remove(); } catch(e){ el.content = ''; } }
+    }
+  }
+
+  function _rewriteSrcset(ss){
+    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
+      if(u.indexOf(_cp) !== -1) return u;
+      return _proxied(u);
+    });
+  }
+
+  /* ── Title reporting ── */
+  function reportTitle(){ _top.postMessage({ type: 'void_title', title: document.title }, '*'); }
+  function _attachTitle(){
+    reportTitle();
+    var titleEl = document.querySelector('title');
+    if(titleEl){
+      try { new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true }); } catch(e){}
+    }
+  }
+  _attachTitle();
+
+  /* ── Expose __voidProxy for re-navigation (prevents override stacking) ── */
+  window.__voidProxy = {
+    _setCur: function(v){ _cur = v; },
+    _reattach: function(){
+      _setupMO();
+      _attachTitle();
+      if(typeof window.PointerEvent !== 'undefined'){
+        document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
+      } else {
+        document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
+      }
+      document.addEventListener('click', _handleClick, true);
+      document.addEventListener('auxclick', _handleAuxClick, true);
+      document.addEventListener('submit', _handleSubmit, true);
+      document.addEventListener('touchstart', _handleTouchStart, { passive: true, capture: true });
+      document.addEventListener('touchend', _handleTouchEnd, { passive: true, capture: true });
+      _top.postMessage({ type: 'void_loaded' }, '*');
+    }
+  };
+
+  /* ── Listen for SW cookie updates ── */
+  try {
+    if(navigator.serviceWorker){
+      navigator.serviceWorker.addEventListener('message', function(e){
+        if(e.data && e.data.type === 'void-sw-set-cookie'){
+          _parseSetCookies(e.data.raw, e.data.url);
+        }
+      });
+    }
+  } catch(e){}
+
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'void_eval' && e.data.code){
+      try { (0, eval)(e.data.code); } catch(err){ console.error('[void inject]', err); }
+    }
+  });
+
+  _top.postMessage({ type: 'void_loaded' }, '*');
+}
+
+function buildInjection(baseUrl, corsProxy, eruda){
+  var src = '(' + _clientInjection.toString() + ')();';
+  src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
+  src = src.replace("'%%CORS%%'", JSON.stringify(corsProxy));
+  src = src.replace("'%%ERUDA%%'", eruda ? 'true' : 'false');
+  return src;
+}
+
+function rewriteCssUrls(css, baseUrl, corsBase){
+  if(!css) return css;
+  return css.replace(/url\(\s*(['"]?)((?!data:)[^)'"]+)\1\s*\)/gi, function(m, q, rawUrl){
+    rawUrl = rawUrl.trim();
+    if(rawUrl.indexOf(corsBase) !== -1) return m;
+    try {
+      var abs = new URL(rawUrl, baseUrl).href;
+      if(!/^https?:\/\//i.test(abs)) return m;
+      var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(abs) : corsBase + '?url=' + encodeURIComponent(abs);
+      return 'url(' + q + proxied + q + ')';
+    } catch(e){ return m; }
+  });
+}
+
+function rewriteSrcset(ss, baseUrl, corsBase){
+  if(!ss) return ss;
+  return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
+    if(u.indexOf(corsBase) !== -1) return u;
+    var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(u) : corsBase + '?url=' + encodeURIComponent(u);
+    return proxied;
+  });
+}
+
+/** DNS prefetch + dual preconnect to the CORS proxy origin so the browser opens parallel connections early (HTTP/2 lanes). */
+function voidProxyResourceHintsHtml(corsBase){
+  try {
+    var origin = new URL(corsBase).origin;
+    var o = escHtml(origin);
+    return '<meta http-equiv="x-dns-prefetch-control" content="on">'
+      + '<link rel="dns-prefetch" href="' + o + '">'
+      + '<link rel="preconnect" href="' + o + '" crossorigin>'
+      + '<link rel="preconnect" href="' + o + '">';
+  } catch(e){
+    return '<meta http-equiv="x-dns-prefetch-control" content="on">';
+  }
+}
+
+function voidEnsureCorsAttrs(html){
+  html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+    if(/\bcrossorigin\s*=/i.test(inner)) return full;
+    return '<script crossorigin="anonymous"' + inner + '>';
+  });
+  html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+    if(/\bcrossorigin\s*=/i.test(inner)) return full;
+    if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
+    return '<link crossorigin="anonymous"' + inner + '>';
+  });
+  return html;
+}
+
+function clientRewrite(html, baseUrl){
+  var cp = getActiveCorsBase();
+  var eruda = $('opt-eruda') && $('opt-eruda').checked;
+
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
+
+  html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
+
+  html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+  html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
+
+  html = html.replace(/(<a\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
+  html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
+
+  var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
+  var headInsert = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">'
+    + voidProxyResourceHintsHtml(cp)
+    + '<base href="' + escHtml(baseUrl) + '">' + injection;
+  if(/<head/i.test(html)){
+    html = html.replace(/<head([^>]*)>/i, '<head$1>' + headInsert);
+  } else if(/<html/i.test(html)){
+    html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + headInsert + '</head>');
+  } else {
+    html = '<!DOCTYPE html><html><head>' + headInsert + '</head>' + html;
+  }
+
+  function _rwUrl(raw){
+    if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
+    if(raw.indexOf(cp) !== -1) return raw;
+    try {
+      var abs = new URL(raw, baseUrl).href;
+      if(!/^https?:\/\//i.test(abs)) return raw;
+      return cp.indexOf('?') >= 0 ? cp + encodeURIComponent(abs) : cp + '?url=' + encodeURIComponent(abs);
+    } catch(e){ return raw; }
+  }
+
+  html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    if(/data-void-inject/i.test(pre)) return m;
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+  html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
+    return pre + q + _rwUrl(url) + q;
+  });
+
+  html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi, function(m, pre, attr, q, val){
+    return pre + attr + q + rewriteSrcset(val, baseUrl, cp) + q;
+  });
+
+  html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, function(m, attrs, css){
+    return '<style' + attrs + '>' + rewriteCssUrls(css, baseUrl, cp) + '</style>';
+  });
+
+  html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi, function(m, pre, q, css){
+    return pre + 'style=' + q + rewriteCssUrls(css, baseUrl, cp) + q;
+  });
+
+  html = voidEnsureCorsAttrs(html);
+
+  return html;
+}
+
+function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
+  var _corsBase = corsBase, _eruda = eruda, _injSrc = clientInjSrc, _selfSrc = selfSrc;
+  var _curUrl, _navHist, _navIdx;
+  try { _navHist = JSON.parse(localStorage.getItem('void_nav_history') || '[]'); } catch(e){ _navHist = []; }
+  try { _navIdx = parseInt(localStorage.getItem('void_nav_idx') || '0'); } catch(e){ _navIdx = 0; }
+  _curUrl = _navHist[_navIdx] || '';
+
+  function escH(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function makeCors(u){ return _corsBase.indexOf('?') >= 0 ? _corsBase + encodeURIComponent(u) : _corsBase + '?url=' + encodeURIComponent(u); }
+
+  function rwCss(css, base){
+    return css.replace(/url\s*\(\s*(?!["']*data:)["']*\s*([^)"'\s]+)/gi, function(m, u){
+      if(/^data:/i.test(u)) return m;
+      try { return m.replace(u, makeCors(new URL(u, base).href)); } catch(e){ return m; }
+    });
+  }
+  function rwSrcset(ss, base){
+    if(!ss) return ss;
+    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){ return makeCors(u); });
+  }
+
+  function buildInj(baseUrl){
+    var src = '(' + _injSrc + ')();';
+    src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
+    src = src.replace("'%%CORS%%'", JSON.stringify(_corsBase));
+    src = src.replace("'%%ERUDA%%'", _eruda ? 'true' : 'false');
+    var out = '';
+    if(_eruda) out = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/eruda" crossorigin="anonymous"><\/scr' + 'ipt><scr' + 'ipt>try{eruda.init();}catch(_e){}<\/scr' + 'ipt>';
+    return out + '<scr' + 'ipt data-void-inject>' + src + '<\/scr' + 'ipt>';
+  }
+
+  function rewrite(html, base){
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
+    html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
+    html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
+    html = html.replace(/(<a\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
+    html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
+    var inj = buildInj(base);
+    var vHints = '';
+    try {
+      var vo = new URL(_corsBase).origin;
+      vHints = '<meta http-equiv="x-dns-prefetch-control" content="on"><link rel="dns-prefetch" href="' + escH(vo) + '"><link rel="preconnect" href="' + escH(vo) + '" crossorigin><link rel="preconnect" href="' + escH(vo) + '">';
+    } catch(e){ vHints = '<meta http-equiv="x-dns-prefetch-control" content="on">'; }
+    var hi = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">' + vHints + '<base href="' + escH(base) + '">' + inj;
+    if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
+    else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
+    else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
+    function _rw(raw){
+      if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
+      if(raw.indexOf(_corsBase) !== -1) return raw;
+      try {
+        var a = new URL(raw, base).href;
+        if(!/^https?:\/\//i.test(a)) return raw;
+        return makeCors(a);
+      } catch(e){ return raw; }
+    }
+    html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      if(/data-void-inject/i.test(pre)) return m;
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      var rw = _rw(u);
+      // Store the proxied URL in data-void-href; set href to javascript:void(0) so
+      // the browser can never follow it natively and navigate away from void.html
+      if(rw !== u && /^https?:\/\//i.test(rw)){
+        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
+      }
+      return pre + q + rw + q;
+    });
+    html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      var rw = _rw(u);
+      if(rw !== u && /^https?:\/\//i.test(rw)){
+        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
+      }
+      return pre + q + rw + q;
+    });
+    html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
+      return pre + q + _rw(u) + q;
+    });
+    html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi,
+      function(m,pre,attr,q,val){ return pre + attr + q + rwSrcset(val, base) + q; });
+    html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi,
+      function(m,a,css){ return '<style'+a+'>' + rwCss(css,base) + '</style>'; });
+    html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi,
+      function(m,pre,q,css){ return pre+'style='+q + rwCss(css,base)+q; });
+    html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+      if(/\bcrossorigin\s*=/i.test(inner)) return full;
+      return '<script crossorigin="anonymous"' + inner + '>';
+    });
+    html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
+      if(/\bcrossorigin\s*=/i.test(inner)) return full;
+      if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
+      return '<link crossorigin="anonymous"' + inner + '>';
+    });
+    return html;
+  }
+
+  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
+    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
+    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
+    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
+    + 'transform:none !important;pointer-events:auto !important;'
+    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
+    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
+    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
+    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
+    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
+    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
+    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
+    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
+    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
+    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
+    + '#_vt button:active{transform:scale(.94) !important;}'
+    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
+    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
+    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
+    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
+    + 'transition:border-color .2s,box-shadow .2s !important;}'
+    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
+    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
+    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
+    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
+    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
+    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
+    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
+    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
+    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
+    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
+    + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
+    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
+    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
+    + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
+    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
+    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
+    + '#_vs.ok{color:#4ade80 !important;}'
+    + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
+    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
+    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
+    + 'background-size:200% 100% !important;}'
+    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
+    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
+    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
+    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
+    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
+    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
+    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
+    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
+    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
+    + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
+    + '@supports (padding:env(safe-area-inset-top)){'
+    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
+    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
+    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
+    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
+    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
+    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
+    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
+    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
+
+  function tbHtml(url){
+    return '<div id="_vt">'
+      + '<span id="_vt-brand">void</span>'
+      + '<span id="_vt-sep"></span>'
+      + '<div id="_vt-nav">'
+      + '<button id="_vb" title="Back">&#8592;</button>'
+      + '<button id="_vf" title="Forward">&#8594;</button>'
+      + '<button id="_vr" title="Reload">&#8635;</button>'
+      + '</div>'
+      + '<div id="_vt-url-wrap">'
+      + '<input id="_va" type="text" value="' + escH(url) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
+      + '<button id="_vt-go">Go</button>'
+      + '</div>'
+      + '<button id="_vbk" title="Bookmark">&#9734;</button>'
+      + '<button id="_vh" title="Home">&#8962;</button>'
+      + '</div>'
+      + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
+      + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
+      + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
+  }
+
+  function render(html, url){
+    // Inline voidMarkInternalNavigation — the outer-scope function is destroyed
+    // after document.write() replaces the document, so we can't call it by name.
+    try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
+    // Invalidate any pending nav-fallback timers from the previous page
+    _navGen++;
+    _curUrl = url;
+    try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
+    var css = '<style>' + TB_CSS + '</style>';
+    var tb = tbHtml(url);
+    var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(_selfSrc) + ')();'
+      + 'e(' + JSON.stringify(_corsBase) + ',' + _eruda + ',' + JSON.stringify(_injSrc) + ',' + JSON.stringify(_selfSrc) + ');})()}'
+      + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
+      + '<\/scr' + 'ipt>';
+    if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + '</head>');
+    else html = css + html;
+    if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tb + bootScript + '</body>');
+    else html += tb + bootScript;
+    document.open(); document.write(html); document.close();
+  }
+
+  function _getCk(u){
+    try {
+      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+      var d = ''; try { d = new URL(u).hostname; } catch(e){}
+      if(!d) return '';
+      var p = [];
+      for(var k in jar){ if(d === k || d.endsWith('.'+k)){ for(var n in jar[k]) p.push(n+'='+jar[k][n]); } }
+      return p.join('; ');
+    } catch(e){ return ''; }
+  }
+  function _storeCk(resp, u){
+    var sc = resp.headers.get('x-void-set-cookie'); if(!sc) return;
+    try {
+      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+      var d = ''; try { d = new URL(u).hostname; } catch(e){}
+      var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
+      cookies.forEach(function(c){
+        var parts = c.split(';'); var nv = parts[0].trim().split('=');
+        if(nv.length < 2) return;
+        var nm = nv[0].trim(), vl = nv.slice(1).join('=').trim(), cd = d;
+        parts.forEach(function(p){ var kv = p.trim().split('='); if(kv[0].trim().toLowerCase()==='domain'&&kv[1]) cd=kv[1].trim().replace(/^\./,''); });
+        if(!jar[cd]) jar[cd] = {}; jar[cd][nm] = vl;
+      });
+      localStorage.setItem('void_cookies', JSON.stringify(jar));
+    } catch(e){}
+  }
+
+  async function nav(url, push, postOpts){
+    var ld = document.getElementById('_vld'); if(ld) ld.className = 'on';
+    var vs = document.getElementById('_vs'); if(vs){ vs.textContent = 'Loading\u2026'; vs.className = 'ld'; }
+    try {
+      var fo = undefined;
+      if(postOpts) fo = { method: 'POST', headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' }, body: postOpts.body };
+      if(!fo) fo = {};
+      if(!fo.headers) fo.headers = {};
+      fo.headers['X-Void-Dest'] = 'document';
+      var ck = _getCk(url);
+      if(ck) fo.headers['X-Void-Cookie'] = ck;
+      var r = await fetch(makeCors(url), fo);
+      _storeCk(r, url);
+      var text = await r.text();
+      var ct = (r.headers.get('content-type') || '').toLowerCase();
+      var fin = r.headers.get('x-void-final-url') || url;
+      if(fin !== url){ url = fin; }
+      if(push !== false){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(url); _navIdx = _navHist.length - 1; }
+      _curUrl = url;
+      try {
+        var bh = JSON.parse(localStorage.getItem('void_browse_history') || '[]').filter(function(e){ return e.url !== url; });
+        var d = ''; try { d = new URL(url).hostname; } catch(e){}
+        bh.unshift({ url: url, title: d, ts: Date.now() });
+        if(bh.length > 30) bh = bh.slice(0, 30);
+        localStorage.setItem('void_browse_history', JSON.stringify(bh));
+      } catch(e){}
+      var rw;
+      if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && text.length > 0 && text.trim().charAt(0) === '<')){
+        rw = rewrite(text, url);
+      } else if(ct.indexOf('image/') >= 0){
+        rw = '<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escH(makeCors(url)) + '" style="max-width:100%;max-height:100vh"></body></html>';
+      } else if(ct.indexOf('application/json') >= 0){
+        rw = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all}</style></head><body>' + escH(text) + '</body></html>';
+      } else { rw = rewrite(text, url); }
+      render(rw, url);
+    } catch(err){
+      if(ld) ld.className = '';
+      var ai = document.getElementById('_va');
+      if(ai) ai.style.borderColor = 'rgba(255,95,143,.5)';
+      if(ai) ai.value = 'Error: ' + (err.message || err);
+      setTimeout(function(){ if(ai) ai.style.borderColor = ''; }, 3000);
+      console.error('[Void nav]', err);
+    }
+  }
+
+  window.addEventListener('message', function(e){
+    if(!e.data || typeof e.data !== 'object') return;
+    if(e.data.type === 'void_navigate' && e.data.url){
+      window.postMessage({ type: 'void_nav_ack' }, '*');
+      nav(e.data.url, true);
+    }
+    if(e.data.type === 'void_post' && e.data.url){
+      window.postMessage({ type: 'void_nav_ack' }, '*');
+      nav(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
+    }
+    if(e.data.type === 'void_raw_render' && e.data.html){
+      var fin = e.data.url || _curUrl;
+      if(e.data.url){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(fin); _navIdx = _navHist.length - 1; }
+      render(rewrite(e.data.html, fin), fin);
+    }
+    if(e.data.type === 'void_url' && e.data.url){ _curUrl = e.data.url; var ai = document.getElementById('_va'); if(ai) ai.value = e.data.url; }
+    if(e.data.type === 'void_title' && e.data.title) document.title = e.data.title;
+    if(e.data.type === 'void_loaded'){
+      var ld = document.getElementById('_vld'); if(ld) ld.className = '';
+      var vs = document.getElementById('_vs'); if(vs){ vs.textContent = '\u2713 Ready'; vs.className = 'ok'; }
+    }
+    if(e.data.type === 'void_swipe'){
+      if(e.data.dir === 'back' && _navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); }
+      else if(e.data.dir === 'fwd' && _navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); }
+    }
+  });
+
+  var $vh = document.getElementById('_vh');
+  var $vb = document.getElementById('_vb');
+  var $vf = document.getElementById('_vf');
+  var $vr = document.getElementById('_vr');
+  var $va = document.getElementById('_va');
+  var $vgo = document.getElementById('_vt-go');
+  var $vbk = document.getElementById('_vbk');
+  var $vjr = document.getElementById('_vjr');
+  var $vjx = document.getElementById('_vjx');
+
+  function _doNav(){
+    var u = $va ? $va.value.trim() : '';
+    if(!u) return;
+    if(!/^https?:\/\//i.test(u)){
+      u = u.includes('.') && !u.includes(' ') ? 'https://' + u : 'https://search.brave.com/search?q=' + encodeURIComponent(u);
+    }
+    nav(u, true);
+  }
+
+  if($vh) $vh.onclick = function(){ if(window.__voidRealReload) window.__voidRealReload(); else location.href = '/'; };
+  if($vb) $vb.onclick = function(){ if(_navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); } };
+  if($vf) $vf.onclick = function(){ if(_navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); } };
+  if($vr) $vr.onclick = function(){ nav(_curUrl, false); };
+  if($vgo) $vgo.onclick = _doNav;
+  if($va){
+    $va.addEventListener('focus', function(){ this.select(); });
+    $va.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); _doNav(); }
+      if(e.key === 'Escape'){ this.value = _curUrl; this.blur(); }
+    });
+    // Prevent the proxied page from stealing focus away from the address bar
+    $va.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
+  if($vbk) $vbk.onclick = function(){
+    try {
+      var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
+      if(bks.some(function(b){ return b.url === _curUrl; })){ bks = bks.filter(function(b){ return b.url !== _curUrl; }); this.innerHTML = '\u2605'; }
+      else { var d = ''; try{d = new URL(_curUrl).hostname;}catch(e){} bks.unshift({url:_curUrl,title:d}); this.innerHTML = '\u2605'; }
+      localStorage.setItem('void_bookmarks', JSON.stringify(bks));
+    } catch(e){}
+  };
+  try { var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
+    if(bks.some(function(b){ return b.url === _curUrl; }) && $vbk) $vbk.innerHTML = '\u2605'; } catch(e){}
+  if($vjr) $vjr.onclick = function(){ var c = document.getElementById('_vjc'); if(c && c.value.trim()) try{(0,eval)(c.value);}catch(e){alert(e.message);} };
+  if($vjx) $vjx.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; };
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; }
+    if((e.ctrlKey || e.metaKey) && e.key === 'l'){ e.preventDefault(); if($va){ $va.focus(); $va.select(); } }
+    if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); if($vb) $vb.click(); }
+    if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); if($vf) $vf.click(); }
+  });
+}
+
+function renderPage(html, baseUrl){
+  try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
+  localStorage.setItem('void_nav_history', JSON.stringify(navHistory));
+  localStorage.setItem('void_nav_idx', String(navIdx));
+  var corsBase = getActiveCorsBase();
+  var eruda = $('opt-eruda') && $('opt-eruda').checked;
+  var selfSrc = _voidEngine.toString();
+  var injSrc = _clientInjection.toString();
+
+  var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(selfSrc) + ')();'
+    + 'e(' + JSON.stringify(corsBase) + ',' + (eruda?'true':'false') + ',' + JSON.stringify(injSrc) + ',' + JSON.stringify(selfSrc) + ');})()}'
+    + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
+    + '<\/scr' + 'ipt>';
+
+  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
+    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
+    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
+    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
+    + 'transform:none !important;pointer-events:auto !important;'
+    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
+    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
+    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
+    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
+    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
+    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
+    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
+    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
+    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
+    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
+    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
+    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
+    + '#_vt button:active{transform:scale(.94) !important;}'
+    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
+    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
+    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
+    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
+    + 'transition:border-color .2s,box-shadow .2s !important;}'
+    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
+    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
+    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
+    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
+    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
+    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
+    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
+    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
+    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
+    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
+    + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
+    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
+    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
+    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
+    + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
+    + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
+    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
+    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
+    + '#_vs.ok{color:#4ade80 !important;}'
+    + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
+    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
+    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
+    + 'background-size:200% 100% !important;}'
+    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
+    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
+    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
+    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
+    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
+    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
+    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
+    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
+    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
+    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
+    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
+    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
+    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
+    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
+    + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
+    + '@supports (padding:env(safe-area-inset-top)){'
+    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
+    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
+    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
+    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
+    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
+    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
+    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
+    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
+
+  var tbHtml = '<div id="_vt">'
+    + '<span id="_vt-brand">void</span>'
+    + '<span id="_vt-sep"></span>'
+    + '<div id="_vt-nav">'
+    + '<button id="_vb" title="Back">&#8592;</button>'
+    + '<button id="_vf" title="Forward">&#8594;</button>'
+    + '<button id="_vr" title="Reload">&#8635;</button>'
+    + '</div>'
+    + '<div id="_vt-url-wrap">'
+    + '<input id="_va" type="text" value="' + escHtml(baseUrl) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
+    + '<button id="_vt-go">Go</button>'
+    + '</div>'
+    + '<button id="_vbk" title="Bookmark">&#9734;</button>'
+    + '<button id="_vh" title="Home">&#8962;</button>'
+    + '</div>'
+    + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
+    + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
+    + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
+
+  if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, '<style>' + TB_CSS + '</style></head>');
+  else html = '<style>' + TB_CSS + '</style>' + html;
+  if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tbHtml + bootScript + '</body>');
+  else html += tbHtml + bootScript;
+
+  document.open(); document.write(html); document.close();
+}
+
+function mergeAbortSignals(a, b){
+  if(typeof AbortSignal !== 'undefined' && AbortSignal.any) return AbortSignal.any([a, b]);
+  var ctrl = new AbortController();
+  function fire(){ try { ctrl.abort(); } catch(e){} }
+  if(a.aborted || b.aborted){ fire(); return ctrl.signal; }
+  a.addEventListener('abort', fire);
+  b.addEventListener('abort', fire);
+  return ctrl.signal;
+}
+
+function promiseAny(promises){
+  return new Promise(function(resolve, reject){
+    var n = promises.length;
+    if(!n){ reject(new Error('no backends')); return; }
+    var errs = [];
+    promises.forEach(function(p){
+      Promise.resolve(p).then(resolve).catch(function(e){
+        errs.push(e && e.message ? e.message : String(e));
+        if(errs.length === n) reject(new Error(errs.join('\n')));
+      });
+    });
+  });
+}
+
+function fetchWithTimeout(url, opts, ms){
+  var ctrl = new AbortController();
+  opts = Object.assign({}, opts || {});
+  var external = opts.signal;
+  if(external){
+    opts.signal = mergeAbortSignals(external, ctrl.signal);
+  } else {
+    opts.signal = ctrl.signal;
+  }
+  var timer = setTimeout(function(){ ctrl.abort(); }, ms || 20000);
+  return fetch(url, opts).finally(function(){ clearTimeout(timer); });
+}
+
+probeBackends();
+
+/* ── Service Worker registration (file:// / blob: cannot host SW; ready would hang) ── */
+if('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')){
+  navigator.serviceWorker.register('/void-sw.js', { scope: '/', updateViaCache: 'none' }).catch(function(e){
+    console.warn('[Void SW] registration failed:', e.message);
+  });
+}
+function configureSW(proxyBase, targetUrl){
+  var p = location.protocol;
+  if(!navigator.serviceWorker || p === 'file:' || p === 'blob:' || p === 'chrome-extension:' || p === 'moz-extension:'){
+    return Promise.resolve();
+  }
+  return Promise.race([
+    new Promise(function(resolve){
+      function send(){
+        try {
+          if(!navigator.serviceWorker.controller){ resolve(); return; }
+          var jar = {};
+          try { jar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
+          var mc = new MessageChannel();
+          mc.port1.onmessage = function(){ resolve(); };
+          navigator.serviceWorker.controller.postMessage({
+            type: 'void-sw-config',
+            proxy: proxyBase.replace(/\/+$/, ''),
+            origin: new URL(targetUrl).origin,
+            cookies: jar
+          }, [mc.port2]);
+          setTimeout(resolve, 220);
+        } catch(e){ resolve(); }
+      }
+      navigator.serviceWorker.ready.then(send).catch(function(){ resolve(); });
+    }),
+    new Promise(function(r){ setTimeout(r, 500); })
+  ]);
+}
+
+function _getVoidCookies(url){
+  try {
+    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    if(!domain) return '';
+    var parts = [];
+    for(var d in jar){
+      if(domain === d || domain.endsWith('.' + d)){
+        for(var name in jar[d]) parts.push(name + '=' + jar[d][name]);
+      }
+    }
+    return parts.join('; ');
+  } catch(e){ return ''; }
+}
+function _storeVoidCookies(resp, url){
+  var sc = resp.headers.get('x-void-set-cookie');
+  if(!sc) return;
+  try {
+    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
+    cookies.forEach(function(c){
+      var parts = c.split(';'); var nv = parts[0].trim().split('=');
+      if(nv.length < 2) return;
+      var name = nv[0].trim(), val = nv.slice(1).join('=').trim(), cDomain = domain;
+      parts.forEach(function(p){
+        var kv = p.trim().split('=');
+        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
+      });
+      if(!jar[cDomain]) jar[cDomain] = {};
+      jar[cDomain][name] = val;
+    });
+    localStorage.setItem('void_cookies', JSON.stringify(jar));
+  } catch(e){}
+}
+function _addCookieHeaders(fetchOpts, targetUrl, dest){
+  if(!fetchOpts) fetchOpts = {};
+  if(!fetchOpts.headers) fetchOpts.headers = {};
+  var ck = _getVoidCookies(targetUrl);
+  if(ck) fetchOpts.headers['X-Void-Cookie'] = ck;
+  if(dest) fetchOpts.headers['X-Void-Dest'] = dest;
+  return fetchOpts;
+}
+
+async function consumeCorsResponse(be, resp, targetUrl){
+  if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
+  _storeVoidCookies(resp, targetUrl);
+  var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
+  var body, ct;
+  if(be.type === 'json'){
+    ct = 'text/html';
+    var json = await resp.json();
+    body = json.contents;
+    if(!body && body !== '') throw new Error(be.name + ': empty response');
+  } else {
+    ct = (resp.headers.get('content-type') || '').toLowerCase();
+    var buf = await resp.arrayBuffer();
+    body = decodeBody(buf, resp.headers);
+  }
+  if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
+  return { body: body, contentType: ct, finalUrl: finalUrl };
+}
+
+var _pageFetchCache = new Map();
+var PAGE_CACHE_MAX = 40;
+var PAGE_CACHE_TTL_MS = 120000;
+
+function _pageFetchCacheKey(targetUrl){
+  return targetUrl + '\0' + (_getVoidCookies(targetUrl) || '');
+}
+
+function _pageFetchCacheGet(targetUrl){
+  var e = _pageFetchCache.get(_pageFetchCacheKey(targetUrl));
+  if(!e) return null;
+  if(Date.now() - e.t > PAGE_CACHE_TTL_MS){
+    _pageFetchCache.delete(_pageFetchCacheKey(targetUrl));
+    return null;
+  }
+  return e.v;
+}
+
+function _pageFetchCacheSet(targetUrl, v){
+  var key = _pageFetchCacheKey(targetUrl);
+  if(_pageFetchCache.size >= PAGE_CACHE_MAX){
+    var first = _pageFetchCache.keys().next().value;
+    if(first) _pageFetchCache.delete(first);
+  }
+  _pageFetchCache.set(key, { v: v, t: Date.now() });
+}
+
+async function clientFetch(targetUrl, fetchOpts){
+  fetchOpts = _addCookieHeaders(fetchOpts, targetUrl, 'document');
+  if(_probePromise) await _probePromise;
+
+  var isPost = fetchOpts && fetchOpts.method && String(fetchOpts.method).toUpperCase() === 'POST';
+  if(!isPost){
+    var hit = _pageFetchCacheGet(targetUrl);
+    if(hit){
+      return { body: hit.body, contentType: hit.contentType, ok: true, finalUrl: hit.finalUrl };
+    }
+  }
+
+  var order = [];
+  for(var k = 0; k < CORS_BACKENDS.length; k++) order.push(k);
+  order.sort(function(a,b){
+    var la = _backendLatencies[a] || 9999;
+    var lb = _backendLatencies[b] || 9999;
+    return la - lb;
+  });
+
+  /* Race parallel attempts (same Worker); first good response wins. */
+  var controllers = order.map(function(){ return new AbortController(); });
+  var perTryMs = 22000;
+  var promises = order.map(function(backendIdx, slot){
+    var be = CORS_BACKENDS[backendIdx];
+    var o = Object.assign({}, fetchOpts);
+    o.signal = controllers[slot].signal;
+    return fetchWithTimeout(be.fn(targetUrl), o, perTryMs).then(function(resp){
+      return consumeCorsResponse(be, resp, targetUrl).then(function(r){
+        return { idx: backendIdx, body: r.body, contentType: r.contentType, ok: true, finalUrl: r.finalUrl };
+      });
+    });
+  });
+
+  try {
+    var won = await promiseAny(promises);
+    controllers.forEach(function(c){ try { c.abort(); } catch(e){} });
+    _workingBackendIdx = won.idx;
+    if(!isPost){
+      _pageFetchCacheSet(targetUrl, { body: won.body, contentType: won.contentType, finalUrl: won.finalUrl });
+    }
+    return { body: won.body, contentType: won.contentType, ok: true, finalUrl: won.finalUrl };
+  } catch(e){
+    controllers.forEach(function(c){ try { c.abort(); } catch(err){} });
+    throw new Error('CORS proxy failed:\n' + (e.message || String(e)));
+  }
+}
+
+/* ──────────── Navigation ──────────── */
+
+async function navigateClient(targetUrl, pushHist, postOpts){
+  currentUrl = targetUrl;
+
+  if(pushHist !== false){
+    navHistory = navHistory.slice(0, navIdx + 1);
+    navHistory.push(targetUrl);
+    navIdx = navHistory.length - 1;
+  }
+
+  try {
+    await configureSW(getActiveCorsBase(), targetUrl);
+    var fetchOpts = undefined;
+    if(postOpts){
+      fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' },
+        body: postOpts.body
+      };
+    }
+    var result = await clientFetch(targetUrl, fetchOpts);
+    var ct = result.contentType;
+    var resolvedUrl = result.finalUrl || targetUrl;
+
+    if(resolvedUrl !== targetUrl){
+      currentUrl = resolvedUrl;
+    }
+
+    if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && result.body.length > 0 && result.body.trim().charAt(0) === '<')){
+      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
+    } else if(ct.indexOf('image/') >= 0){
+      renderPage('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>', resolvedUrl);
+    } else if(ct.indexOf('application/json') >= 0){
+      renderPage('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>', resolvedUrl);
+    } else if(ct.indexOf('application/pdf') >= 0){
+      renderPage('<!DOCTYPE html><html><body style="margin:0"><embed src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh"></body></html>', resolvedUrl);
+    } else {
+      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
+    }
+  } catch(proxyErr){
+    alert('Proxy error: ' + (proxyErr.message || 'check void-cors-proxy-base / Worker'));
+  }
+}
+
+function buildServerProxyUrl(targetUrl){
+  var base = getServerBase();
+  if(!base){
+    toast('Enter your hosted Void server URL');
+    return null;
+  }
+  var q = 'url=' + encodeURIComponent(targetUrl);
+  if($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
+  if($('opt-offline') && $('opt-offline').checked) q += '&offline=1';
+  return base.replace(/\/+$/,'') + '/go?' + q;
+}
+
+function buildProxyShellUrl(){
+  return null;
+}
+
+var _voidEmbedLastSrc = '';
+var _voidEmbedBarCopy = '';
+var _voidEmbedPostText = '';
+var _voidEmbedPostResolved = '';
+var _voidEmbedBridgePending = false;
+var _voidLastBridgeBlob = null;
+
+/* One-hop blob page: in-frame loading UI, then location.replace(dest) — same URL as Browse, gives proxy time to read ?url= (Scramjet/UV). */
+function voidCreateProxyBridgeBlobUrl(destUrl, hintText){
+  try {
+    if(_voidLastBridgeBlob){
+      try { URL.revokeObjectURL(_voidLastBridgeBlob); } catch(e1){}
+      _voidLastBridgeBlob = null;
+    }
+    var dest = JSON.stringify(String(destUrl));
+    var hint = JSON.stringify(String(hintText != null ? hintText : destUrl || ''));
+    var html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Loading…</title><style>' +
+      'html,body{height:100%;margin:0;background:#06060b;color:#e8e8ef;font-family:system-ui,sans-serif;}' +
+      'main{display:flex;min-height:100%;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;}' +
+      '.c{text-align:center;max-width:min(94vw,26rem);}' +
+      '.s{width:36px;height:36px;margin:0 auto 16px;border-radius:50%;border:3px solid rgba(124,106,255,.2);border-top-color:#7c6aff;animation:v .9s linear infinite}' +
+      '@keyframes v{to{transform:rotate(360deg)}}' +
+      'h1{font-size:.92rem;font-weight:600;margin:0 0 10px;letter-spacing:.05em}' +
+      'p{font-size:.65rem;opacity:.55;margin:0;word-break:break-all;line-height:1.45}' +
+      '</style></head><body><main><div class="c"><div class="s"></div><h1>Opening in proxy…</h1><p id="h"></p></div></main><script>' +
+      'document.getElementById("h").textContent=' + hint + ';setTimeout(function(){try{location.replace(' + dest + ');}catch(e){location.href=' + dest + ';}},340);<\/script></body></html>';
+    _voidLastBridgeBlob = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    return _voidLastBridgeBlob;
+  } catch(e){
+    return destUrl;
+  }
+}
+function voidShouldUseProxyBridge(){
+  return false;
+}
+function voidWrapProxyNavigation(proxyUrl){
+  return proxyUrl;
+}
+
+async function navigate(rawOrUrl){
+  try {
+  var url = rawOrUrl;
+  if(!/^https?:\/\//i.test(url)){
+    url = toUrl(rawOrUrl);
+  }
+  var m = getMode();
+  var shellInFrame = false;
+  if(!url && !shellInFrame) return;
+
+  if(url){
+    try { logSearch(url, rawOrUrl); } catch(e){}
+    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+    try { addToHistory(url, domain); } catch(e){}
+  }
+
+  if(m === 'custom'){
+    if(!url){
+      toast('Enter a search or URL');
+      return;
+    }
+    var proxyUrl = buildServerProxyUrl(url);
+    if(!proxyUrl) return;
+
+    if($('opt-iframe') && $('opt-iframe').checked){
+      showVoidEmbedOverlay(proxyUrl, url || '', url || '');
+      return;
+    }
+    if($('opt-newtab') && $('opt-newtab').checked){
+      window.open(proxyUrl, '_blank');
+      return;
+    }
+    window.location.href = proxyUrl;
+    return;
+  }
+
+  var _voidBase = location.href.split('?')[0];
+  if($('opt-newtab') && $('opt-newtab').checked){
+    window.open(_voidBase + '?go=' + encodeURIComponent(url), '_blank');
+    return;
+  }
+  var _vfRoot = document.body || document.documentElement;
+  if (_vfRoot) _vfRoot.classList.add('void-fetching');
+  try {
+    await navigateClient(url, true);
+  } finally {
+    _vfRoot = document.body || document.documentElement;
+    if (_vfRoot) _vfRoot.classList.remove('void-fetching');
+  }
+  if($('opt-newtab') && $('opt-newtab').checked){
+    window.open(voidWrapProxyNavigation(proxyUrl), '_blank');
+    return;
+  }
+  window.location.href = voidWrapProxyNavigation(proxyUrl);
+  } catch(navErr) {
+    console.error('[Void navigate]', navErr);
+    alert('Navigation error: ' + (navErr.message || navErr));
+  }
+}
+
+/* ──────────── Event listeners ──────────── */
+
+document.querySelectorAll('.mode-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    sfxClick();
+    document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    mode = btn.dataset.m;
+    updateModeUI();
+    savePrefs();
+  });
+});
+
+document.querySelectorAll('.eng-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    sfxClick();
+    document.querySelectorAll('.eng-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    engine = btn.dataset.e;
+    savePrefs();
+  });
+});
+
+$('eng-more-btn').addEventListener('click', function(){
+  sfxClick();
+  var extra = $('engines-extra');
+  var open = extra.classList.toggle('show');
+  this.classList.toggle('open', open);
+});
+
+$('go-btn').addEventListener('click', function(){
+  closeSuggestions();
+  var btn = $('go-btn');
+  btn.textContent = 'Loading\u2026';
+  btn.disabled = true;
+  navigate(input.value).finally(function(){ btn.textContent = 'Browse'; btn.disabled = false; });
+});
+input.addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ closeSuggestions(); navigate(input.value); }
+  if(e.key === 'Escape') closeSuggestions();
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    var items = document.querySelectorAll('.sug-item');
+    if(!items.length) return;
+    var cur = document.querySelector('.sug-item.active');
+    var idx = -1;
+    items.forEach(function(it, i){ if(it === cur) idx = i; });
+    if(cur) cur.classList.remove('active');
+    idx = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx <= 0 ? items.length - 1 : idx - 1);
+    items[idx].classList.add('active');
+    input.value = items[idx].dataset.url || items[idx].textContent;
+  }
+});
+
+input.addEventListener('input', function(){
+  var q = input.value.trim().toLowerCase();
+  if(!q || q.length < 2){ closeSuggestions(); return; }
+  var results = [];
+  getBookmarks().forEach(function(b){
+    if(b.url.toLowerCase().includes(q) || (b.title||'').toLowerCase().includes(q))
+      results.push({ url: b.url, title: b.title, type: 'bk' });
+  });
+  getBrowsingHistory().forEach(function(h){
+    if(h.url.toLowerCase().includes(q) || (h.title||'').toLowerCase().includes(q)){
+      if(!results.some(function(r){ return r.url === h.url; }))
+        results.push({ url: h.url, title: h.title, type: 'hist' });
+    }
+  });
+  if(!results.length){ closeSuggestions(); return; }
+  var sg = $('search-suggest'); sg.innerHTML = '';
+  results.slice(0, 8).forEach(function(r){
+    var d = document.createElement('div'); d.className = 'sug-item'; d.dataset.url = r.url;
+    var domain = ''; try { domain = new URL(r.url).hostname; } catch(e){}
+    d.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + '<span>' + (r.title || domain || r.url).replace(/</g,'&lt;') + '</span>'
+      + '<span class="sug-tag ' + r.type + '">' + (r.type === 'bk' ? 'Bookmark' : 'History') + '</span>';
+    d.addEventListener('click', function(){ closeSuggestions(); input.value = r.url; navigate(r.url); });
+    sg.appendChild(d);
+  });
+  sg.classList.add('show');
+});
+
+input.addEventListener('blur', function(){ setTimeout(closeSuggestions, 200); });
+function closeSuggestions(){ var sg = $('search-suggest'); if(sg) sg.classList.remove('show'); }
+
+document.querySelectorAll('.ql').forEach(function(el){
+  el.addEventListener('click', function(e){
+    e.preventDefault();
+    sfxClick();
+    var targetUrl = el.dataset.url;
+    if(!targetUrl) return;
+    input.value = targetUrl;
+    navigate(targetUrl);
+  });
+});
+
+/* ──────────── Bookmarks ──────────── */
+function getBookmarks(){
+  try { return JSON.parse(localStorage.getItem('void_bookmarks') || '[]'); } catch(e){ return []; }
+}
+function saveBookmarks(bks){
+  try { localStorage.setItem('void_bookmarks', JSON.stringify(bks)); } catch(e){}
+}
+function addBookmark(url, title){
+  var bks = getBookmarks();
+  if(bks.some(function(b){ return b.url === url; })) return;
+  bks.unshift({ url: url, title: title || '' });
+  if(bks.length > 50) bks = bks.slice(0, 50);
+  saveBookmarks(bks);
+  renderBookmarks();
+}
+function removeBookmark(url){
+  var bks = getBookmarks().filter(function(b){ return b.url !== url; });
+  saveBookmarks(bks);
+  renderBookmarks();
+}
+function isBookmarked(url){
+  return getBookmarks().some(function(b){ return b.url === url; });
+}
+function renderBookmarks(){
+  var grid = $('bookmarks-grid'); if(!grid) return;
+  var bks = getBookmarks();
+  grid.innerHTML = '';
+  if(!bks.length){ grid.innerHTML = '<span style="font-size:.65rem;color:var(--muted);padding:4px;">No bookmarks yet. Click &#9734; in the browser toolbar to add one.</span>'; return; }
+  bks.forEach(function(b){
+    var el = document.createElement('a'); el.className = 'ql'; el.href = 'javascript:void(0)';
+    var domain = ''; try { domain = new URL(b.url).hostname; } catch(e){}
+    el.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + (b.title || domain || b.url).replace(/</g,'&lt;')
+      + '<button class="ql-rm" title="Remove">&times;</button>';
+    el.addEventListener('click', function(e){
+      if(e.target.classList.contains('ql-rm')){ e.preventDefault(); removeBookmark(b.url); return; }
+      e.preventDefault(); sfxClick(); input.value = b.url; navigate(b.url);
+    });
+    grid.appendChild(el);
+  });
+}
+$('btn-add-bk').addEventListener('click', function(){
+  var url = prompt('Enter URL to bookmark:', 'https://');
+  if(!url || !url.trim()) return;
+  url = url.trim();
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  var title = prompt('Label (optional):', '');
+  addBookmark(url, title || '');
+});
+renderBookmarks();
+
+/* ──────────── Browsing History ──────────── */
+function getBrowsingHistory(){
+  try { return JSON.parse(localStorage.getItem('void_browse_history') || '[]'); } catch(e){ return []; }
+}
+function saveBrowsingHistory(h){
+  try { localStorage.setItem('void_browse_history', JSON.stringify(h)); } catch(e){}
+}
+function addToHistory(url, title){
+  var h = getBrowsingHistory().filter(function(e){ return e.url !== url; });
+  h.unshift({ url: url, title: title || '', ts: Date.now() });
+  if(h.length > 30) h = h.slice(0, 30);
+  saveBrowsingHistory(h);
+  renderHistory();
+}
+function renderHistory(){
+  var grid = $('history-grid'); var sec = $('history-section');
+  if(!grid || !sec) return;
+  var h = getBrowsingHistory();
+  if(!h.length){ sec.style.display = 'none'; grid.innerHTML = ''; return; }
+  sec.style.display = '';
+  grid.innerHTML = '';
+  h.slice(0, 12).forEach(function(entry){
+    var el = document.createElement('div'); el.className = 'h-item';
+    var domain = ''; try { domain = new URL(entry.url).hostname; } catch(e){}
+    el.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
+      + '<span>' + (entry.title || domain || entry.url).replace(/</g,'&lt;') + '</span>'
+      + '<button class="h-rm" title="Remove">&times;</button>';
+    el.addEventListener('click', function(e){
+      if(e.target.classList.contains('h-rm')){
+        var hist = getBrowsingHistory().filter(function(x){ return x.url !== entry.url; });
+        saveBrowsingHistory(hist); renderHistory(); return;
+      }
+      input.value = entry.url; navigate(entry.url);
+    });
+    grid.appendChild(el);
+  });
+}
+$('btn-clear-hist').addEventListener('click', function(){
+  localStorage.removeItem('void_browse_history');
+  renderHistory();
+});
+renderHistory();
+
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var emb = $('void-embed-overlay');
+    if(emb && emb.classList.contains('show')){
+      hideVoidEmbedOverlay();
+      e.preventDefault();
+      return;
+    }
+  }
+  if(e.altKey && e.key === 'ArrowLeft'){
+    var emb2 = $('void-embed-overlay');
+    if(emb2 && emb2.classList.contains('show')){
+      voidEmbedHistoryBack();
+      e.preventDefault();
+      return;
+    }
+  }
+  if(e.key === 'Escape' && $('settings-overlay').classList.contains('visible')){
+    $('settings-overlay').classList.remove('visible');
+    sfxClose();
+    return;
+  }
+  if((e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey){
+    var ae = document.activeElement;
+    if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    e.preventDefault();
+    var so = $('settings-overlay');
+    if(so.classList.contains('visible')){ so.classList.remove('visible'); sfxClose(); }
+    else { so.classList.add('visible'); sfxOpen(); }
+  }
+});
+
+/* ──────────── Preferences ──────────── */
+
+function savePrefs(){
+  try {
+    localStorage.setItem('void_prefs', JSON.stringify({
+      engine: engine,
+      mode: getMode(),
+      newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
+      inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
+      eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
+      offline: $('opt-offline') ? $('opt-offline').checked : false,
+      serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
+    }));
+  } catch(e){}
+}
+
+function loadPrefs(){
+  try {
+    var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
+    var metaMode = '';
+    try {
+      var mm = document.querySelector('meta[name="void-default-mode"]');
+      if(mm){
+        metaMode = (mm.getAttribute('content') || '').trim();
+      }
+    } catch(e1){}
+    if(p.mode){
+      var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
+      if(mb){ mb.click(); }
+    } else if(metaMode){
+      var mb0 = document.querySelector('.mode-btn[data-m="'+metaMode+'"]');
+      if(mb0){ mb0.click(); }
+    }
+    if(p.engine){
+      var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
+      if(btn) btn.click();
+    }
+    if($('opt-newtab')) $('opt-newtab').checked = !!p.newtab;
+    if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
+    if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
+    if($('opt-offline')) $('opt-offline').checked = !!p.offline;
+    if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
+  } catch(e){}
+  updateModeUI();
+}
+
+['server-backend'].forEach(function(id){
+  var el = $(id);
+  if(el) el.addEventListener('input', savePrefs);
+});
+['opt-newtab','opt-iframe','opt-eruda','opt-offline'].forEach(function(id){
+  var el = $(id);
+  if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
+});
+
+function voidEmbedGoHome(){
+  var shell = buildProxyShellUrl();
+  if(!shell){
+    toast('Set UV / Scramjet backends in meta, or switch mode.');
+    return;
+  }
+  sfxClick();
+  showVoidEmbedOverlay(shell, '', '');
+}
+function voidEmbedHistoryBack(){
+  sfxClick();
+  try {
+    var fr = $('void-embed-frame');
+    if(fr && fr.contentWindow) fr.contentWindow.history.back();
+  } catch(e){
+    toast('Back is limited inside the proxy frame.');
+  }
+}
+function voidEmbedReload(){
+  sfxClick();
+  var fr = $('void-embed-frame');
+  if(!fr || !_voidEmbedLastSrc) return;
+  try {
+    if(fr.contentWindow && fr.contentWindow.location && String(fr.contentWindow.location.href).indexOf('about:blank') !== 0){
+      fr.contentWindow.location.reload();
+      return;
+    }
+  } catch(e){}
+  var u = _voidEmbedLastSrc;
+  fr.src = '';
+  fr.src = u;
+}
+
+var _voidEmbedClose = $('void-embed-close');
+if(_voidEmbedClose){
+  _voidEmbedClose.addEventListener('click', function(){
+    sfxClick();
+    hideVoidEmbedOverlay();
+  });
+}
+var _voidEmbedLabelEl = $('void-embed-label');
+if(_voidEmbedLabelEl){
+  _voidEmbedLabelEl.addEventListener('click', function(){
+    var t = _voidEmbedBarCopy;
+    if(!t){
+      toast('Nothing to copy (open a page from Void first)');
+      return;
+    }
+    sfxClick();
+    function ok(){ toast('Copied'); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(ok).catch(function(){
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = t;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          ok();
+        } catch(e){ toast('Copy failed'); }
+      });
+    } else {
+      try {
+        var ta2 = document.createElement('textarea');
+        ta2.value = t;
+        document.body.appendChild(ta2);
+        ta2.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta2);
+        ok();
+      } catch(e2){ toast('Copy failed'); }
+    }
+  });
+}
+var _voidEmbedHome = $('void-embed-home');
+var _voidEmbedBack = $('void-embed-back');
+var _voidEmbedReload = $('void-embed-reload');
+if(_voidEmbedHome) _voidEmbedHome.addEventListener('click', voidEmbedGoHome);
+if(_voidEmbedBack) _voidEmbedBack.addEventListener('click', voidEmbedHistoryBack);
+if(_voidEmbedReload) _voidEmbedReload.addEventListener('click', voidEmbedReload);
+
+/* ──────────── Settings panel ──────────── */
+$('settings-x').addEventListener('click', function(){
+  $('settings-overlay').classList.remove('visible');
+  sfxClose();
+});
+$('settings-overlay').addEventListener('click', function(e){
+  if(e.target === $('settings-overlay')){
+    $('settings-overlay').classList.remove('visible');
+    sfxClose();
+  }
+});
+/* ──────────── Ambient Music (floating + in-page embed strip share one <audio>) ──────────── */
+var _ambAudio = $('ambient-audio');
+var _musicCtrl = $('music-ctrl');
+var _musicVol = $('music-vol');
+var _musicLabel = $('music-label');
+var _musicCtrlEmbed = $('music-ctrl-embed');
+var _musicVolEmbed = $('music-vol-embed');
+var _musicLabelEmbed = $('music-label-embed');
+var _musicPlaying = false;
+
+function _musicSyncUi(){
+  var pct = Math.round((_ambAudio ? _ambAudio.volume : 0.25) * 100);
+  if(_musicVol) _musicVol.value = String(pct);
+  if(_musicVolEmbed) _musicVolEmbed.value = String(pct);
+  var lab = _musicPlaying ? 'Playing' : 'Music';
+  if(_musicLabel) _musicLabel.textContent = lab;
+  if(_musicLabelEmbed) _musicLabelEmbed.textContent = lab;
+  if(_musicCtrl){
+    if(_musicPlaying) _musicCtrl.classList.add('playing');
+    else _musicCtrl.classList.remove('playing');
+  }
+  if(_musicCtrlEmbed){
+    if(_musicPlaying) _musicCtrlEmbed.classList.add('playing');
+    else _musicCtrlEmbed.classList.remove('playing');
+  }
+}
+
+function _musicSetVolumeFromPct(pctInt){
+  var v = Math.max(0, Math.min(1, parseInt(pctInt, 10) / 100));
+  if(_ambAudio) _ambAudio.volume = v;
+  try { localStorage.setItem('void_music_vol', String(v)); } catch(e){}
+  if(_musicVol) _musicVol.value = String(Math.round(v * 100));
+  if(_musicVolEmbed) _musicVolEmbed.value = String(Math.round(v * 100));
+}
+
+function _musicTogglePlay(){
+  if(!_ambAudio) return;
+  if(_musicPlaying){
+    _ambAudio.pause();
+    _musicPlaying = false;
+    try { localStorage.setItem('void_music_on', '0'); } catch(e){}
+    _musicSyncUi();
+  } else {
+    _ambAudio.play().then(function(){
+      _musicPlaying = true;
+      try { localStorage.setItem('void_music_on', '1'); } catch(e){}
+      _musicSyncUi();
+    }).catch(function(){
+      if(_musicLabel) _musicLabel.textContent = 'Click again';
+      if(_musicLabelEmbed) _musicLabelEmbed.textContent = 'Tap again';
+    });
+  }
+}
+
+if(_ambAudio){
+  _ambAudio.volume = 0.25;
+
+  try {
+    var savedVol = localStorage.getItem('void_music_vol');
+    if(savedVol !== null){
+      _ambAudio.volume = parseFloat(savedVol);
+    }
+    _musicSyncUi();
+    if(localStorage.getItem('void_music_on') === '1'){
+      _ambAudio.play().then(function(){
+        _musicPlaying = true;
+        _musicSyncUi();
+      }).catch(function(){});
+    }
+  } catch(e){}
+
+  if(_musicCtrl){
+    _musicCtrl.addEventListener('click', function(e){
+      if(e.target === _musicVol) return;
+      _musicTogglePlay();
+    });
+  }
+  if(_musicVol){
+    _musicVol.addEventListener('input', function(){
+      _musicSetVolumeFromPct(_musicVol.value);
+    });
+    _musicVol.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
+
+  if(_musicCtrlEmbed){
+    _musicCtrlEmbed.addEventListener('click', function(e){
+      if(e.target === _musicVolEmbed) return;
+      _musicTogglePlay();
+    });
+  }
+  if(_musicVolEmbed){
+    _musicVolEmbed.addEventListener('input', function(){
+      _musicSetVolumeFromPct(_musicVolEmbed.value);
+    });
+    _musicVolEmbed.addEventListener('click', function(e){ e.stopPropagation(); });
+  }
+}
+
+/* ──────────── Firebase ──────────── */
+var _db = null;
+try {
+  if(window.firebase){
+    firebase.initializeApp({
+      apiKey: "AIzaSyBmZLCV_KSP-lDroPDkqOMtdi4re_GKtdw",
+      authDomain: "void-93d14.firebaseapp.com",
+      projectId: "void-93d14",
+      storageBucket: "void-93d14.firebasestorage.app",
+      messagingSenderId: "745528020435",
+      appId: "1:745528020435:web:10c66751991c7c766bb326"
+    });
+    _db = firebase.firestore();
+  }
+} catch(e){}
+
+function getDeviceId(){
+  var raw = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + (Intl.DateTimeFormat().resolvedOptions().timeZone || '') + '|' + navigator.language + '|' + (navigator.platform || '');
+  var hash = 0;
+  for(var i = 0; i < raw.length; i++){
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'dev_' + Math.abs(hash).toString(36);
+}
+
+function firebaseRegister(uid){
+  if(!_db) return Promise.resolve(false);
+  var ref = _db.collection('users').doc(uid);
+  var deviceId = getDeviceId();
+  return ref.get().then(function(doc){
+    if(doc.exists){
+      var data = doc.data();
+      if(data.banned) return true;
+      ref.update({
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        deviceId: deviceId,
+        userAgent: navigator.userAgent,
+        screenRes: screen.width + 'x' + screen.height
+      }).catch(function(){});
+      return false;
+    } else {
+      ref.set({
+        uid: uid,
+        deviceId: deviceId,
+        banned: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        userAgent: navigator.userAgent,
+        screenRes: screen.width + 'x' + screen.height
+      }).catch(function(){});
+      return false;
+    }
+  }).catch(function(){ return false; });
+}
+
+function logSearch(url, rawQuery){
+  if(!_db || !_activeUid) return;
+  _db.collection('searches').add({
+    uid: _activeUid,
+    url: url,
+    query: rawQuery || '',
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function(){});
+}
+
+/* ──────────── Version & User ID ──────────── */
+var VOID_VERSION = (document.querySelector('meta[name="void-version"]') || {}).content || '0.0.0';
+var VOID_UID_META = document.querySelector('meta[name="void-uid"]');
+var VOID_OWNER_META = document.querySelector('meta[name="void-owner"]');
+
+function generateUID(){
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var id = '';
+  for(var i = 0; i < 12; i++){
+    if(i > 0 && i % 4 === 0) id += '-';
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+function initUID(){
+  var metaUid = VOID_UID_META ? VOID_UID_META.getAttribute('content') : '';
+  var metaOwner = VOID_OWNER_META ? VOID_OWNER_META.getAttribute('content') : '';
+  var storedUid = localStorage.getItem('void_uid');
+  var storedOwner = localStorage.getItem('void_owner');
+
+  var uid = storedUid || metaUid || '';
+  var owner = storedOwner || metaOwner || '';
+
+  if(!uid){
+    uid = generateUID();
+    owner = uid;
+  }
+
+  if(metaUid && metaOwner && metaOwner !== uid && metaUid !== uid){
+    showBanScreen(metaOwner);
+    return null;
+  }
+
+  if(!storedUid || storedUid !== uid) localStorage.setItem('void_uid', uid);
+  if(!storedOwner) localStorage.setItem('void_owner', owner || uid);
+  if(VOID_UID_META) VOID_UID_META.setAttribute('content', uid);
+  if(VOID_OWNER_META && !metaOwner) VOID_OWNER_META.setAttribute('content', uid);
+
+  try {
+    var log = JSON.parse(localStorage.getItem('void_uid_log') || '[]');
+    if(log.indexOf(uid) === -1) log.push(uid);
+    localStorage.setItem('void_uid_log', JSON.stringify(log));
+  } catch(e){}
+
+  $('uid-text').textContent = uid;
+  if($('s-uid')) $('s-uid').textContent = uid;
+  return uid;
+}
+
+function showBanScreen(ownerUid){
+  var ban = document.createElement('div');
+  ban.className = 'ban-screen';
+  var myUid = localStorage.getItem('void_uid') || '?';
+  ban.innerHTML = '<h1>Access Denied</h1>'
+    + '<p>You have been banned from using Void.</p>'
+    + '<code>' + escHtml(myUid) + '</code>'
+    + '<p style="margin-top:1rem;color:var(--sub);font-size:.78rem;">You can request access from the admin.</p>'
+    + '<button id="ban-request-btn" style="margin-top:1rem;padding:.75rem 2rem;border-radius:10px;border:none;'
+    + 'background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-family:inherit;font-weight:700;'
+    + 'font-size:.85rem;cursor:pointer;box-shadow:0 4px 20px rgba(124,106,255,.3);transition:all .2s;">Request Access</button>'
+    + '<p id="ban-request-status" style="margin-top:.6rem;font-size:.7rem;color:var(--muted);"></p>';
+  document.body.appendChild(ban);
+  var app = document.querySelector('.app');
+  if(app) app.style.display = 'none';
+  var boot = $('boot-screen');
+  if(boot) boot.style.display = 'none';
+
+  var reqBtn = document.getElementById('ban-request-btn');
+  var reqStatus = document.getElementById('ban-request-status');
+  if(reqBtn){
+    reqBtn.addEventListener('click', function(){
+      reqBtn.disabled = true;
+      reqBtn.textContent = 'Sending\u2026';
+      if(!_db){
+        reqStatus.textContent = 'Firebase not available. Contact the admin directly.';
+        reqStatus.style.color = 'var(--accent2)';
+        return;
+      }
+      _db.collection('requests').doc(myUid).set({
+        uid: myUid,
+        status: 'pending',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        deviceId: getDeviceId(),
+        userAgent: navigator.userAgent
+      }).then(function(){
+        reqBtn.textContent = 'Request Sent';
+        reqStatus.textContent = 'Your request has been sent. The admin will review it.';
+        reqStatus.style.color = 'var(--green)';
+        _db.collection('requests').doc(myUid).onSnapshot(function(doc){
+          if(doc.exists){
+            var d = doc.data();
+            if(d.status === 'accepted'){
+              reqStatus.textContent = 'Access granted! Reloading\u2026';
+              reqStatus.style.color = 'var(--green)';
+              setTimeout(function(){ location.reload(); }, 1000);
+            } else if(d.status === 'denied'){
+              reqStatus.textContent = 'Your request was denied.';
+              reqStatus.style.color = 'var(--accent2)';
+              reqBtn.textContent = 'Request Access';
+              reqBtn.disabled = false;
+            }
+          }
+        });
+      }).catch(function(e){
+        reqBtn.disabled = false;
+        reqBtn.textContent = 'Request Access';
+        reqStatus.textContent = 'Failed: ' + e.message;
+        reqStatus.style.color = 'var(--accent2)';
+      });
+    });
+  }
+}
+
+if($('s-cur-ver')) $('s-cur-ver').textContent = 'v' + VOID_VERSION;
+
+function parseVersion(v){
+  var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
+  return [parseInt(parts[0])||0, parseInt(parts[1])||0, parseInt(parts[2])||0];
+}
+
+/** Read meta tag content by name from fetched HTML (any attribute order). */
+function extractMetaContentFromHtml(html, metaName){
+  if(!html || !metaName) return null;
+  if(typeof html === 'string' && html.charCodeAt(0) === 0xfeff) html = html.slice(1);
+  try {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var meta = doc.querySelector('meta[name="' + String(metaName).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+    if(meta){
+      var c = meta.getAttribute('content');
+      if(c != null && String(c).trim() !== '') return String(c).trim();
+    }
+  } catch(e1){}
+  try {
+    var esc = metaName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var re1 = new RegExp('<meta\\s+[^>]*name\\s*=\\s*["\']' + esc + '["\'][^>]*content\\s*=\\s*["\']([^"\']*)["\']', 'i');
+    var re2 = new RegExp('<meta\\s+[^>]*content\\s*=\\s*["\']([^"\']*)["\'][^>]*name\\s*=\\s*["\']' + esc + '["\']', 'i');
+    var m = html.match(re1) || html.match(re2);
+    if(m && m[1] != null && String(m[1]).trim() !== '') return String(m[1]).trim();
+  } catch(e2){}
+  return null;
+}
+
+function resolveVoidUpdateUrl(){
+  var m = document.querySelector('meta[name="void-update-url"]');
+  var custom = m && m.content ? m.content.trim() : '';
+  if(custom) return custom;
+  if(/^https?:/i.test(location.protocol)) return new URL('void.html', location.href).href;
+  return '';
+}
+$('settings-upd-btn').addEventListener('click', function(){
+  var btn = $('settings-upd-btn');
+  btn.disabled = true;
+  btn.textContent = 'Checking\u2026';
+  var rawUrl = resolveVoidUpdateUrl();
+  if(!rawUrl){
+    btn.disabled = false;
+    btn.textContent = 'Check for Update';
+    sfxError();
+    toast('Host Void over HTTPS (or set <meta name="void-update-url">) to check for updates.');
+    return;
+  }
+  fetch(rawUrl, { cache: 'no-store', credentials: 'omit' })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(function(html){
+      var remoteVer = extractMetaContentFromHtml(html, 'void-version');
+      if(!remoteVer){
+        throw new Error('Could not find void-version in remote void.html (malformed or blocked).');
+      }
+      var local = parseVersion(VOID_VERSION);
+      var remote = parseVersion(remoteVer);
+      var isNewer = remote[0] > local[0] || (remote[0] === local[0] && remote[1] > local[1]) || (remote[0] === local[0] && remote[1] === local[1] && remote[2] > local[2]);
+      var statusEl = $('s-ver-status');
+      if(isNewer){
+        if(statusEl){
+          statusEl.textContent = '\u2192 v' + remoteVer + ' available!';
+          statusEl.style.color = '#ff5f8f';
+          statusEl.style.fontWeight = '700';
+        }
+        var blob = new Blob([html], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'void.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        btn.textContent = 'Downloaded v' + remoteVer + '!';
+        sfxSuccess();
+      } else {
+        if(statusEl){
+          statusEl.textContent = '\u2714 v' + VOID_VERSION + ' (remote v' + remoteVer + ')';
+          statusEl.style.color = '#34d399';
+          statusEl.style.fontWeight = '600';
+        }
+        btn.textContent = remoteVer === VOID_VERSION ? 'Up to date!' : 'Same or newer locally';
+        sfxSuccess();
+      }
+      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);
+    })
+    .catch(function(err){
+      btn.disabled = false;
+      btn.textContent = 'Check for Update';
+      sfxError();
+      toast('Update failed: ' + err.message);
+    });
+});
+
+/* ──────────── User ID init ──────────── */
+function showAdminMessage(text, timestamp, docId){
+  var toast = document.createElement('div');
+  toast.className = 'void-msg-toast';
+  var timeStr = '';
+  if(timestamp && timestamp.toDate) {
+    var d = timestamp.toDate();
+    timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  }
+  toast.innerHTML = '<div class="void-msg-hdr">'
+    + '<span class="void-msg-from">Admin</span>'
+    + '<button class="void-msg-x">&times;</button>'
+    + '</div>'
+    + '<div class="void-msg-text">' + (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>'
+    + (timeStr ? '<div class="void-msg-time">' + timeStr + '</div>' : '');
+  document.body.appendChild(toast);
+  requestAnimationFrame(function(){ toast.classList.add('show'); });
+
+  function dismiss(){
+    toast.classList.remove('show');
+    setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 350);
+    if(_db && docId){
+      _db.collection('messages').doc(docId).update({ read: true }).catch(function(){});
+    }
+  }
+  toast.querySelector('.void-msg-x').addEventListener('click', dismiss);
+  setTimeout(dismiss, 12000);
+}
+
+var _activeUid = initUID();
+var _fbBanCheck = _activeUid ? firebaseRegister(_activeUid) : Promise.resolve(true);
+
+/* ──────────── Boot sequence ──────────── */
+var landing = $('landing');
+if(landing) landing.style.opacity = '0';
+
+(function runBoot(){
+  if(!_activeUid) return;
+  var screen = $('boot-screen');
+  var lines = $('boot-lines');
+  var bar = $('boot-bar');
+  var barWrap = $('boot-bar-wrap');
+  var status = $('boot-status');
+
+  function finishBoot(){
+    _fbBanCheck.then(function(banned){
+      if(banned){
+        showBanScreen('ADMIN');
+        if(screen && screen.parentNode) screen.parentNode.removeChild(screen);
+        return;
+      }
+      if(screen) screen.classList.add('done');
+      if(landing) landing.style.opacity = '';
+      loadPrefs();
+      var _ag = new URLSearchParams(window.location.search).get('go');
+      if(_ag) setTimeout(function(){ navigate(_ag); }, 50);
+      if(screen) setTimeout(function(){
+        if(screen.parentNode) screen.parentNode.removeChild(screen);
+      }, 500);
+      if(_db && _activeUid){
+        _db.collection('users').doc(_activeUid).onSnapshot(function(doc){
+          if(doc.exists && doc.data().banned){
+            showBanScreen('ADMIN');
+          }
+        }, function(){});
+
+        function _heartbeat(){
+          _db.collection('users').doc(_activeUid).update({
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+          }).catch(function(){});
+        }
+        _heartbeat();
+        setInterval(_heartbeat, 20000);
+        document.addEventListener('visibilitychange', function(){
+          if(!document.hidden) _heartbeat();
+        });
+        window.addEventListener('focus', _heartbeat);
+
+        _db.collection('messages').where('uid','==',_activeUid).where('read','==',false)
+          .onSnapshot(function(snap){
+            snap.forEach(function(doc){
+              var d = doc.data();
+              showAdminMessage(d.text, d.timestamp, doc.id);
+            });
+          }, function(){});
+      }
+    });
+  }
+
+  if(!screen){
+    finishBoot();
+    return;
+  }
+
+  function trySound(fn){ try { fn(); } catch(e){} }
+
+  var t = 0;
+
+  trySound(sfxBoot);
+  t += 80;
+  setTimeout(function(){ lines.classList.add('show'); barWrap.classList.add('show'); }, t);
+  t += 40;
+
+  var lineEls = [$('bl-0'), $('bl-1'), $('bl-2'), $('bl-3'), $('bl-4')];
+  var pcts = [15, 35, 60, 85, 100];
+  for(var i = 0; i < lineEls.length; i++){
+    (function(el, pct, idx){
+      setTimeout(function(){
+        trySound(sfxBootTick);
+        el.classList.add('show');
+        bar.style.width = pct + '%';
+      }, t + idx * 70);
+    })(lineEls[i], pcts[i], i);
+  }
+  t += lineEls.length * 70 + 50;
+
+  setTimeout(function(){
+    status.classList.add('show');
+    trySound(sfxBootDone);
+  }, t);
+  t += 250;
+
+  setTimeout(finishBoot, t);
+})();
+
+  // Cache Site logic
+  var vcBtn = document.getElementById('void-cache-btn');
+  var vcInp = document.getElementById('void-cache-input');
+  var vcStatus = document.getElementById('void-cache-status');
+  if (vcBtn && vcInp && vcStatus) {
+    vcBtn.addEventListener('click', function() {
+      var val = vcInp.value.trim();
+      if(!val) return;
+      var urls = val.split(/[\s\n]+/).filter(Boolean).map(function(u) {
+        return /^https?:\/\//i.test(u) ? u : 'https://' + u;
+      });
+      vcStatus.textContent = 'Starting background crawler...';
+      vcStatus.style.color = '#c4c6db';
+      fetch('/api/cache-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: urls })
+      }).then(function(r) { return r.json(); }).then(function(res) {
+         if(res.success) {
+           vcStatus.textContent = 'Crawling in background! (Turn on offline cache to view)';
+           vcStatus.style.color = '#a7cf9b';
+           vcInp.value = '';
+         } else {
+           vcStatus.textContent = res.error || 'Failed.';
+           vcStatus.style.color = '#ff5f8f';
+         }
+      }).catch(function() {
+         vcStatus.textContent = 'Network error.';
+         vcStatus.style.color = '#ff5f8f';
+      });
+    });
+  }
+
+  /* ──────────── Embed iframe navigation interception ────────────
+     When a link is clicked inside the proxy iframe (server / experimental /
+     scramjet / uv modes), the injected script posts void_navigate to window.top
+     which is void.html. Without this handler the browser would follow the
+     encoded /p/… or /pe/… URL directly, navigating void.html away.
+     We intercept it here and route through navigate() so the embed overlay
+     stays open and void.html never leaves. ──────────── */
+  window.addEventListener('message', function(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+
+    if (e.data.type === 'void_navigate' && e.data.url) {
+      var targetUrl = e.data.url;
+      if (typeof targetUrl !== 'string' || !/^https?:\/\//i.test(targetUrl)) return;
+
+      var m = getMode();
+      var embedOpen = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
+
+      if (embedOpen && (m === 'server' || m === 'experimental' || m === 'scramjet' || m === 'uv')) {
+        // Route through navigate() — it will call showVoidEmbedOverlay() which
+        // updates the iframe src without ever touching window.location.
+        navigate(targetUrl);
+      }
+      // client mode is handled by its own inner message listener inside renderPage()
+    }
+
+    if (e.data.type === 'void_post' && e.data.url) {
+      var postUrl = e.data.url;
+      if (typeof postUrl !== 'string' || !/^https?:\/\//i.test(postUrl)) return;
+
+      var m2 = getMode();
+      var embedOpen2 = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
+
+      if (embedOpen2 && (m2 === 'server' || m2 === 'experimental')) {
+        navigate(postUrl);
+      }
+    }
+
+    // Keep the embed overlay URL bar in sync when the iframe reports its current URL
+    if (e.data.type === 'void_url' && e.data.url) {
+      var lb = $('void-embed-label');
+      if (lb) lb.textContent = e.data.url;
+      _voidEmbedBarCopy = e.data.url;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

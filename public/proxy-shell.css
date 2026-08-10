@@ -1,0 +1,167 @@
+/* Shared boot UI for /uv.html and /scramjet.html */
+.proxy-shell-page {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  box-sizing: border-box;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #e4e4e7;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% -15%, rgba(124, 106, 255, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 40% at 100% 50%, rgba(244, 114, 182, 0.08), transparent 50%),
+    #0a0a0f;
+}
+
+.proxy-shell {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.proxy-shell-inner {
+  text-align: center;
+  padding: 1.75rem 1.5rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(12, 12, 18, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 0 1px rgba(124, 106, 255, 0.06) inset,
+    0 24px 48px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.proxy-shell-kicker {
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.proxy-shell-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0 0 0.2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.proxy-shell-page--uv .proxy-shell-title {
+  background: linear-gradient(135deg, #7dd3fc, #a78bfa 50%, #c4b5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.proxy-shell-page--sj .proxy-shell-title {
+  background: linear-gradient(135deg, #f472b6, #a78bfa 55%, #818cf8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.proxy-shell-phase {
+  font-size: 0.82rem;
+  color: #a1a1aa;
+  min-height: 1.45em;
+  margin: 0.85rem 0 1rem;
+  line-height: 1.4;
+}
+
+.proxy-shell-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(39, 39, 42, 0.9);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.proxy-shell-bar--hide {
+  display: none !important;
+}
+
+.proxy-shell-bar-fill {
+  height: 100%;
+  width: 45%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4c1d95, #7c6aff, #f472b6, #7c6aff);
+  background-size: 200% 100%;
+  animation: proxy-shell-shim 1.15s linear infinite;
+}
+
+@keyframes proxy-shell-shim {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.proxy-shell-body {
+  font-size: 0.78rem;
+  color: #a1a1aa;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.proxy-shell-body h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f87171;
+  margin: 0 0 0.5rem;
+  text-align: left;
+}
+
+.proxy-shell-body p {
+  margin: 0 0 0.65rem;
+  color: #d4d4d8;
+}
+
+.proxy-shell-body ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #9ca3af;
+}
+
+.proxy-shell-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 106, 255, 0.45);
+  background: rgba(124, 106, 255, 0.12);
+  color: #f4f4f5;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.proxy-shell-retry:hover {
+  background: rgba(124, 106, 255, 0.22);
+  border-color: rgba(167, 139, 250, 0.55);
+}
+
+.proxy-shell-hint {
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+  color: #71717a;
+  line-height: 1.45;
+}
+
+.proxy-shell-hint code {
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  color: #a78bfa;
+}
+
+.proxy-shell-hint--hide {
+  display: none;
+}
