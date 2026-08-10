@@ -9,8 +9,8 @@
   <meta name="void-version" content="3.2.4"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
-  <!-- Default mode when localStorage has no void_prefs yet (scramjet | uv | client | server | experimental). -->
-  <meta name="void-default-mode" content="client"/>
+  <!-- Default mode when localStorage has no void_prefs yet (server). -->
+  <meta name="void-default-mode" content="server"/>
   <!-- Scramjet: void-scramjet-path=/ → https://host/?url=… (no /scramjet.html in the link). Omit meta to use /scramjet.html?url= instead. -->
   <meta name="void-scramjet-base" content="https://scuv2.tailf49039.ts.net"/>
   <meta name="void-scramjet-path" content="/"/>
@@ -93,9 +93,9 @@
       animation: enter .7s cubic-bezier(.16,1,.3,1) forwards;
     }
     .brand    { animation-delay: .15s; }
-    .card     { animation-delay: .28s; }
+    .card      { animation-delay: .28s; }
     .hint-row { animation-delay: .4s; }
-    .foot     { animation-delay: .5s; }
+    .foot      { animation-delay: .5s; }
     @keyframes enter { to { opacity: 1; transform: translateY(0); } }
 
     .landing {
@@ -745,14 +745,7 @@
 
       <div class="section-hdr"><span>Proxy Mode</span></div>
       <div class="mode-btns" id="mode-btns">
-        <button type="button" class="mode-btn active" data-m="custom">Custom Proxy <span class="tag">DEFAULT</span></button>
-      </div>
-
-      <div id="cfg-server" class="opts opts-backend" style="margin-top:10px;">
-        <label class="opt opt-backend">
-          <span class="opt-label" style="color:#ff5f8f;font-weight:600;">Hosted Void Server URL</span>
-          <input type="url" id="server-backend" placeholder="https://your-void-server.example.com" autocomplete="off"/>
-        </label>
+        <button type="button" class="mode-btn active" data-m="server">Server Side <span class="tag">DEFAULT</span></button>
       </div>
 
       <div class="section-hdr"><span>Search Engine</span></div>
@@ -958,9 +951,6 @@ var input = $('url-input');
 /* ──────────── Bounce detection ──────────── */
 try {
   var _bounce = JSON.parse(localStorage.getItem('void_bounce') || 'null');
-  // Only show the warning if:
-  // 1. A bounce was recorded recently (within 5s)
-  // 2. This is NOT a browser reload (type 1) — reloads legitimately fire beforeunload
   var _isReload = false;
   try {
     if(performance && performance.navigation && performance.navigation.type === 1) _isReload = true;
@@ -988,7 +978,7 @@ function voidMarkInternalNavigation(){
 
 /* ──────────── State ──────────── */
 var engine = 'brave';
-var mode = 'client';
+var mode = 'server';
 var navHistory = [];
 var navIdx = -1;
 var currentUrl = '';
@@ -1058,7 +1048,7 @@ function sfxBootDone(){
   setTimeout(function(){ playTone(1318, 0.3, 'sine', 0.12); }, 260);
 }
 
-/* ──────────── CORS proxy (single Worker — meta void-cors-proxy-base) ──────────── */
+/* ──────────── CORS proxy ──────────── */
 var _workingBackendIdx = 0;
 var _backendLatencies = {};
 var _probePromise = null;
@@ -1144,7 +1134,6 @@ function decodeBody(buf, headers){
   try { return new TextDecoder(charset, { fatal: false }).decode(buf); }
   catch(e){ return new TextDecoder('utf-8', { fatal: false }).decode(buf); }
 }
-
 
 try {
   var _corsOrigin = (function(){
@@ -1271,7 +1260,6 @@ function voidPostMessageFillProxyFrame(){
   setTimeout(send, 2000);
 }
 
-/* proxyUrl = iframe src; userTypedBar = EXACT characters from Void search box; resolvedUrl = normalized https URL for proxy. */
 function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
   _voidEmbedLastSrc = proxyUrl || '';
   var typed = userTypedBar != null ? String(userTypedBar) : '';
@@ -1308,28 +1296,19 @@ function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
         return;
       }
 
-      // Guard: detect if the iframe navigated away from the proxy path
-      // (e.g. a link wasn't rewritten and the iframe went to the raw site)
       try {
         var frHref = fr.contentWindow && fr.contentWindow.location && fr.contentWindow.location.href;
         if(frHref && frHref !== 'about:blank'){
           var m = getMode();
           var isProxied = true;
-          if(m === 'custom'){
-            isProxied = true;
-          }
 
           if(!isProxied && /^https?:\/\//i.test(frHref)){
-            // The iframe escaped the proxy — re-proxy the URL
             console.warn('[Void] iframe escaped proxy, re-proxying:', frHref);
             navigate(frHref);
             return;
           }
         }
-      } catch(guardErr){
-        // cross-origin access to contentWindow.location will throw — that's fine,
-        // it means the iframe is on a different origin (the proxy) which is expected
-      }
+      } catch(guardErr){}
 
       _voidEmbedClearLoadTimer();
       if(ov) ov.classList.remove('loading');
@@ -1371,6 +1350,7 @@ function showVoidEmbedOverlay(proxyUrl, userTypedBar, resolvedUrl){
     }
   }, 55000);
 }
+
 function hideVoidEmbedOverlay(){
   _voidEmbedLastSrc = '';
   _voidEmbedBarCopy = '';
@@ -1407,1897 +1387,20 @@ function escHtml(s){
 }
 
 function getMode(){
-  var active = document.querySelector('.mode-btn.active');
-  return (active && active.dataset.m) ? active.dataset.m : 'custom';
+  return 'server';
 }
 
 function getServerBase(){
-  return ($('server-backend') && $('server-backend').value.trim()) || '';
+  return 'https://math-quiz-alpha-gilt.vercel.app/';
 }
 
 /* ──────────── Mode UI toggling ──────────── */
 function updateModeUI(){
-  var m = getMode();
-  $('cfg-server').style.display = (m === 'custom') ? '' : 'none';
-}
-
-/* ──────────── Client-side proxy engine ──────────── */
-
-function _clientInjection(){
-  var _b = '%%BASE%%';
-  var _cp = '%%CORS%%';
-  var _eruda = '%%ERUDA%%';
-
-  /* ── Prevent override stacking on re-navigation ── */
-  if(window.__voidProxy){
-    window.__voidProxy._setCur(_b);
-    window.__voidProxy._reattach();
-    return;
-  }
-
-  var _cur = _b;
-
-  /* ── Cookie jar ── */
-  var _cookieJar = {};
-  try { _cookieJar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
-  function _saveCookies(){
-    try { localStorage.setItem('void_cookies', JSON.stringify(_cookieJar)); } catch(e){}
-    try {
-      if(navigator.serviceWorker && navigator.serviceWorker.controller){
-        navigator.serviceWorker.controller.postMessage({ type: 'void-sw-cookies', cookies: _cookieJar });
-      }
-    } catch(e){}
-  }
-  function _getDomain(url){ try { return new URL(url).hostname; } catch(e){ return ''; } }
-  function _getCookiesFor(url){
-    var domain = _getDomain(url);
-    if(!domain) return '';
-    var parts = [];
-    for(var d in _cookieJar){
-      if(domain === d || domain.endsWith('.' + d)){
-        for(var name in _cookieJar[d]){
-          parts.push(name + '=' + _cookieJar[d][name]);
-        }
-      }
-    }
-    return parts.join('; ');
-  }
-  function _parseSetCookies(headerVal, url){
-    if(!headerVal) return;
-    var cookies;
-    try { cookies = JSON.parse(headerVal); } catch(e){ cookies = [headerVal]; }
-    var domain = _getDomain(url);
-    cookies.forEach(function(c){
-      var parts = c.split(';');
-      var nv = parts[0].trim().split('=');
-      if(nv.length < 2) return;
-      var name = nv[0].trim();
-      var val = nv.slice(1).join('=').trim();
-      var cDomain = domain;
-      parts.forEach(function(p){
-        var kv = p.trim().split('=');
-        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
-      });
-      if(!_cookieJar[cDomain]) _cookieJar[cDomain] = {};
-      _cookieJar[cDomain][name] = val;
-    });
-    _saveCookies();
-  }
-
-  /* ── document.cookie override ── */
-  try {
-    Object.defineProperty(document, 'cookie', {
-      get: function(){ return _getCookiesFor(_cur); },
-      set: function(val){
-        if(typeof val !== 'string') return;
-        var parts = val.split(';');
-        var nv = parts[0].trim().split('=');
-        if(nv.length < 2) return;
-        var name = nv[0].trim();
-        var value = nv.slice(1).join('=').trim();
-        var domain = _getDomain(_cur);
-        parts.forEach(function(p){
-          var kv = p.trim().split('=');
-          if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) domain = kv[1].trim().replace(/^\./, '');
-        });
-        if(!_cookieJar[domain]) _cookieJar[domain] = {};
-        _cookieJar[domain][name] = value;
-        _saveCookies();
-      },
-      configurable: true
-    });
-  } catch(e){}
-
-  function _abs(u){
-    try { return new URL(u, _cur).href; } catch(e){ return u; }
-  }
-  function _proxied(u){
-    var abs = _abs(u);
-    if(!/^https?:\/\//i.test(abs)) return abs;
-    if(_cp.indexOf('?') >= 0) return _cp + encodeURIComponent(abs);
-    return _cp + '?url=' + encodeURIComponent(abs);
-  }
-  function _shouldProxy(u){
-    if(typeof u !== 'string' || !/^https?:\/\//i.test(u)) return false;
-    if(u.indexOf(_cp) === 0) return false;
-    return true;
-  }
-  var _top = window.top || window.parent;
-  var _navHandled = false;
-  // Generation counter: incremented each time render() replaces the document.
-  // The fallback checks this so a stale timeout from a previous nav never fires.
-  var _navGen = 0;
-  function _nav(url){
-    _navHandled = false;
-    var myGen = ++_navGen;
-    _top.postMessage({ type: 'void_navigate', url: url }, '*');
-    setTimeout(function(){
-      // Bail if the engine already ack'd, or if a newer render has happened
-      if(_navHandled || _navGen !== myGen) return;
-      _dbg('nav-fallback', url);
-      var pu = _cp.indexOf('?') >= 0 ? _cp + encodeURIComponent(url) : _cp + '?url=' + encodeURIComponent(url);
-      var fo = { headers: { 'X-Void-Dest': 'document' } };
-      var ck = _getCookiesFor(url);
-      if(ck) fo.headers['X-Void-Cookie'] = ck;
-      window.fetch(pu, fo).then(function(r){ return r.text(); }).then(function(t){
-        if(_navGen !== myGen) return; // another nav happened while we were fetching
-        _top.postMessage({ type: 'void_raw_render', html: t, url: url }, '*');
-      }).catch(function(e){ _dbg('nav-fallback-err', e.message); });
-    }, 600);
-  }
-  window.addEventListener('message', function(e){
-    if(e.data && e.data.type === 'void_nav_ack') _navHandled = true;
-  });
-  function _updateBase(url){ _cur = url; _top.postMessage({ type: 'void_url', url: url }, '*'); }
-
-  /* ── Expose real reload for Home button ── */
-  window.__voidRealReload = function(){ _realLoc.reload(); };
-
-  /* ── Spoof iframe detection ── */
-  try { Object.defineProperty(window, 'top', { get: function(){ return window; }, configurable: true }); } catch(e){}
-  try { Object.defineProperty(window, 'parent', { get: function(){ return window; }, configurable: true }); } catch(e){}
-  try { Object.defineProperty(window, 'frameElement', { get: function(){ return null; }, configurable: true }); } catch(e){}
-
-  /* ── Spoof document + window properties to match proxied site ── */
-  try {
-    Object.defineProperty(document, 'URL', { get: function(){ return _cur; }, configurable: true });
-    Object.defineProperty(document, 'documentURI', { get: function(){ return _cur; }, configurable: true });
-    Object.defineProperty(document, 'referrer', { get: function(){ return ''; }, configurable: true });
-    Object.defineProperty(document, 'domain', { get: function(){ try { return new URL(_cur).hostname; } catch(e){ return ''; } }, set: function(){}, configurable: true });
-  } catch(e){}
-  try { Object.defineProperty(window, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
-  try { Object.defineProperty(self, 'origin', { get: function(){ try { return new URL(_cur).origin; } catch(e){ return ''; } }, configurable: true }); } catch(e){}
-
-  /* ── Intercept navigation via document.location / window.location setter ── */
-  try {
-    var _realLoc = window.location;
-    var _locProps = new Set(['origin','host','hostname','protocol','port','href','pathname','search','hash']);
-    var _locHandler = {
-      set: function(target, prop, value){
-        if(prop === 'href' || prop === 'pathname' || prop === 'search' || prop === 'hash'){
-          var full = (prop === 'href') ? value : target.href;
-          if(prop !== 'href'){
-            try { var u = new URL(target.href); u[prop] = value; full = u.href; } catch(e){}
-          }
-          var a = _abs(full);
-          if(_shouldProxy(a)){ _nav(a); return true; }
-        }
-        target[prop] = value;
-        return true;
-      },
-      get: function(target, prop){
-        if(_locProps.has(prop)){
-          try { return new URL(_cur)[prop]; } catch(e){}
-        }
-        if(prop === 'toString') return function(){ return _cur; };
-        if(prop === 'valueOf') return function(){ return _cur; };
-        if(prop === 'replace') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.replace(url); };
-        if(prop === 'assign') return function(url){ var a = _abs(typeof url === 'string' ? url : String(url)); if(_shouldProxy(a)){ _nav(a); return; } _realLoc.assign(url); };
-        if(prop === 'reload') return function(){ _nav(_cur); };
-        var v = target[prop];
-        return typeof v === 'function' ? v.bind(target) : v;
-      }
-    };
-    if(typeof Proxy !== 'undefined'){
-      try {
-        var _pLoc = new Proxy(_realLoc, _locHandler);
-        var _locGetSet = { get: function(){ return _pLoc; }, set: function(v){
-          var a = _abs(typeof v === 'string' ? v : String(v));
-          if(_shouldProxy(a)){ _nav(a); return; }
-          _realLoc.href = v;
-        }, configurable: true };
-        Object.defineProperty(window, 'location', _locGetSet);
-        try { Object.defineProperty(document, 'location', _locGetSet); } catch(e){}
-        try { Object.defineProperty(Document.prototype, 'location', _locGetSet); } catch(e){}
-      } catch(e){}
-    }
-  } catch(e){}
-
-  /* ── Intercept location changes ── */
-  try {
-    var _origAssign = Location.prototype.assign;
-    Location.prototype.assign = function(url){
-      var a = _abs(url);
-      _dbg('loc.assign', a);
-      if(_shouldProxy(a)){ _nav(a); return; }
-      _origAssign.call(this, url);
-    };
-    var _origReplace = Location.prototype.replace;
-    Location.prototype.replace = function(url){
-      var a = _abs(url);
-      _dbg('loc.replace', a);
-      if(_shouldProxy(a)){ _nav(a); return; }
-      _origReplace.call(this, url);
-    };
-  } catch(e){}
-  try {
-    var _locDesc = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
-    if(_locDesc && _locDesc.set){
-      Object.defineProperty(Location.prototype, 'href', {
-        set: function(v){
-          var a = _abs(v);
-          _dbg('loc.href', a);
-          if(_shouldProxy(a)){ _nav(a); return; }
-          _locDesc.set.call(this, v);
-        },
-        get: _locDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-
-  if(_eruda){
-    var es = document.createElement('script');
-    /* Always load Eruda from the CDN directly. Routing through the CORS proxy breaks the script (wrong MIME / HTML error pages). */
-    es.src = 'https://cdn.jsdelivr.net/npm/eruda';
-    es.crossOrigin = 'anonymous';
-    es.onload = function(){ try { if(window.eruda) eruda.init(); } catch(_e){} };
-    es.onerror = function(){ try { console.warn('[Void] Eruda failed to load from CDN'); } catch(_e2){} };
-    (document.head || document.documentElement).appendChild(es);
-  }
-
-  /* ── Link clicks (named so _reattach can re-bind after document.write) ── */
-  function _linkHrefFrom(el){
-    if(!el) return '';
-    // Check data-void-href first (set by server-side rewrite to prevent native navigation)
-    var dvh = el.getAttribute('data-void-href');
-    if(dvh) return dvh;
-    var h = el.getAttribute('href');
-    if(h != null && h !== '' && h !== 'javascript:void(0)') return h;
-    try {
-      if(typeof el.href === 'string' && /^https?:\/\//i.test(el.href)) return el.href;
-    } catch(e){}
-    try {
-      if(el.getAttributeNS){
-        var x = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
-        if(x) return x;
-      }
-    } catch(e2){}
-    return '';
-  }
-  function _findLinkEl(t, ev){
-    if(t && t.nodeType === 3 && t.parentElement) t = t.parentElement;
-    if(!t || t.nodeType !== 1) return null;
-    var i, el, path, tn;
-    if(ev && typeof ev.composedPath === 'function'){
-      try {
-        path = ev.composedPath();
-        for(i = 0; i < path.length; i++){
-          el = path[i];
-          if(!el || el.nodeType !== 1) continue;
-          if(el === document || el === document.documentElement) break;
-          tn = el.tagName ? el.tagName.toUpperCase() : '';
-          if(tn === 'A' || tn === 'AREA') return el;
-        }
-      } catch(e0){}
-    }
-    if(t.closest){
-      el = t.closest('a, area');
-      if(el) return el;
-    }
-    el = t;
-    while(el){
-      tn = el.tagName && el.tagName.toUpperCase();
-      if(tn === 'A' || tn === 'AREA') return el;
-      el = el.parentElement;
-    }
-    return null;
-  }
-  function _followProxiedLink(link, e){
-    if(!link) return false;
-    if(link.hasAttribute('target')) link.removeAttribute('target');
-    if(link.hasAttribute('download')) try { link.removeAttribute('download'); } catch(e1){}
-    var href = _linkHrefFrom(link);
-    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return false;
-    // If href is a CORS proxy URL, extract the real target URL from it
-    var realUrl = href;
-    if(href.indexOf(_cp) === 0){
-      try {
-        var qIdx = href.indexOf('?url=');
-        if(qIdx !== -1) realUrl = decodeURIComponent(href.slice(qIdx + 5).split('&')[0]);
-        else if(_cp.indexOf('?') >= 0) realUrl = decodeURIComponent(href.slice(_cp.length).split('&')[0]);
-      } catch(ex){ realUrl = href; }
-    }
-    var abs = _abs(realUrl);
-    if(!_shouldProxy(abs)) return false;
-    if(e){
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    }
-    _nav(abs);
-    return true;
-  }
-  var _voidSupClickTs = 0;
-  function _modifierOpensNewTab(e){
-    return !!(e && (e.ctrlKey || e.metaKey || e.shiftKey));
-  }
-  /* Ctrl/Cmd/Shift+click opens a real tab — navigate in-proxy on pointerdown and swallow duplicate click. */
-  function _handlePointerDown(e){
-    if(typeof e.button === 'number' && e.button !== 0) return;
-    if(!_modifierOpensNewTab(e)) return;
-    var link = _findLinkEl(e.target, e);
-    if(!link) return;
-    var href = _linkHrefFrom(link);
-    if(!href || href === '#' || /^(javascript:|data:|mailto:|blob:|#)/i.test(href)) return;
-    var abs = _abs(href);
-    if(!_shouldProxy(abs)) return;
-    try {
-      e.preventDefault();
-      e.stopPropagation();
-      if(link.hasAttribute('target')) link.removeAttribute('target');
-      if(link.hasAttribute('download')) link.removeAttribute('download');
-    } catch(e0){}
-    _voidSupClickTs = Date.now();
-    _nav(abs);
-  }
-  function _handleClick(e){
-    if(typeof e.button === 'number' && e.button !== 0) return;
-    if(Date.now() - _voidSupClickTs < 700) return;
-    var link = _findLinkEl(e.target, e);
-    if(!link) return;
-    _followProxiedLink(link, e);
-  }
-  function _handleAuxClick(e){
-    if(e.button !== 1) return;
-    var link = _findLinkEl(e.target, e);
-    if(!link) return;
-    _followProxiedLink(link, e);
-  }
-  if(typeof window.PointerEvent !== 'undefined'){
-    document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
-  } else {
-    document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
-  }
-  document.addEventListener('click', _handleClick, true);
-  document.addEventListener('auxclick', _handleAuxClick, true);
-
-  /* ── Form submissions (named so _reattach can re-bind after document.write) ── */
-  function _handleSubmit(e){
-    var f = e.target;
-    if(!f || f.tagName !== 'FORM') return;
-    e.preventDefault();
-    e.stopPropagation();
-    var action = f.getAttribute('action') || _cur;
-    var abs = _abs(action);
-    var method = (f.method || 'GET').toUpperCase();
-    if(method === 'GET'){
-      var qs = new URLSearchParams(new FormData(f)).toString();
-      var sep = abs.indexOf('?') >= 0 ? '&' : '?';
-      _nav(abs + sep + qs);
-    } else {
-      _top.postMessage({
-        type: 'void_post',
-        url: abs,
-        body: new URLSearchParams(new FormData(f)).toString(),
-        contentType: 'application/x-www-form-urlencoded'
-      }, '*');
-    }
-  }
-  document.addEventListener('submit', _handleSubmit, true);
-
-  /* ── Swipe gestures for back/forward (touch devices) ── */
-  var _swipeX = 0, _swipeY = 0, _swipeT = 0;
-  function _handleTouchStart(e){
-    if(e.touches.length !== 1) return;
-    _swipeX = e.touches[0].clientX;
-    _swipeY = e.touches[0].clientY;
-    _swipeT = Date.now();
-  }
-  function _handleTouchEnd(e){
-    if(e.changedTouches.length !== 1) return;
-    var dx = e.changedTouches[0].clientX - _swipeX;
-    var dy = e.changedTouches[0].clientY - _swipeY;
-    var dt = Date.now() - _swipeT;
-    if(dt > 400 || Math.abs(dy) > 80 || Math.abs(dx) < 80) return;
-    if(dx > 80) _top.postMessage({ type: 'void_swipe', dir: 'back' }, '*');
-    else if(dx < -80) _top.postMessage({ type: 'void_swipe', dir: 'fwd' }, '*');
-  }
-  document.addEventListener('touchstart', _handleTouchStart, { passive: true, capture: true });
-  document.addEventListener('touchend', _handleTouchEnd, { passive: true, capture: true });
-
-  /* ── Debug helper ── */
-  function _dbg(type, detail){
-    try { _top.postMessage({ type: 'void_debug', msg: '[' + type + '] ' + detail }, '*'); } catch(e){}
-  }
-
-  /* ── fetch override ── */
-  var _of = window.fetch;
-  function _inferDest(url, opts){
-    var acc = '';
-    if(opts && opts.headers){
-      if(opts.headers instanceof Headers) acc = opts.headers.get('accept') || '';
-      else if(typeof opts.headers === 'object') acc = opts.headers['Accept'] || opts.headers['accept'] || '';
-    }
-    if(acc.indexOf('text/html') >= 0) return 'document';
-    if(acc.indexOf('text/css') >= 0) return 'style';
-    if(acc.indexOf('image/') >= 0) return 'image';
-    if(/\.(js|mjs)(\?|$)/i.test(url)) return 'script';
-    if(/\.(css)(\?|$)/i.test(url)) return 'style';
-    if(/\.(png|jpg|jpeg|gif|webp|svg|ico|avif)(\?|$)/i.test(url)) return 'image';
-    return 'empty';
-  }
-  window.fetch = function(u, o){
-    o = o || {};
-    if(typeof u === 'string' && /^(blob:|data:|about:)/i.test(u.trim())) return _of.call(this, u, o);
-    if(u && typeof u === 'object' && u.url && /^(blob:|data:|about:)/i.test(String(u.url))) return _of.call(this, u, o);
-    var origUrl = '';
-    if(typeof u === 'string'){
-      var resolved = _abs(u);
-      if(_shouldProxy(resolved)){
-        _dbg('fetch', (o.method || 'GET') + ' ' + resolved);
-        origUrl = resolved;
-        u = _proxied(resolved);
-        if(!o.headers) o.headers = {};
-        var ck = _getCookiesFor(resolved);
-        if(o.headers instanceof Headers){
-          if(ck) o.headers.set('X-Void-Cookie', ck);
-          if(!o.headers.has('X-Void-Dest')) o.headers.set('X-Void-Dest', _inferDest(resolved, o));
-        } else {
-          if(ck) o.headers['X-Void-Cookie'] = ck;
-          if(!o.headers['X-Void-Dest']) o.headers['X-Void-Dest'] = _inferDest(resolved, o);
-        }
-        delete o.credentials;
-        o.mode = 'cors';
-      }
-    } else if(u && typeof u === 'object' && u.url){
-      var resolved = _abs(u.url);
-      if(_shouldProxy(resolved)){
-        _dbg('fetch', (u.method || 'GET') + ' ' + resolved);
-        origUrl = resolved;
-        var h = new Headers(u.headers);
-        var ck = _getCookiesFor(resolved);
-        if(ck) h.set('X-Void-Cookie', ck);
-        if(!h.has('X-Void-Dest')) h.set('X-Void-Dest', _inferDest(resolved, { headers: h }));
-        u = new Request(_proxied(resolved), { method: u.method, headers: h, body: u.body, mode: 'cors' });
-      }
-    }
-    var _ou = origUrl;
-    return _of.call(this, u, o).then(function(r){
-      var sc = r.headers.get('x-void-set-cookie');
-      if(sc && _ou) _parseSetCookies(sc, _ou);
-      if(_ou){
-        var _fin = r.headers.get('x-void-final-url') || _ou;
-        try { Object.defineProperty(r, 'url', { get: function(){ return _fin; }, configurable: true }); } catch(e){}
-      }
-      return r;
-    }).catch(function(e){
-      _dbg('err', e.message);
-      throw e;
-    });
-  };
-
-  /* ── XMLHttpRequest override ── */
-  var _xo = XMLHttpRequest.prototype.open;
-  var _xsr = XMLHttpRequest.prototype.setRequestHeader;
-  XMLHttpRequest.prototype.open = function(){
-    var args = Array.prototype.slice.call(arguments);
-    this._voidOrigUrl = '';
-    if(typeof args[1] === 'string' && /^(blob:|data:|about:)/i.test(args[1].trim())){
-      return _xo.apply(this, args);
-    }
-    if(typeof args[1] === 'string'){
-      var resolved = _abs(args[1]);
-      if(_shouldProxy(resolved)){
-        _dbg('xhr', (args[0] || 'GET') + ' ' + resolved);
-        this._voidOrigUrl = resolved;
-        args[1] = _proxied(resolved);
-      }
-    }
-    var result = _xo.apply(this, args);
-    if(this._voidOrigUrl){
-      try { this.withCredentials = false; } catch(e){}
-      var ck = _getCookiesFor(this._voidOrigUrl);
-      if(ck) try { _xsr.call(this, 'X-Void-Cookie', ck); } catch(e){}
-    }
-    var self = this;
-    this.addEventListener('load', function(){
-      try {
-        var sc = self.getResponseHeader('x-void-set-cookie');
-        if(sc && self._voidOrigUrl) _parseSetCookies(sc, self._voidOrigUrl);
-        if(self._voidOrigUrl){
-          var _fin = null;
-          try { _fin = self.getResponseHeader('x-void-final-url'); } catch(e){}
-          try { Object.defineProperty(self, 'responseURL', { get: function(){ return _fin || self._voidOrigUrl; }, configurable: true }); } catch(e){}
-        }
-      } catch(e){}
-    });
-    return result;
-  };
-
-  /* ── window.open override ── */
-  var _wo = window.open;
-  var _fakeWin = {
-    closed: false, opener: window, document: document,
-    close: function(){ this.closed = true; }, focus: function(){}, blur: function(){},
-    postMessage: function(){}, addEventListener: function(){}, removeEventListener: function(){},
-    location: {
-      href: '',
-      replace: function(u){ _nav(_abs(u)); },
-      assign: function(u){ _nav(_abs(u)); },
-      set href(u){ _nav(_abs(u)); }
-    },
-    get innerWidth(){ return window.innerWidth; }, get innerHeight(){ return window.innerHeight; }
-  };
-  window.open = function(u, name, features){
-    var first = arguments.length ? arguments[0] : '';
-    if(first != null && typeof first !== 'string') first = String(first);
-    if(first && first !== 'about:blank' && first !== 'about:srcdoc'){
-      var a = _abs(first);
-      if(_shouldProxy(a)){ _dbg('open', a); _nav(a); return _fakeWin; }
-    }
-    /* Real about:blank lets opener set w.location — breakout. Keep everything in-proxy. */
-    if(!first || first === 'about:blank' || first === 'about:srcdoc'){
-      _dbg('open-blank', first || '(empty)');
-      return _fakeWin;
-    }
-    return _wo.apply(this, arguments);
-  };
-
-  /* ── WebSocket proxy ── */
-  var _OrigWS = window.WebSocket;
-  window.WebSocket = function(url, protocols){
-    if(url && typeof url === 'string'){
-      var wsUrl = url;
-      if(/^wss?:\/\//i.test(wsUrl)){
-        try {
-          var httpUrl = wsUrl.replace(/^ws/i, 'http');
-          _dbg('ws', httpUrl);
-        } catch(e){}
-      }
-    }
-    if(protocols !== undefined) return new _OrigWS(url, protocols);
-    return new _OrigWS(url);
-  };
-  window.WebSocket.prototype = _OrigWS.prototype;
-  window.WebSocket.CONNECTING = _OrigWS.CONNECTING;
-  window.WebSocket.OPEN = _OrigWS.OPEN;
-  window.WebSocket.CLOSING = _OrigWS.CLOSING;
-  window.WebSocket.CLOSED = _OrigWS.CLOSED;
-
-  /* ── EventSource override ── */
-  var _OrigES = window.EventSource;
-  if(_OrigES){
-    window.EventSource = function(url, opts){
-      if(url && typeof url === 'string'){
-        var a = _abs(url);
-        if(_shouldProxy(a)){ url = _proxied(a); _dbg('sse', a); }
-      }
-      return new _OrigES(url, opts);
-    };
-    window.EventSource.prototype = _OrigES.prototype;
-  }
-
-  /* ── History API interception (SPAs) ── */
-  var _hps = history.pushState;
-  var _hrs = history.replaceState;
-  history.pushState = function(state, title, url){
-    if(url){ _updateBase(_abs(url)); }
-    try { _hps.call(this, state, title, url); } catch(e){}
-  };
-  history.replaceState = function(state, title, url){
-    if(url){ _updateBase(_abs(url)); }
-    try { _hrs.call(this, state, title, url); } catch(e){}
-  };
-  window.addEventListener('popstate', function(){
-    _updateBase(_cur);
-  });
-
-  /* ── Iframe src interception ── */
-  var _iframeDesc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
-  if(_iframeDesc && _iframeDesc.set){
-    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
-      set: function(v){
-        if(v && _shouldProxy(v)) v = _proxied(v);
-        _iframeDesc.set.call(this, v);
-      },
-      get: _iframeDesc.get
-    });
-  }
-
-  /* ── Proxy src/href property setters on element prototypes ── */
-  try {
-    var _scriptSrcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-    if(_scriptSrcDesc && _scriptSrcDesc.set){
-      Object.defineProperty(HTMLScriptElement.prototype, 'src', {
-        set: function(v){
-          if(v && typeof v === 'string'){
-            var a = _abs(v);
-            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
-          }
-          _scriptSrcDesc.set.call(this, v);
-        },
-        get: _scriptSrcDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-  try {
-    var _linkHrefDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
-    if(_linkHrefDesc && _linkHrefDesc.set){
-      Object.defineProperty(HTMLLinkElement.prototype, 'href', {
-        set: function(v){
-          if(v && typeof v === 'string'){
-            var a = _abs(v);
-            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
-          }
-          _linkHrefDesc.set.call(this, v);
-        },
-        get: _linkHrefDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-  // Intercept anchor href setter — use data-void-href to prevent native navigation
-  try {
-    var _anchorHrefDesc = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, 'href');
-    if(_anchorHrefDesc && _anchorHrefDesc.set){
-      Object.defineProperty(HTMLAnchorElement.prototype, 'href', {
-        set: function(v){
-          if(v && typeof v === 'string' && !/^(javascript:|data:|mailto:|blob:|#)/i.test(v.trim())){
-            var a = _abs(v);
-            if(_shouldProxy(a) && a.indexOf(_cp) === -1){
-              _origSetAttribute.call(this, 'data-void-href', _proxied(a));
-              _anchorHrefDesc.set.call(this, 'javascript:void(0)');
-              return;
-            }
-          }
-          _anchorHrefDesc.set.call(this, v);
-        },
-        get: _anchorHrefDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-  try {
-    var _imgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-    if(_imgSrcDesc && _imgSrcDesc.set){
-      Object.defineProperty(HTMLImageElement.prototype, 'src', {
-        set: function(v){
-          if(v && typeof v === 'string'){
-            var a = _abs(v);
-            if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
-          }
-          _imgSrcDesc.set.call(this, v);
-        },
-        get: _imgSrcDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-  var _mediaCls = ['HTMLVideoElement','HTMLAudioElement','HTMLSourceElement','HTMLEmbedElement'];
-  for(var _mi = 0; _mi < _mediaCls.length; _mi++){
-    (function(cls){
-      try {
-        var proto = window[cls] && window[cls].prototype;
-        if(!proto) return;
-        var desc = Object.getOwnPropertyDescriptor(proto, 'src');
-        if(desc && desc.set){
-          Object.defineProperty(proto, 'src', {
-            set: function(v){
-              if(v && typeof v === 'string'){
-                var a = _abs(v);
-                if(_shouldProxy(a) && a.indexOf(_cp) === -1) v = _proxied(a);
-              }
-              desc.set.call(this, v);
-            },
-            get: desc.get,
-            configurable: true
-          });
-        }
-      } catch(e){}
-    })(_mediaCls[_mi]);
-  }
-
-  /* ── Element.setAttribute override ── */
-  var _origSetAttribute = Element.prototype.setAttribute;
-  Element.prototype.setAttribute = function(name, value){
-    if(value && typeof value === 'string'){
-      var n = name.toLowerCase();
-      var tag = this.tagName;
-      if(n === 'src' && (tag === 'SCRIPT' || tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE' || tag === 'EMBED' || tag === 'IFRAME')){
-        var a = _abs(value);
-        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
-      } else if(n === 'href' && tag === 'LINK'){
-        var a = _abs(value);
-        if(_shouldProxy(a) && a.indexOf(_cp) === -1) value = _proxied(a);
-      } else if(n === 'href' && (tag === 'A' || tag === 'AREA')){
-        // Use data-void-href so the browser can never follow natively
-        if(!/^(javascript:|data:|mailto:|blob:|#)/i.test(value.trim())){
-          var a = _abs(value);
-          if(_shouldProxy(a) && a.indexOf(_cp) === -1){
-            _origSetAttribute.call(this, 'data-void-href', _proxied(a));
-            value = 'javascript:void(0)';
-          }
-        }
-      } else if(n === 'srcset'){
-        value = _rewriteSrcset(value);
-      } else if(n === 'target' && (tag === 'A' || tag === 'FORM' || tag === 'AREA' || tag === 'BASE')){
-        return;
-      }
-    }
-    return _origSetAttribute.call(this, name, value);
-  };
-
-  /* ── Worker/SharedWorker proxy ── */
-  var _OrigWorker = window.Worker;
-  if(_OrigWorker){
-    window.Worker = function(url, opts){
-      if(url && typeof url === 'string'){
-        var a = _abs(url);
-        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
-      }
-      return opts ? new _OrigWorker(url, opts) : new _OrigWorker(url);
-    };
-    window.Worker.prototype = _OrigWorker.prototype;
-  }
-  var _OrigSharedWorker = window.SharedWorker;
-  if(_OrigSharedWorker){
-    window.SharedWorker = function(url, opts){
-      if(url && typeof url === 'string'){
-        var a = _abs(url);
-        if(_shouldProxy(a) && a.indexOf(_cp) === -1) url = _proxied(a);
-      }
-      return opts ? new _OrigSharedWorker(url, opts) : new _OrigSharedWorker(url);
-    };
-    window.SharedWorker.prototype = _OrigSharedWorker.prototype;
-  }
-
-  /* ── navigator.sendBeacon override ── */
-  if(navigator.sendBeacon){
-    var _origBeacon = navigator.sendBeacon.bind(navigator);
-    navigator.sendBeacon = function(url, data){
-      if(url && typeof url === 'string'){
-        var a = _abs(url);
-        if(_shouldProxy(a)) url = _proxied(a);
-      }
-      return _origBeacon(url, data);
-    };
-  }
-
-  /* ── Override HTMLFormElement.prototype.submit() (programmatic submits bypass event) ── */
-  var _origFormSubmit = HTMLFormElement.prototype.submit;
-  HTMLFormElement.prototype.submit = function(){
-    var action = this.getAttribute('action') || _cur;
-    var abs = _abs(action);
-    if(_shouldProxy(abs)){
-      var method = (this.method || 'GET').toUpperCase();
-      if(method === 'GET'){
-        var qs = new URLSearchParams(new FormData(this)).toString();
-        var sep = abs.indexOf('?') >= 0 ? '&' : '?';
-        _nav(abs + sep + qs);
-      } else {
-        _top.postMessage({ type: 'void_post', url: abs,
-          body: new URLSearchParams(new FormData(this)).toString(),
-          contentType: 'application/x-www-form-urlencoded' }, '*');
-      }
-      return;
-    }
-    _origFormSubmit.call(this);
-  };
-
-  /* ── Block foreign ServiceWorker registration (allow our own void-sw) ── */
-  if(navigator.serviceWorker){
-    var _origSWReg = navigator.serviceWorker.register;
-    navigator.serviceWorker.register = function(url){
-      if(url && typeof url === 'string' && url.indexOf('void-sw') >= 0)
-        return _origSWReg.apply(navigator.serviceWorker, arguments);
-      return Promise.reject(new Error('blocked by proxy'));
-    };
-  }
-
-  /* ── Block document.open/write/writeln from nuking proxy after load ── */
-  var _origWrite = document.write.bind(document);
-  var _origWriteln = document.writeln.bind(document);
-  var _origOpen = document.open.bind(document);
-  var _docLoaded = false;
-  function _rwDocStr(s){
-    if(!s || typeof s !== 'string') return s;
-    // Rewrite src/href/action attributes in injected HTML strings
-    return s.replace(/((?:src|href|action)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
-      if(url.indexOf(_cp) !== -1) return m;
-      return attr + q + _proxied(url) + q;
-    });
-  }
-  document.write = function(s){ if(!_docLoaded) return _origWrite(_rwDocStr(s)); };
-  document.writeln = function(s){ if(!_docLoaded) return _origWriteln(_rwDocStr(s)); };
-  document.open = function(){ if(!_docLoaded) return _origOpen.apply(document, arguments); return document; };
-  if(document.readyState === 'complete' || document.readyState === 'interactive') _docLoaded = true;
-  else document.addEventListener('DOMContentLoaded', function(){ _docLoaded = true; });
-
-  /* ── Navigation API intercept (modern browsers) ── */
-  if(window.navigation && window.navigation.addEventListener){
-    try {
-      window.navigation.addEventListener('navigate', function(e){
-        var dest = e.destination && e.destination.url;
-        if(!dest) return;
-        if(dest.indexOf(_cp) === 0) return;
-        var a = _abs(dest);
-        if(_shouldProxy(a)){
-          e.preventDefault();
-          _nav(a);
-        }
-      });
-    } catch(e){}
-  }
-
-  /* ── innerHTML / insertAdjacentHTML interception ── */
-  try {
-    var _origInnerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
-    if(_origInnerHTMLDesc && _origInnerHTMLDesc.set){
-      Object.defineProperty(Element.prototype, 'innerHTML', {
-        set: function(v){
-          if(v && typeof v === 'string'){
-            v = v.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
-              if(url.indexOf(_cp) !== -1) return m;
-              return attr + q + _proxied(url) + q;
-            });
-          }
-          _origInnerHTMLDesc.set.call(this, v);
-        },
-        get: _origInnerHTMLDesc.get,
-        configurable: true
-      });
-    }
-  } catch(e){}
-  try {
-    var _origInsAdj = Element.prototype.insertAdjacentHTML;
-    Element.prototype.insertAdjacentHTML = function(pos, html){
-      if(html && typeof html === 'string'){
-        html = html.replace(/((?:src|href|action|data)\s*=\s*)(["'])(https?:\/\/[^"']+)\2/gi, function(m, attr, q, url){
-          if(url.indexOf(_cp) !== -1) return m;
-          return attr + q + _proxied(url) + q;
-        });
-      }
-      return _origInsAdj.call(this, pos, html);
-    };
-  } catch(e){}
-
-  /* ── Flag real breakouts only (skip when Void replaced the document — see voidMarkInternalNavigation) ── */
-  window.addEventListener('beforeunload', function(){
-    try {
-      // Don't flag if the suppress marker was set recently (document.write navigation)
-      var sup = parseInt(localStorage.getItem('void_suppress_bounce') || '0', 10);
-      if(sup && Date.now() - sup < 2500) return;
-      // Don't flag if no real proxy navigation has happened yet
-      if(!_cur || !/^https?:\/\//i.test(_cur)) return;
-      localStorage.setItem('void_bounce', JSON.stringify({ url: _cur, ts: Date.now() }));
-    } catch(ex){}
-  });
-
-  /* ── MutationObserver: rewrite dynamically added elements ── */
-  var _mo;
-  function _setupMO(){
-    if(_mo) try { _mo.disconnect(); } catch(e){}
-    _mo = new MutationObserver(function(muts){
-      for(var i = 0; i < muts.length; i++){
-        var added = muts[i].addedNodes;
-        for(var j = 0; j < added.length; j++){
-          var n = added[j];
-          if(n.nodeType !== 1) continue;
-          _rewriteNode(n);
-          if(n.querySelectorAll){
-            var all = n.querySelectorAll('img[src],source[src],source[srcset],img[srcset],video[src],audio[src],iframe[src],link[href],script[src],a,a[target],area,area[target],form[target],meta[http-equiv]');
-            for(var k = 0; k < all.length; k++) _rewriteNode(all[k]);
-          }
-        }
-      }
-    });
-    try { _mo.observe(document.documentElement, { childList: true, subtree: true }); } catch(e){}
-  }
-  _setupMO();
-
-  function _rewriteNode(el){
-    var tag = el.tagName ? el.tagName.toUpperCase() : '';
-    if(!tag) return;
-    if((tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'SOURCE') && el.getAttribute('src')){
-      var s = el.getAttribute('src');
-      if(_shouldProxy(s) && s.indexOf(_cp) === -1) el.setAttribute('src', _proxied(s));
-    }
-    if((tag === 'IMG' || tag === 'SOURCE') && el.getAttribute('srcset')){
-      el.setAttribute('srcset', _rewriteSrcset(el.getAttribute('srcset')));
-    }
-    if(tag === 'IFRAME' && el.getAttribute('src')){
-      var is = el.getAttribute('src');
-      if(_shouldProxy(is) && is.indexOf(_cp) === -1) el.setAttribute('src', _proxied(is));
-    }
-    if(tag === 'LINK' && el.getAttribute('href')){
-      var lh = el.getAttribute('href');
-      if(_shouldProxy(lh) && lh.indexOf(_cp) === -1) el.setAttribute('href', _proxied(lh));
-    }
-    if(tag === 'SCRIPT' && el.getAttribute('src')){
-      var scs = el.getAttribute('src');
-      if(_shouldProxy(scs) && scs.indexOf(_cp) === -1) el.setAttribute('src', _proxied(scs));
-    }
-    if(tag === 'A' || tag === 'AREA' || tag === 'FORM'){
-      if(el.hasAttribute('target')) el.removeAttribute('target');
-    }
-    if(tag === 'A' || tag === 'AREA'){
-      var ah = el.getAttribute('href');
-      if((ah == null || ah === '') && el.getAttributeNS){
-        try { ah = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href'); } catch(e){}
-      }
-      if(ah && !/^(javascript:|data:|mailto:|blob:|#)/i.test(ah.trim())){
-        var aAbs = _abs(ah);
-        if(_shouldProxy(aAbs) && ah.indexOf(_cp) === -1){
-          // Use data-void-href + javascript:void(0) so the browser can never
-          // follow the link natively — same pattern as the static HTML rewriter
-          _origSetAttribute.call(el, 'data-void-href', _proxied(aAbs));
-          _origSetAttribute.call(el, 'href', 'javascript:void(0)');
-          if(el.hasAttribute('target')) el.removeAttribute('target');
-        }
-      }
-    }
-    if(tag === 'META'){
-      var he = (el.getAttribute('http-equiv') || '').toLowerCase();
-      if(he === 'refresh' || he === 'content-security-policy') { try { el.remove(); } catch(e){ el.content = ''; } }
-    }
-  }
-
-  function _rewriteSrcset(ss){
-    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
-      if(u.indexOf(_cp) !== -1) return u;
-      return _proxied(u);
-    });
-  }
-
-  /* ── Title reporting ── */
-  function reportTitle(){ _top.postMessage({ type: 'void_title', title: document.title }, '*'); }
-  function _attachTitle(){
-    reportTitle();
-    var titleEl = document.querySelector('title');
-    if(titleEl){
-      try { new MutationObserver(reportTitle).observe(titleEl, { childList: true, characterData: true, subtree: true }); } catch(e){}
-    }
-  }
-  _attachTitle();
-
-  /* ── Expose __voidProxy for re-navigation (prevents override stacking) ── */
-  window.__voidProxy = {
-    _setCur: function(v){ _cur = v; },
-    _reattach: function(){
-      _setupMO();
-      _attachTitle();
-      if(typeof window.PointerEvent !== 'undefined'){
-        document.addEventListener('pointerdown', _handlePointerDown, { capture: true, passive: false });
-      } else {
-        document.addEventListener('mousedown', _handlePointerDown, { capture: true, passive: false });
-      }
-      document.addEventListener('click', _handleClick, true);
-      document.addEventListener('auxclick', _handleAuxClick, true);
-      document.addEventListener('submit', _handleSubmit, true);
-      document.addEventListener('touchstart', _handleTouchStart, { passive: true, capture: true });
-      document.addEventListener('touchend', _handleTouchEnd, { passive: true, capture: true });
-      _top.postMessage({ type: 'void_loaded' }, '*');
-    }
-  };
-
-  /* ── Listen for SW cookie updates ── */
-  try {
-    if(navigator.serviceWorker){
-      navigator.serviceWorker.addEventListener('message', function(e){
-        if(e.data && e.data.type === 'void-sw-set-cookie'){
-          _parseSetCookies(e.data.raw, e.data.url);
-        }
-      });
-    }
-  } catch(e){}
-
-  window.addEventListener('message', function(e){
-    if(e.data && e.data.type === 'void_eval' && e.data.code){
-      try { (0, eval)(e.data.code); } catch(err){ console.error('[void inject]', err); }
-    }
-  });
-
-  _top.postMessage({ type: 'void_loaded' }, '*');
-}
-
-function buildInjection(baseUrl, corsProxy, eruda){
-  var src = '(' + _clientInjection.toString() + ')();';
-  src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
-  src = src.replace("'%%CORS%%'", JSON.stringify(corsProxy));
-  src = src.replace("'%%ERUDA%%'", eruda ? 'true' : 'false');
-  return src;
-}
-
-function rewriteCssUrls(css, baseUrl, corsBase){
-  if(!css) return css;
-  return css.replace(/url\(\s*(['"]?)((?!data:)[^)'"]+)\1\s*\)/gi, function(m, q, rawUrl){
-    rawUrl = rawUrl.trim();
-    if(rawUrl.indexOf(corsBase) !== -1) return m;
-    try {
-      var abs = new URL(rawUrl, baseUrl).href;
-      if(!/^https?:\/\//i.test(abs)) return m;
-      var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(abs) : corsBase + '?url=' + encodeURIComponent(abs);
-      return 'url(' + q + proxied + q + ')';
-    } catch(e){ return m; }
-  });
-}
-
-function rewriteSrcset(ss, baseUrl, corsBase){
-  if(!ss) return ss;
-  return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){
-    if(u.indexOf(corsBase) !== -1) return u;
-    var proxied = corsBase.indexOf('?') >= 0 ? corsBase + encodeURIComponent(u) : corsBase + '?url=' + encodeURIComponent(u);
-    return proxied;
-  });
-}
-
-/** DNS prefetch + dual preconnect to the CORS proxy origin so the browser opens parallel connections early (HTTP/2 lanes). */
-function voidProxyResourceHintsHtml(corsBase){
-  try {
-    var origin = new URL(corsBase).origin;
-    var o = escHtml(origin);
-    return '<meta http-equiv="x-dns-prefetch-control" content="on">'
-      + '<link rel="dns-prefetch" href="' + o + '">'
-      + '<link rel="preconnect" href="' + o + '" crossorigin>'
-      + '<link rel="preconnect" href="' + o + '">';
-  } catch(e){
-    return '<meta http-equiv="x-dns-prefetch-control" content="on">';
-  }
-}
-
-function voidEnsureCorsAttrs(html){
-  html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
-    if(/\bcrossorigin\s*=/i.test(inner)) return full;
-    return '<script crossorigin="anonymous"' + inner + '>';
-  });
-  html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
-    if(/\bcrossorigin\s*=/i.test(inner)) return full;
-    if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
-    return '<link crossorigin="anonymous"' + inner + '>';
-  });
-  return html;
-}
-
-function clientRewrite(html, baseUrl){
-  var cp = getActiveCorsBase();
-  var eruda = $('opt-eruda') && $('opt-eruda').checked;
-
-  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
-  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
-  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
-  html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
-  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
-
-  html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
-
-  html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
-  html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
-
-  html = html.replace(/(<a\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
-  html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
-
-  var injection = '<scr' + 'ipt data-void-inject>' + buildInjection(baseUrl, cp, eruda) + '</scr' + 'ipt>';
-  var headInsert = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">'
-    + voidProxyResourceHintsHtml(cp)
-    + '<base href="' + escHtml(baseUrl) + '">' + injection;
-  if(/<head/i.test(html)){
-    html = html.replace(/<head([^>]*)>/i, '<head$1>' + headInsert);
-  } else if(/<html/i.test(html)){
-    html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + headInsert + '</head>');
-  } else {
-    html = '<!DOCTYPE html><html><head>' + headInsert + '</head>' + html;
-  }
-
-  function _rwUrl(raw){
-    if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
-    if(raw.indexOf(cp) !== -1) return raw;
-    try {
-      var abs = new URL(raw, baseUrl).href;
-      if(!/^https?:\/\//i.test(abs)) return raw;
-      return cp.indexOf('?') >= 0 ? cp + encodeURIComponent(abs) : cp + '?url=' + encodeURIComponent(abs);
-    } catch(e){ return raw; }
-  }
-
-  html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
-    if(/data-void-inject/i.test(pre)) return m;
-    return pre + q + _rwUrl(url) + q;
-  });
-
-  html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
-    return pre + q + _rwUrl(url) + q;
-  });
-
-  html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
-    return pre + q + _rwUrl(url) + q;
-  });
-  html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
-    return pre + q + _rwUrl(url) + q;
-  });
-
-  html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m, pre, q, url){
-    return pre + q + _rwUrl(url) + q;
-  });
-
-  html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi, function(m, pre, attr, q, val){
-    return pre + attr + q + rewriteSrcset(val, baseUrl, cp) + q;
-  });
-
-  html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, function(m, attrs, css){
-    return '<style' + attrs + '>' + rewriteCssUrls(css, baseUrl, cp) + '</style>';
-  });
-
-  html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi, function(m, pre, q, css){
-    return pre + 'style=' + q + rewriteCssUrls(css, baseUrl, cp) + q;
-  });
-
-  html = voidEnsureCorsAttrs(html);
-
-  return html;
-}
-
-function _voidEngine(corsBase, eruda, clientInjSrc, selfSrc){
-  var _corsBase = corsBase, _eruda = eruda, _injSrc = clientInjSrc, _selfSrc = selfSrc;
-  var _curUrl, _navHist, _navIdx;
-  try { _navHist = JSON.parse(localStorage.getItem('void_nav_history') || '[]'); } catch(e){ _navHist = []; }
-  try { _navIdx = parseInt(localStorage.getItem('void_nav_idx') || '0'); } catch(e){ _navIdx = 0; }
-  _curUrl = _navHist[_navIdx] || '';
-
-  function escH(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function makeCors(u){ return _corsBase.indexOf('?') >= 0 ? _corsBase + encodeURIComponent(u) : _corsBase + '?url=' + encodeURIComponent(u); }
-
-  function rwCss(css, base){
-    return css.replace(/url\s*\(\s*(?!["']*data:)["']*\s*([^)"'\s]+)/gi, function(m, u){
-      if(/^data:/i.test(u)) return m;
-      try { return m.replace(u, makeCors(new URL(u, base).href)); } catch(e){ return m; }
-    });
-  }
-  function rwSrcset(ss, base){
-    if(!ss) return ss;
-    return ss.replace(/(https?:\/\/[^\s,]+)/g, function(u){ return makeCors(u); });
-  }
-
-  function buildInj(baseUrl){
-    var src = '(' + _injSrc + ')();';
-    src = src.replace("'%%BASE%%'", JSON.stringify(baseUrl));
-    src = src.replace("'%%CORS%%'", JSON.stringify(_corsBase));
-    src = src.replace("'%%ERUDA%%'", _eruda ? 'true' : 'false');
-    var out = '';
-    if(_eruda) out = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/eruda" crossorigin="anonymous"><\/scr' + 'ipt><scr' + 'ipt>try{eruda.init();}catch(_e){}<\/scr' + 'ipt>';
-    return out + '<scr' + 'ipt data-void-inject>' + src + '<\/scr' + 'ipt>';
-  }
-
-  function rewrite(html, base){
-    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
-    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
-    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Refresh[^>]*>/gi, '');
-    html = html.replace(/<meta[^>]*charset=[^>]*>/gi, '');
-    html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Type[^>]*>/gi, '');
-    html = html.replace(/\s(integrity|nonce)\s*=\s*["'][^"']*["']/gi, '');
-    html = html.replace(/<script[^>]*src\s*=\s*["'][^"']*(ads|adservice|doubleclick|googlesyndication|adsbygoogle|pagead|googletagmanager|facebook\.net\/en_US\/fbevents|connect\.facebook|analytics\.google)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
-    html = html.replace(/<ins\s+class\s*=\s*["']adsbygoogle["'][^>]*>[\s\S]*?<\/ins>/gi, '');
-    html = html.replace(/(<a\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
-    html = html.replace(/(<form\s[^>]*?)\btarget\s*=\s*["'][^"']*["']/gi, '$1');
-    var inj = buildInj(base);
-    var vHints = '';
-    try {
-      var vo = new URL(_corsBase).origin;
-      vHints = '<meta http-equiv="x-dns-prefetch-control" content="on"><link rel="dns-prefetch" href="' + escH(vo) + '"><link rel="preconnect" href="' + escH(vo) + '" crossorigin><link rel="preconnect" href="' + escH(vo) + '">';
-    } catch(e){ vHints = '<meta http-equiv="x-dns-prefetch-control" content="on">'; }
-    var hi = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">' + vHints + '<base href="' + escH(base) + '">' + inj;
-    if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + hi);
-    else if(/<html/i.test(html)) html = html.replace(/<html([^>]*)>/i, '<html$1><head>' + hi + '</head>');
-    else html = '<!DOCTYPE html><html><head>' + hi + '</head>' + html;
-    function _rw(raw){
-      if(!raw || /^(data:|javascript:|blob:|about:|#)/i.test(raw.trim())) return raw;
-      if(raw.indexOf(_corsBase) !== -1) return raw;
-      try {
-        var a = new URL(raw, base).href;
-        if(!/^https?:\/\//i.test(a)) return raw;
-        return makeCors(a);
-      } catch(e){ return raw; }
-    }
-    html = html.replace(/(<script\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      if(/data-void-inject/i.test(pre)) return m;
-      return pre + q + _rw(u) + q;
-    });
-    html = html.replace(/(<link\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      return pre + q + _rw(u) + q;
-    });
-    html = html.replace(/(<a\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      var rw = _rw(u);
-      // Store the proxied URL in data-void-href; set href to javascript:void(0) so
-      // the browser can never follow it natively and navigate away from void.html
-      if(rw !== u && /^https?:\/\//i.test(rw)){
-        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
-      }
-      return pre + q + rw + q;
-    });
-    html = html.replace(/(<area\s[^>]*?href\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      var rw = _rw(u);
-      if(rw !== u && /^https?:\/\//i.test(rw)){
-        return pre + q + 'javascript:void(0)' + q + ' data-void-href="' + rw.replace(/"/g,'&quot;') + '"';
-      }
-      return pre + q + rw + q;
-    });
-    html = html.replace(/(<(?:img|video|audio|source|embed|iframe)\s[^>]*?src\s*=\s*)(["'])([^"']*)\2/gi, function(m,pre,q,u){
-      return pre + q + _rw(u) + q;
-    });
-    html = html.replace(/(<(?:img|source|video|audio|embed)\s[^>]*\b)(srcset\s*=\s*)(["'])([^"']*)\3/gi,
-      function(m,pre,attr,q,val){ return pre + attr + q + rwSrcset(val, base) + q; });
-    html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi,
-      function(m,a,css){ return '<style'+a+'>' + rwCss(css,base) + '</style>'; });
-    html = html.replace(/(<[^>]+\s)style\s*=\s*(["'])((?:(?!\2).)*)\2/gi,
-      function(m,pre,q,css){ return pre+'style='+q + rwCss(css,base)+q; });
-    html = html.replace(/<script(\s[^>]*\ssrc\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
-      if(/\bcrossorigin\s*=/i.test(inner)) return full;
-      return '<script crossorigin="anonymous"' + inner + '>';
-    });
-    html = html.replace(/<link(\s[^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>/gi, function(full, inner){
-      if(/\bcrossorigin\s*=/i.test(inner)) return full;
-      if(!/\brel\s*=\s*["']stylesheet["']/i.test(inner) && !/\brel\s*=\s*["']preload["'][^>]*\bas\s*=\s*["']style["']/i.test(inner)) return full;
-      return '<link crossorigin="anonymous"' + inner + '>';
-    });
-    return html;
-  }
-
-  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
-    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
-    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
-    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
-    + 'transform:none !important;pointer-events:auto !important;'
-    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
-    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
-    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
-    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
-    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
-    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
-    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
-    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
-    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
-    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
-    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
-    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
-    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
-    + '#_vt button:active{transform:scale(.94) !important;}'
-    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
-    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
-    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
-    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
-    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
-    + 'transition:border-color .2s,box-shadow .2s !important;}'
-    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
-    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
-    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
-    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
-    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
-    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
-    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
-    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
-    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
-    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
-    + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
-    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
-    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
-    + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
-    + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
-    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
-    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
-    + '#_vs.ok{color:#4ade80 !important;}'
-    + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
-    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
-    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
-    + 'background-size:200% 100% !important;}'
-    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
-    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
-    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
-    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
-    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
-    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
-    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
-    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
-    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
-    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
-    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
-    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
-    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
-    + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
-    + '@supports (padding:env(safe-area-inset-top)){'
-    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
-    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
-    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
-    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
-    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
-    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
-    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
-    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
-
-  function tbHtml(url){
-    return '<div id="_vt">'
-      + '<span id="_vt-brand">void</span>'
-      + '<span id="_vt-sep"></span>'
-      + '<div id="_vt-nav">'
-      + '<button id="_vb" title="Back">&#8592;</button>'
-      + '<button id="_vf" title="Forward">&#8594;</button>'
-      + '<button id="_vr" title="Reload">&#8635;</button>'
-      + '</div>'
-      + '<div id="_vt-url-wrap">'
-      + '<input id="_va" type="text" value="' + escH(url) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
-      + '<button id="_vt-go">Go</button>'
-      + '</div>'
-      + '<button id="_vbk" title="Bookmark">&#9734;</button>'
-      + '<button id="_vh" title="Home">&#8962;</button>'
-      + '</div>'
-      + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
-      + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
-      + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
-  }
-
-  function render(html, url){
-    // Inline voidMarkInternalNavigation — the outer-scope function is destroyed
-    // after document.write() replaces the document, so we can't call it by name.
-    try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
-    // Invalidate any pending nav-fallback timers from the previous page
-    _navGen++;
-    _curUrl = url;
-    try{ localStorage.setItem('void_nav_history', JSON.stringify(_navHist)); localStorage.setItem('void_nav_idx', String(_navIdx)); }catch(e){}
-    var css = '<style>' + TB_CSS + '</style>';
-    var tb = tbHtml(url);
-    var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(_selfSrc) + ')();'
-      + 'e(' + JSON.stringify(_corsBase) + ',' + _eruda + ',' + JSON.stringify(_injSrc) + ',' + JSON.stringify(_selfSrc) + ');})()}'
-      + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
-      + '<\/scr' + 'ipt>';
-    if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + '</head>');
-    else html = css + html;
-    if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tb + bootScript + '</body>');
-    else html += tb + bootScript;
-    document.open(); document.write(html); document.close();
-  }
-
-  function _getCk(u){
-    try {
-      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
-      var d = ''; try { d = new URL(u).hostname; } catch(e){}
-      if(!d) return '';
-      var p = [];
-      for(var k in jar){ if(d === k || d.endsWith('.'+k)){ for(var n in jar[k]) p.push(n+'='+jar[k][n]); } }
-      return p.join('; ');
-    } catch(e){ return ''; }
-  }
-  function _storeCk(resp, u){
-    var sc = resp.headers.get('x-void-set-cookie'); if(!sc) return;
-    try {
-      var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
-      var d = ''; try { d = new URL(u).hostname; } catch(e){}
-      var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
-      cookies.forEach(function(c){
-        var parts = c.split(';'); var nv = parts[0].trim().split('=');
-        if(nv.length < 2) return;
-        var nm = nv[0].trim(), vl = nv.slice(1).join('=').trim(), cd = d;
-        parts.forEach(function(p){ var kv = p.trim().split('='); if(kv[0].trim().toLowerCase()==='domain'&&kv[1]) cd=kv[1].trim().replace(/^\./,''); });
-        if(!jar[cd]) jar[cd] = {}; jar[cd][nm] = vl;
-      });
-      localStorage.setItem('void_cookies', JSON.stringify(jar));
-    } catch(e){}
-  }
-
-  async function nav(url, push, postOpts){
-    var ld = document.getElementById('_vld'); if(ld) ld.className = 'on';
-    var vs = document.getElementById('_vs'); if(vs){ vs.textContent = 'Loading\u2026'; vs.className = 'ld'; }
-    try {
-      var fo = undefined;
-      if(postOpts) fo = { method: 'POST', headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' }, body: postOpts.body };
-      if(!fo) fo = {};
-      if(!fo.headers) fo.headers = {};
-      fo.headers['X-Void-Dest'] = 'document';
-      var ck = _getCk(url);
-      if(ck) fo.headers['X-Void-Cookie'] = ck;
-      var r = await fetch(makeCors(url), fo);
-      _storeCk(r, url);
-      var text = await r.text();
-      var ct = (r.headers.get('content-type') || '').toLowerCase();
-      var fin = r.headers.get('x-void-final-url') || url;
-      if(fin !== url){ url = fin; }
-      if(push !== false){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(url); _navIdx = _navHist.length - 1; }
-      _curUrl = url;
-      try {
-        var bh = JSON.parse(localStorage.getItem('void_browse_history') || '[]').filter(function(e){ return e.url !== url; });
-        var d = ''; try { d = new URL(url).hostname; } catch(e){}
-        bh.unshift({ url: url, title: d, ts: Date.now() });
-        if(bh.length > 30) bh = bh.slice(0, 30);
-        localStorage.setItem('void_browse_history', JSON.stringify(bh));
-      } catch(e){}
-      var rw;
-      if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && text.length > 0 && text.trim().charAt(0) === '<')){
-        rw = rewrite(text, url);
-      } else if(ct.indexOf('image/') >= 0){
-        rw = '<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escH(makeCors(url)) + '" style="max-width:100%;max-height:100vh"></body></html>';
-      } else if(ct.indexOf('application/json') >= 0){
-        rw = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all}</style></head><body>' + escH(text) + '</body></html>';
-      } else { rw = rewrite(text, url); }
-      render(rw, url);
-    } catch(err){
-      if(ld) ld.className = '';
-      var ai = document.getElementById('_va');
-      if(ai) ai.style.borderColor = 'rgba(255,95,143,.5)';
-      if(ai) ai.value = 'Error: ' + (err.message || err);
-      setTimeout(function(){ if(ai) ai.style.borderColor = ''; }, 3000);
-      console.error('[Void nav]', err);
-    }
-  }
-
-  window.addEventListener('message', function(e){
-    if(!e.data || typeof e.data !== 'object') return;
-    if(e.data.type === 'void_navigate' && e.data.url){
-      window.postMessage({ type: 'void_nav_ack' }, '*');
-      nav(e.data.url, true);
-    }
-    if(e.data.type === 'void_post' && e.data.url){
-      window.postMessage({ type: 'void_nav_ack' }, '*');
-      nav(e.data.url, true, { body: e.data.body, contentType: e.data.contentType });
-    }
-    if(e.data.type === 'void_raw_render' && e.data.html){
-      var fin = e.data.url || _curUrl;
-      if(e.data.url){ _navHist = _navHist.slice(0, _navIdx + 1); _navHist.push(fin); _navIdx = _navHist.length - 1; }
-      render(rewrite(e.data.html, fin), fin);
-    }
-    if(e.data.type === 'void_url' && e.data.url){ _curUrl = e.data.url; var ai = document.getElementById('_va'); if(ai) ai.value = e.data.url; }
-    if(e.data.type === 'void_title' && e.data.title) document.title = e.data.title;
-    if(e.data.type === 'void_loaded'){
-      var ld = document.getElementById('_vld'); if(ld) ld.className = '';
-      var vs = document.getElementById('_vs'); if(vs){ vs.textContent = '\u2713 Ready'; vs.className = 'ok'; }
-    }
-    if(e.data.type === 'void_swipe'){
-      if(e.data.dir === 'back' && _navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); }
-      else if(e.data.dir === 'fwd' && _navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); }
-    }
-  });
-
-  var $vh = document.getElementById('_vh');
-  var $vb = document.getElementById('_vb');
-  var $vf = document.getElementById('_vf');
-  var $vr = document.getElementById('_vr');
-  var $va = document.getElementById('_va');
-  var $vgo = document.getElementById('_vt-go');
-  var $vbk = document.getElementById('_vbk');
-  var $vjr = document.getElementById('_vjr');
-  var $vjx = document.getElementById('_vjx');
-
-  function _doNav(){
-    var u = $va ? $va.value.trim() : '';
-    if(!u) return;
-    if(!/^https?:\/\//i.test(u)){
-      u = u.includes('.') && !u.includes(' ') ? 'https://' + u : 'https://search.brave.com/search?q=' + encodeURIComponent(u);
-    }
-    nav(u, true);
-  }
-
-  if($vh) $vh.onclick = function(){ if(window.__voidRealReload) window.__voidRealReload(); else location.href = '/'; };
-  if($vb) $vb.onclick = function(){ if(_navIdx > 0){ _navIdx--; nav(_navHist[_navIdx], false); } };
-  if($vf) $vf.onclick = function(){ if(_navIdx < _navHist.length - 1){ _navIdx++; nav(_navHist[_navIdx], false); } };
-  if($vr) $vr.onclick = function(){ nav(_curUrl, false); };
-  if($vgo) $vgo.onclick = _doNav;
-  if($va){
-    $va.addEventListener('focus', function(){ this.select(); });
-    $va.addEventListener('keydown', function(e){
-      if(e.key === 'Enter'){ e.preventDefault(); _doNav(); }
-      if(e.key === 'Escape'){ this.value = _curUrl; this.blur(); }
-    });
-    // Prevent the proxied page from stealing focus away from the address bar
-    $va.addEventListener('click', function(e){ e.stopPropagation(); });
-  }
-  if($vbk) $vbk.onclick = function(){
-    try {
-      var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
-      if(bks.some(function(b){ return b.url === _curUrl; })){ bks = bks.filter(function(b){ return b.url !== _curUrl; }); this.innerHTML = '\u2605'; }
-      else { var d = ''; try{d = new URL(_curUrl).hostname;}catch(e){} bks.unshift({url:_curUrl,title:d}); this.innerHTML = '\u2605'; }
-      localStorage.setItem('void_bookmarks', JSON.stringify(bks));
-    } catch(e){}
-  };
-  try { var bks = JSON.parse(localStorage.getItem('void_bookmarks') || '[]');
-    if(bks.some(function(b){ return b.url === _curUrl; }) && $vbk) $vbk.innerHTML = '\u2605'; } catch(e){}
-  if($vjr) $vjr.onclick = function(){ var c = document.getElementById('_vjc'); if(c && c.value.trim()) try{(0,eval)(c.value);}catch(e){alert(e.message);} };
-  if($vjx) $vjx.onclick = function(){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; };
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape'){ var p = document.getElementById('_vjp'); if(p) p.style.display = 'none'; }
-    if((e.ctrlKey || e.metaKey) && e.key === 'l'){ e.preventDefault(); if($va){ $va.focus(); $va.select(); } }
-    if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); if($vb) $vb.click(); }
-    if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); if($vf) $vf.click(); }
-  });
-}
-
-function renderPage(html, baseUrl){
-  try { localStorage.setItem('void_suppress_bounce', String(Date.now())); } catch(_e){}
-  localStorage.setItem('void_nav_history', JSON.stringify(navHistory));
-  localStorage.setItem('void_nav_idx', String(navIdx));
-  var corsBase = getActiveCorsBase();
-  var eruda = $('opt-eruda') && $('opt-eruda').checked;
-  var selfSrc = _voidEngine.toString();
-  var injSrc = _clientInjection.toString();
-
-  var bootScript = '<scr' + 'ipt>try{(function(){var e=new Function("return "+' + JSON.stringify(selfSrc) + ')();'
-    + 'e(' + JSON.stringify(corsBase) + ',' + (eruda?'true':'false') + ',' + JSON.stringify(injSrc) + ',' + JSON.stringify(selfSrc) + ');})()}'
-    + 'catch(_be){document.title="ENGINE ERR: "+_be.message;console.error("[VoidEngine boot]",_be);}'
-    + '<\/scr' + 'ipt>';
-
-  var TB_CSS = ':root{--vt-bg:rgba(6,6,11,.97);--vt-border:rgba(255,255,255,.07);--vt-accent:#7c6aff;--vt-accent2:#ff5f8f;--vt-text:#eef0f8;--vt-sub:#9a9bb8;--vt-muted:#464660;}'
-    + '#_vt{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:46px !important;background:var(--vt-bg) !important;'
-    + 'backdrop-filter:blur(20px) saturate(1.2) !important;display:flex !important;align-items:center !important;'
-    + 'gap:6px !important;padding:0 10px !important;visibility:visible !important;opacity:1 !important;'
-    + 'transform:none !important;pointer-events:auto !important;'
-    + 'border-bottom:1px solid var(--vt-border) !important;font-family:-apple-system,system-ui,sans-serif !important;'
-    + 'box-sizing:border-box !important;box-shadow:0 4px 24px rgba(0,0,0,.35) !important;}'
-    + '#_vt *{box-sizing:border-box !important;visibility:visible !important;opacity:1 !important;}'
-    + '#_vt-brand{font-size:15px !important;font-weight:900 !important;letter-spacing:-.04em !important;'
-    + 'background:linear-gradient(135deg,#7c6aff,#ff5f8f) !important;-webkit-background-clip:text !important;'
-    + 'background-clip:text !important;-webkit-text-fill-color:transparent !important;'
-    + 'text-decoration:none !important;flex-shrink:0 !important;line-height:1 !important;}'
-    + '#_vt-sep{width:1px !important;height:18px !important;background:rgba(255,255,255,.08) !important;flex-shrink:0 !important;}'
-    + '#_vt button{background:rgba(255,255,255,.05) !important;border:1px solid rgba(255,255,255,.08) !important;'
-    + 'color:var(--vt-sub) !important;border-radius:8px !important;padding:0 10px !important;height:28px !important;'
-    + 'font-size:12px !important;cursor:pointer !important;font-family:inherit !important;transition:all .15s !important;'
-    + 'white-space:nowrap !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;flex-shrink:0 !important;}'
-    + '#_vt button:hover{background:rgba(124,106,255,.15) !important;color:var(--vt-text) !important;border-color:rgba(124,106,255,.3) !important;}'
-    + '#_vt button:active{transform:scale(.94) !important;}'
-    + '#_vt-nav{display:flex !important;gap:3px !important;flex-shrink:0 !important;}'
-    + '#_vt-nav button{width:28px !important;padding:0 !important;font-size:14px !important;}'
-    + '#_vt-url-wrap{flex:1 !important;min-width:0 !important;display:flex !important;align-items:center !important;'
-    + 'background:rgba(0,0,0,.4) !important;border:1.5px solid rgba(255,255,255,.07) !important;'
-    + 'border-radius:10px !important;padding:0 10px !important;gap:6px !important;height:30px !important;'
-    + 'transition:border-color .2s,box-shadow .2s !important;}'
-    + '#_vt-url-wrap:focus-within{border-color:var(--vt-accent) !important;box-shadow:0 0 0 3px rgba(124,106,255,.15) !important;}'
-    + '#_va{flex:1 !important;min-width:0 !important;background:none !important;border:none !important;outline:none !important;'
-    + 'color:var(--vt-text) !important;font-family:"SFMono-Regular",Consolas,monospace !important;font-size:11px !important;'
-    + 'padding:0 !important;caret-color:var(--vt-accent) !important;display:block !important;}'
-    + '#_va::placeholder{color:var(--vt-muted) !important;font-family:-apple-system,system-ui,sans-serif !important;}'
-    + '#_vt-go{background:linear-gradient(135deg,var(--vt-accent),var(--vt-accent2)) !important;'
-    + 'color:#fff !important;border:none !important;border-radius:7px !important;padding:0 12px !important;'
-    + 'height:26px !important;font-size:11px !important;font-weight:700 !important;letter-spacing:.03em !important;'
-    + 'cursor:pointer !important;flex-shrink:0 !important;box-shadow:0 2px 10px rgba(124,106,255,.3) !important;}'
-    + '#_vt-go:hover{box-shadow:0 4px 16px rgba(124,106,255,.45) !important;transform:translateY(-1px) !important;}'
-    + '#_vsb{position:fixed !important;bottom:0 !important;left:0 !important;right:0 !important;'
-    + 'z-index:2147483647 !important;height:22px !important;background:rgba(6,6,11,.92) !important;'
-    + 'display:flex !important;align-items:center !important;padding:0 10px !important;'
-    + 'border-top:1px solid rgba(255,255,255,.05) !important;font-family:-apple-system,system-ui,sans-serif !important;'
-    + 'visibility:visible !important;opacity:1 !important;pointer-events:auto !important;overflow:hidden !important;}'
-    + '#_vsb *{visibility:visible !important;opacity:1 !important;}'
-    + '#_vs{font-size:9px !important;color:#555 !important;white-space:nowrap !important;position:relative !important;z-index:1 !important;transition:color .3s !important;}'
-    + '#_vs.ld{color:var(--vt-accent2) !important;animation:_vblink .8s ease-in-out infinite !important;}'
-    + '#_vs.ok{color:#4ade80 !important;}'
-    + '@keyframes _vblink{0%,100%{opacity:1}50%{opacity:.3}}'
-    + '#_vld{position:absolute !important;top:0 !important;left:0 !important;right:0 !important;height:3px !important;'
-    + 'display:none !important;background:linear-gradient(90deg,#4c1d95,#7c6aff,#ff5f8f,#7c6aff,#4c1d95) !important;'
-    + 'background-size:200% 100% !important;}'
-    + '#_vld.on{display:block !important;animation:_vshim 1.2s linear infinite !important;}'
-    + '@keyframes _vshim{0%{background-position:100% 0}100%{background-position:-100% 0}}'
-    + '#_vjp{position:fixed !important;top:46px !important;left:0 !important;right:0 !important;z-index:2147483646 !important;'
-    + 'background:rgba(6,6,11,.97) !important;backdrop-filter:blur(16px) !important;'
-    + 'border-bottom:1px solid rgba(255,255,255,.07) !important;padding:12px 14px !important;display:none !important;}'
-    + '#_vjp.on{display:block !important;}#_vjp textarea{width:100% !important;min-height:60px !important;padding:8px 10px !important;border-radius:8px !important;'
-    + 'border:1px solid rgba(255,255,255,.08) !important;background:rgba(0,0,0,.4) !important;color:#ddd !important;'
-    + 'font-family:monospace !important;font-size:11px !important;resize:vertical !important;box-sizing:border-box !important;outline:none !important;}'
-    + '#_vjp textarea:focus{border-color:var(--vt-accent) !important;}'
-    + '#_vjp>div{display:flex !important;gap:6px !important;margin-top:6px !important;}'
-    + '#_vjp .rb{background:linear-gradient(135deg,#7c6aff,#6d28d9) !important;color:#fff !important;border:none !important;'
-    + 'border-radius:7px !important;padding:5px 14px !important;font-size:11px !important;font-weight:700 !important;cursor:pointer !important;}'
-    + '#_vjp .cb{background:rgba(255,255,255,.05) !important;color:#888 !important;border:1px solid rgba(255,255,255,.07) !important;'
-    + 'border-radius:7px !important;padding:5px 12px !important;font-size:11px !important;cursor:pointer !important;}'
-    + '#_vt,#_vt *,#_vsb,#_vsb *{-webkit-tap-highlight-color:transparent !important;touch-action:manipulation !important;}'
-    + '@supports (padding:env(safe-area-inset-top)){'
-    + '#_vt{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;}'
-    + '#_vsb{padding-left:max(10px,env(safe-area-inset-left)) !important;padding-right:max(10px,env(safe-area-inset-right)) !important;padding-bottom:env(safe-area-inset-bottom) !important;}}'
-    + '@media (pointer:coarse){#_vt{height:52px !important;}#_vt button{height:34px !important;min-width:34px !important;font-size:14px !important;}'
-    + '#_vt-nav button{width:34px !important;}#_vt-url-wrap{height:36px !important;}'
-    + '#_va{font-size:14px !important;}#_vt-go{height:30px !important;padding:0 14px !important;font-size:12px !important;}'
-    + '#_vjp{top:52px !important;}#_vjp textarea{min-height:80px !important;font-size:13px !important;}}'
-    + 'html body{margin-top:50px !important;margin-bottom:26px !important;}'
-    + '@media (pointer:coarse){html body{margin-top:56px !important;margin-bottom:26px !important;}}';
-
-  var tbHtml = '<div id="_vt">'
-    + '<span id="_vt-brand">void</span>'
-    + '<span id="_vt-sep"></span>'
-    + '<div id="_vt-nav">'
-    + '<button id="_vb" title="Back">&#8592;</button>'
-    + '<button id="_vf" title="Forward">&#8594;</button>'
-    + '<button id="_vr" title="Reload">&#8635;</button>'
-    + '</div>'
-    + '<div id="_vt-url-wrap">'
-    + '<input id="_va" type="text" value="' + escHtml(baseUrl) + '" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search or enter URL\u2026"/>'
-    + '<button id="_vt-go">Go</button>'
-    + '</div>'
-    + '<button id="_vbk" title="Bookmark">&#9734;</button>'
-    + '<button id="_vh" title="Home">&#8962;</button>'
-    + '</div>'
-    + '<div id="_vsb"><div id="_vld" class="on"></div><span id="_vs" class="ld">Loading\u2026</span></div>'
-    + '<div id="_vjp"><textarea id="_vjc" placeholder="JavaScript\u2026"></textarea>'
-    + '<div><button class="rb" id="_vjr">Run</button><button class="cb" id="_vjx">Close</button></div></div>';
-
-  if(/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, '<style>' + TB_CSS + '</style></head>');
-  else html = '<style>' + TB_CSS + '</style>' + html;
-  if(/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, tbHtml + bootScript + '</body>');
-  else html += tbHtml + bootScript;
-
-  document.open(); document.write(html); document.close();
-}
-
-function mergeAbortSignals(a, b){
-  if(typeof AbortSignal !== 'undefined' && AbortSignal.any) return AbortSignal.any([a, b]);
-  var ctrl = new AbortController();
-  function fire(){ try { ctrl.abort(); } catch(e){} }
-  if(a.aborted || b.aborted){ fire(); return ctrl.signal; }
-  a.addEventListener('abort', fire);
-  b.addEventListener('abort', fire);
-  return ctrl.signal;
-}
-
-function promiseAny(promises){
-  return new Promise(function(resolve, reject){
-    var n = promises.length;
-    if(!n){ reject(new Error('no backends')); return; }
-    var errs = [];
-    promises.forEach(function(p){
-      Promise.resolve(p).then(resolve).catch(function(e){
-        errs.push(e && e.message ? e.message : String(e));
-        if(errs.length === n) reject(new Error(errs.join('\n')));
-      });
-    });
-  });
-}
-
-function fetchWithTimeout(url, opts, ms){
-  var ctrl = new AbortController();
-  opts = Object.assign({}, opts || {});
-  var external = opts.signal;
-  if(external){
-    opts.signal = mergeAbortSignals(external, ctrl.signal);
-  } else {
-    opts.signal = ctrl.signal;
-  }
-  var timer = setTimeout(function(){ ctrl.abort(); }, ms || 20000);
-  return fetch(url, opts).finally(function(){ clearTimeout(timer); });
-}
-
-probeBackends();
-
-/* ── Service Worker registration (file:// / blob: cannot host SW; ready would hang) ── */
-if('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')){
-  navigator.serviceWorker.register('/void-sw.js', { scope: '/', updateViaCache: 'none' }).catch(function(e){
-    console.warn('[Void SW] registration failed:', e.message);
-  });
-}
-function configureSW(proxyBase, targetUrl){
-  var p = location.protocol;
-  if(!navigator.serviceWorker || p === 'file:' || p === 'blob:' || p === 'chrome-extension:' || p === 'moz-extension:'){
-    return Promise.resolve();
-  }
-  return Promise.race([
-    new Promise(function(resolve){
-      function send(){
-        try {
-          if(!navigator.serviceWorker.controller){ resolve(); return; }
-          var jar = {};
-          try { jar = JSON.parse(localStorage.getItem('void_cookies') || '{}'); } catch(e){}
-          var mc = new MessageChannel();
-          mc.port1.onmessage = function(){ resolve(); };
-          navigator.serviceWorker.controller.postMessage({
-            type: 'void-sw-config',
-            proxy: proxyBase.replace(/\/+$/, ''),
-            origin: new URL(targetUrl).origin,
-            cookies: jar
-          }, [mc.port2]);
-          setTimeout(resolve, 220);
-        } catch(e){ resolve(); }
-      }
-      navigator.serviceWorker.ready.then(send).catch(function(){ resolve(); });
-    }),
-    new Promise(function(r){ setTimeout(r, 500); })
-  ]);
-}
-
-function _getVoidCookies(url){
-  try {
-    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
-    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
-    if(!domain) return '';
-    var parts = [];
-    for(var d in jar){
-      if(domain === d || domain.endsWith('.' + d)){
-        for(var name in jar[d]) parts.push(name + '=' + jar[d][name]);
-      }
-    }
-    return parts.join('; ');
-  } catch(e){ return ''; }
-}
-function _storeVoidCookies(resp, url){
-  var sc = resp.headers.get('x-void-set-cookie');
-  if(!sc) return;
-  try {
-    var jar = JSON.parse(localStorage.getItem('void_cookies') || '{}');
-    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
-    var cookies; try { cookies = JSON.parse(sc); } catch(e){ cookies = [sc]; }
-    cookies.forEach(function(c){
-      var parts = c.split(';'); var nv = parts[0].trim().split('=');
-      if(nv.length < 2) return;
-      var name = nv[0].trim(), val = nv.slice(1).join('=').trim(), cDomain = domain;
-      parts.forEach(function(p){
-        var kv = p.trim().split('=');
-        if(kv[0].trim().toLowerCase() === 'domain' && kv[1]) cDomain = kv[1].trim().replace(/^\./, '');
-      });
-      if(!jar[cDomain]) jar[cDomain] = {};
-      jar[cDomain][name] = val;
-    });
-    localStorage.setItem('void_cookies', JSON.stringify(jar));
-  } catch(e){}
-}
-function _addCookieHeaders(fetchOpts, targetUrl, dest){
-  if(!fetchOpts) fetchOpts = {};
-  if(!fetchOpts.headers) fetchOpts.headers = {};
-  var ck = _getVoidCookies(targetUrl);
-  if(ck) fetchOpts.headers['X-Void-Cookie'] = ck;
-  if(dest) fetchOpts.headers['X-Void-Dest'] = dest;
-  return fetchOpts;
-}
-
-async function consumeCorsResponse(be, resp, targetUrl){
-  if(!resp.ok) throw new Error(be.name + ': HTTP ' + resp.status);
-  _storeVoidCookies(resp, targetUrl);
-  var finalUrl = resp.headers.get('x-void-final-url') || targetUrl;
-  var body, ct;
-  if(be.type === 'json'){
-    ct = 'text/html';
-    var json = await resp.json();
-    body = json.contents;
-    if(!body && body !== '') throw new Error(be.name + ': empty response');
-  } else {
-    ct = (resp.headers.get('content-type') || '').toLowerCase();
-    var buf = await resp.arrayBuffer();
-    body = decodeBody(buf, resp.headers);
-  }
-  if(looksLikeBlockPage(body)) throw new Error(be.name + ': returned block page');
-  return { body: body, contentType: ct, finalUrl: finalUrl };
-}
-
-var _pageFetchCache = new Map();
-var PAGE_CACHE_MAX = 40;
-var PAGE_CACHE_TTL_MS = 120000;
-
-function _pageFetchCacheKey(targetUrl){
-  return targetUrl + '\0' + (_getVoidCookies(targetUrl) || '');
-}
-
-function _pageFetchCacheGet(targetUrl){
-  var e = _pageFetchCache.get(_pageFetchCacheKey(targetUrl));
-  if(!e) return null;
-  if(Date.now() - e.t > PAGE_CACHE_TTL_MS){
-    _pageFetchCache.delete(_pageFetchCacheKey(targetUrl));
-    return null;
-  }
-  return e.v;
-}
-
-function _pageFetchCacheSet(targetUrl, v){
-  var key = _pageFetchCacheKey(targetUrl);
-  if(_pageFetchCache.size >= PAGE_CACHE_MAX){
-    var first = _pageFetchCache.keys().next().value;
-    if(first) _pageFetchCache.delete(first);
-  }
-  _pageFetchCache.set(key, { v: v, t: Date.now() });
-}
-
-async function clientFetch(targetUrl, fetchOpts){
-  fetchOpts = _addCookieHeaders(fetchOpts, targetUrl, 'document');
-  if(_probePromise) await _probePromise;
-
-  var isPost = fetchOpts && fetchOpts.method && String(fetchOpts.method).toUpperCase() === 'POST';
-  if(!isPost){
-    var hit = _pageFetchCacheGet(targetUrl);
-    if(hit){
-      return { body: hit.body, contentType: hit.contentType, ok: true, finalUrl: hit.finalUrl };
-    }
-  }
-
-  var order = [];
-  for(var k = 0; k < CORS_BACKENDS.length; k++) order.push(k);
-  order.sort(function(a,b){
-    var la = _backendLatencies[a] || 9999;
-    var lb = _backendLatencies[b] || 9999;
-    return la - lb;
-  });
-
-  /* Race parallel attempts (same Worker); first good response wins. */
-  var controllers = order.map(function(){ return new AbortController(); });
-  var perTryMs = 22000;
-  var promises = order.map(function(backendIdx, slot){
-    var be = CORS_BACKENDS[backendIdx];
-    var o = Object.assign({}, fetchOpts);
-    o.signal = controllers[slot].signal;
-    return fetchWithTimeout(be.fn(targetUrl), o, perTryMs).then(function(resp){
-      return consumeCorsResponse(be, resp, targetUrl).then(function(r){
-        return { idx: backendIdx, body: r.body, contentType: r.contentType, ok: true, finalUrl: r.finalUrl };
-      });
-    });
-  });
-
-  try {
-    var won = await promiseAny(promises);
-    controllers.forEach(function(c){ try { c.abort(); } catch(e){} });
-    _workingBackendIdx = won.idx;
-    if(!isPost){
-      _pageFetchCacheSet(targetUrl, { body: won.body, contentType: won.contentType, finalUrl: won.finalUrl });
-    }
-    return { body: won.body, contentType: won.contentType, ok: true, finalUrl: won.finalUrl };
-  } catch(e){
-    controllers.forEach(function(c){ try { c.abort(); } catch(err){} });
-    throw new Error('CORS proxy failed:\n' + (e.message || String(e)));
-  }
-}
-
-/* ──────────── Navigation ──────────── */
-
-async function navigateClient(targetUrl, pushHist, postOpts){
-  currentUrl = targetUrl;
-
-  if(pushHist !== false){
-    navHistory = navHistory.slice(0, navIdx + 1);
-    navHistory.push(targetUrl);
-    navIdx = navHistory.length - 1;
-  }
-
-  try {
-    await configureSW(getActiveCorsBase(), targetUrl);
-    var fetchOpts = undefined;
-    if(postOpts){
-      fetchOpts = {
-        method: 'POST',
-        headers: { 'Content-Type': postOpts.contentType || 'application/x-www-form-urlencoded' },
-        body: postOpts.body
-      };
-    }
-    var result = await clientFetch(targetUrl, fetchOpts);
-    var ct = result.contentType;
-    var resolvedUrl = result.finalUrl || targetUrl;
-
-    if(resolvedUrl !== targetUrl){
-      currentUrl = resolvedUrl;
-    }
-
-    if(ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0 || (!ct && result.body.length > 0 && result.body.trim().charAt(0) === '<')){
-      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
-    } else if(ct.indexOf('image/') >= 0){
-      renderPage('<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111"><img src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" style="max-width:100%;max-height:100vh"></body></html>', resolvedUrl);
-    } else if(ct.indexOf('application/json') >= 0){
-      renderPage('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:20px;background:#1a1a2e;color:#e0e0e0;font-family:monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;}</style></head><body>' + escHtml(result.body) + '</body></html>', resolvedUrl);
-    } else if(ct.indexOf('application/pdf') >= 0){
-      renderPage('<!DOCTYPE html><html><body style="margin:0"><embed src="' + escHtml(makeCorsUrl(resolvedUrl)) + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh"></body></html>', resolvedUrl);
-    } else {
-      renderPage(clientRewrite(result.body, resolvedUrl), resolvedUrl);
-    }
-  } catch(proxyErr){
-    alert('Proxy error: ' + (proxyErr.message || 'check void-cors-proxy-base / Worker'));
-  }
+  // Server-side only
 }
 
 function buildServerProxyUrl(targetUrl){
   var base = getServerBase();
-  if(!base){
-    toast('Enter your hosted Void server URL');
-    return null;
-  }
   var q = 'url=' + encodeURIComponent(targetUrl);
   if($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
   if($('opt-offline') && $('opt-offline').checked) q += '&offline=1';
@@ -3315,7 +1418,6 @@ var _voidEmbedPostResolved = '';
 var _voidEmbedBridgePending = false;
 var _voidLastBridgeBlob = null;
 
-/* One-hop blob page: in-frame loading UI, then location.replace(dest) — same URL as Browse, gives proxy time to read ?url= (Scramjet/UV). */
 function voidCreateProxyBridgeBlobUrl(destUrl, hintText){
   try {
     if(_voidLastBridgeBlob){
@@ -3349,25 +1451,18 @@ function voidWrapProxyNavigation(proxyUrl){
 
 async function navigate(rawOrUrl){
   try {
-  var url = rawOrUrl;
-  if(!/^https?:\/\//i.test(url)){
-    url = toUrl(rawOrUrl);
-  }
-  var m = getMode();
-  var shellInFrame = false;
-  if(!url && !shellInFrame) return;
-
-  if(url){
-    try { logSearch(url, rawOrUrl); } catch(e){}
-    var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
-    try { addToHistory(url, domain); } catch(e){}
-  }
-
-  if(m === 'custom'){
-    if(!url){
-      toast('Enter a search or URL');
-      return;
+    var url = rawOrUrl;
+    if(!/^https?:\/\//i.test(url)){
+      url = toUrl(rawOrUrl);
     }
+    if(!url) return;
+
+    if(url){
+      try { logSearch(url, rawOrUrl); } catch(e){}
+      var domain = ''; try { domain = new URL(url).hostname; } catch(e){}
+      try { addToHistory(url, domain); } catch(e){}
+    }
+
     var proxyUrl = buildServerProxyUrl(url);
     if(!proxyUrl) return;
 
@@ -3380,27 +1475,6 @@ async function navigate(rawOrUrl){
       return;
     }
     window.location.href = proxyUrl;
-    return;
-  }
-
-  var _voidBase = location.href.split('?')[0];
-  if($('opt-newtab') && $('opt-newtab').checked){
-    window.open(_voidBase + '?go=' + encodeURIComponent(url), '_blank');
-    return;
-  }
-  var _vfRoot = document.body || document.documentElement;
-  if (_vfRoot) _vfRoot.classList.add('void-fetching');
-  try {
-    await navigateClient(url, true);
-  } finally {
-    _vfRoot = document.body || document.documentElement;
-    if (_vfRoot) _vfRoot.classList.remove('void-fetching');
-  }
-  if($('opt-newtab') && $('opt-newtab').checked){
-    window.open(voidWrapProxyNavigation(proxyUrl), '_blank');
-    return;
-  }
-  window.location.href = voidWrapProxyNavigation(proxyUrl);
   } catch(navErr) {
     console.error('[Void navigate]', navErr);
     alert('Navigation error: ' + (navErr.message || navErr));
@@ -3408,17 +1482,6 @@ async function navigate(rawOrUrl){
 }
 
 /* ──────────── Event listeners ──────────── */
-
-document.querySelectorAll('.mode-btn').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    sfxClick();
-    document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
-    btn.classList.add('active');
-    mode = btn.dataset.m;
-    updateModeUI();
-    savePrefs();
-  });
-});
 
 document.querySelectorAll('.eng-btn').forEach(function(btn){
   btn.addEventListener('click', function(){
@@ -3635,12 +1698,12 @@ function savePrefs(){
   try {
     localStorage.setItem('void_prefs', JSON.stringify({
       engine: engine,
-      mode: getMode(),
+      mode: 'server',
       newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
       inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
       offline: $('opt-offline') ? $('opt-offline').checked : false,
-      serverBackend: ($('server-backend') && $('server-backend').value.trim()) || '',
+      serverBackend: 'https://math-quiz-alpha-gilt.vercel.app/',
     }));
   } catch(e){}
 }
@@ -3648,20 +1711,6 @@ function savePrefs(){
 function loadPrefs(){
   try {
     var p = JSON.parse(localStorage.getItem('void_prefs') || '{}');
-    var metaMode = '';
-    try {
-      var mm = document.querySelector('meta[name="void-default-mode"]');
-      if(mm){
-        metaMode = (mm.getAttribute('content') || '').trim();
-      }
-    } catch(e1){}
-    if(p.mode){
-      var mb = document.querySelector('.mode-btn[data-m="'+p.mode+'"]');
-      if(mb){ mb.click(); }
-    } else if(metaMode){
-      var mb0 = document.querySelector('.mode-btn[data-m="'+metaMode+'"]');
-      if(mb0){ mb0.click(); }
-    }
     if(p.engine){
       var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
       if(btn) btn.click();
@@ -3670,15 +1719,10 @@ function loadPrefs(){
     if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
     if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
     if($('opt-offline')) $('opt-offline').checked = !!p.offline;
-    if(p.serverBackend && $('server-backend')) $('server-backend').value = p.serverBackend;
   } catch(e){}
   updateModeUI();
 }
 
-['server-backend'].forEach(function(id){
-  var el = $(id);
-  if(el) el.addEventListener('input', savePrefs);
-});
 ['opt-newtab','opt-iframe','opt-eruda','opt-offline'].forEach(function(id){
   var el = $(id);
   if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
@@ -3779,7 +1823,7 @@ $('settings-overlay').addEventListener('click', function(e){
     sfxClose();
   }
 });
-/* ──────────── Ambient Music (floating + in-page embed strip share one <audio>) ──────────── */
+/* ──────────── Ambient Music ──────────── */
 var _ambAudio = $('ambient-audio');
 var _musicCtrl = $('music-ctrl');
 var _musicVol = $('music-vol');
@@ -4064,7 +2108,6 @@ function parseVersion(v){
   return [parseInt(parts[0])||0, parseInt(parts[1])||0, parseInt(parts[2])||0];
 }
 
-/** Read meta tag content by name from fetched HTML (any attribute order). */
 function extractMetaContentFromHtml(html, metaName){
   if(!html || !metaName) return null;
   if(typeof html === 'string' && html.charCodeAt(0) === 0xfeff) html = html.slice(1);
@@ -4309,13 +2352,6 @@ if(landing) landing.style.opacity = '0';
     });
   }
 
-  /* ──────────── Embed iframe navigation interception ────────────
-     When a link is clicked inside the proxy iframe (server / experimental /
-     scramjet / uv modes), the injected script posts void_navigate to window.top
-     which is void.html. Without this handler the browser would follow the
-     encoded /p/… or /pe/… URL directly, navigating void.html away.
-     We intercept it here and route through navigate() so the embed overlay
-     stays open and void.html never leaves. ──────────── */
   window.addEventListener('message', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
 
@@ -4323,30 +2359,24 @@ if(landing) landing.style.opacity = '0';
       var targetUrl = e.data.url;
       if (typeof targetUrl !== 'string' || !/^https?:\/\//i.test(targetUrl)) return;
 
-      var m = getMode();
       var embedOpen = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
 
-      if (embedOpen && (m === 'server' || m === 'experimental' || m === 'scramjet' || m === 'uv')) {
-        // Route through navigate() — it will call showVoidEmbedOverlay() which
-        // updates the iframe src without ever touching window.location.
+      if (embedOpen) {
         navigate(targetUrl);
       }
-      // client mode is handled by its own inner message listener inside renderPage()
     }
 
     if (e.data.type === 'void_post' && e.data.url) {
       var postUrl = e.data.url;
       if (typeof postUrl !== 'string' || !/^https?:\/\//i.test(postUrl)) return;
 
-      var m2 = getMode();
       var embedOpen2 = $('void-embed-overlay') && $('void-embed-overlay').classList.contains('show');
 
-      if (embedOpen2 && (m2 === 'server' || m2 === 'experimental')) {
+      if (embedOpen2) {
         navigate(postUrl);
       }
     }
 
-    // Keep the embed overlay URL bar in sync when the iframe reports its current URL
     if (e.data.type === 'void_url' && e.data.url) {
       var lb = $('void-embed-label');
       if (lb) lb.textContent = e.data.url;
