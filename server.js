@@ -789,38 +789,36 @@ function decPe(encoded) {
   }
 }
 
+// Browser-matched constants
 const STEALTH_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36";
 const STEALTH_ACCEPT =
-  "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
+  "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
 const STEALTH_ACCEPT_LANG = "en-US,en;q=0.9";
 
 function buildStealthHeaders(targetUrl, req) {
   const u = new URL(targetUrl);
   const host = u.host;
   const origin = u.origin;
+
   return {
     host,
     "user-agent": STEALTH_UA,
     accept: STEALTH_ACCEPT,
     "accept-language": STEALTH_ACCEPT_LANG,
-    "accept-encoding": "gzip, deflate, br",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "sec-ch-ua": '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
     "sec-fetch-dest": "document",
     "sec-fetch-mode": "navigate",
     "sec-fetch-site": "none",
     "sec-fetch-user": "?1",
     "upgrade-insecure-requests": "1",
+    priority: "u=0, i",
     referer: origin + "/",
     origin,
-    "cache-control": "max-age=0",
-    dnt: "1",
     connection: "keep-alive",
-    pragma: "no-cache",
-    "sec-ch-ua": '"Safari";v="17.2", "Chromium";v="", "Not_A Brand";v="24"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"macOS"',
-    "sec-ch-ua-full-version-list": '"Safari";v="17.2.0", "Chromium";v="", "Not_A Brand";v="24.0.0"',
-    "priority": "u=1",
     ...(req.method === "POST" && req.headers["content-type"]
       ? { "content-type": req.headers["content-type"] }
       : {}),
