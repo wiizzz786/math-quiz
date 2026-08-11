@@ -1334,12 +1334,10 @@ function getMode(){
 }
 
 function getServerBase(){
-  // Use current origin if served over http/https (normal case)
   if(typeof window !== 'undefined' && window.location && /^https?:$/.test(window.location.protocol)){
     return window.location.origin + '/';
   }
-  // Fallback for local dev — point at localhost
-  return 'http://localhost:8080/';
+  return '/';
 }
 
 /* ──────────── Mode UI toggling ──────────── */
@@ -1404,11 +1402,10 @@ async function navigate(rawOrUrl){
     }
     if(!url) return;
 
-    // Serper results page is local — navigate directly via server base, no proxy needed
+    // Serper results page — navigate via relative URL (requires server)
     if(url.startsWith('/serper-results')){
       try { logSearch(url, rawOrUrl); } catch(e){}
-      var serperBase = getServerBase().replace(/\/+$/, '');
-      window.location.href = serperBase + url;
+      window.location.href = url;
       return;
     }
 
