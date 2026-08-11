@@ -2275,12 +2275,13 @@ $('settings-upd-btn').addEventListener('click', function(){
   btn.textContent = 'Checking\u2026';
   if(choiceEl) choiceEl.style.display = 'none';
   var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html';
+  var cb = (primaryUrl.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
 
   var urlsToTry = [
-    primaryUrl,
-    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html',
-    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@main/void.html',
-    getServerBase().replace(/\/+$/,'') + '/api/raw?url=' + encodeURIComponent(primaryUrl)
+    primaryUrl + cb,
+    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html' + cb,
+    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@main/void.html' + cb,
+    getServerBase().replace(/\/+$/,'') + '/api/raw?url=' + encodeURIComponent(primaryUrl + cb)
   ];
 
   function tryFetchNext(index){
