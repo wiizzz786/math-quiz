@@ -5,8 +5,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
-  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
-  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
+  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html"/>
+  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void-admin.html"/>
   <meta name="void-version" content="3.2.5"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
@@ -2266,7 +2266,7 @@ function resolveVoidUpdateUrl(){
   var custom = m && m.content ? m.content.trim() : '';
   if(custom) return custom;
   if(/^https?:/i.test(location.protocol)) return new URL('void.html', location.href).href;
-  return 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html';
+  return 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html';
 }
 $('settings-upd-btn').addEventListener('click', function(){
   var btn = $('settings-upd-btn');
@@ -2274,13 +2274,14 @@ $('settings-upd-btn').addEventListener('click', function(){
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
   if(choiceEl) choiceEl.style.display = 'none';
-  var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html';
+  var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html';
   var cb = (primaryUrl.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
 
   var urlsToTry = [
     primaryUrl + cb,
-    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html' + cb,
-    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@main/void.html' + cb,
+    'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html' + cb,
+    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html?ref=v3.2.5&' + cb.slice(1),
+    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@v3.2.5/void.html' + cb,
     getServerBase().replace(/\/+$/,'') + '/api/raw?url=' + encodeURIComponent(primaryUrl + cb)
   ];
 
