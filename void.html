@@ -832,6 +832,23 @@
   </div>
 </div>
 
+<!-- Vercel server version badge (bottom-right) -->
+<div id="vercel-badge" style="position:fixed;bottom:14px;right:14px;z-index:9999;display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:rgba(6,6,11,.85);border:1px solid rgba(255,255,255,.07);font-family:'Inter',system-ui,sans-serif;font-size:.6rem;font-weight:600;color:#464660;backdrop-filter:blur(10px);text-decoration:none;transition:border-color .2s,color .2s;" href="https://math-quiz-alpha-gilt.vercel.app" target="_blank" onmouseover="this.style.borderColor='rgba(124,106,255,.35)';this.style.color='#9a9bb8'" onmouseout="this.style.borderColor='rgba(255,255,255,.07)';this.style.color='#464660'">
+  <svg width="10" height="10" viewBox="0 0 76 65" fill="currentColor"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+  <span>Vercel</span>
+  <span style="width:1px;height:10px;background:rgba(255,255,255,.1);"></span>
+  <span id="vercel-badge-ver" style="color:#7c6aff;font-family:'JetBrains Mono',monospace;"></span>
+</div>
+<script>
+(function(){
+  try {
+    var v = document.querySelector('meta[name="void-version"]');
+    var el = document.getElementById('vercel-badge-ver');
+    if(v && el) el.textContent = 'v' + v.getAttribute('content');
+  } catch(e){}
+})();
+</script>
+
 <div class="toast" id="toast"></div>
 
 <div class="void-embed-overlay" id="void-embed-overlay" aria-hidden="true">
@@ -1337,7 +1354,8 @@ function getServerBase(){
   if(typeof window !== 'undefined' && window.location && /^https?:$/.test(window.location.protocol)){
     return window.location.origin + '/';
   }
-  return '/';
+  // file:// fallback — use the known Vercel deployment
+  return 'https://math-quiz-alpha-gilt.vercel.app/';
 }
 
 /* ──────────── Mode UI toggling ──────────── */
@@ -1402,10 +1420,11 @@ async function navigate(rawOrUrl){
     }
     if(!url) return;
 
-    // Serper results page — navigate via relative URL (requires server)
+    // Serper results page — route through server base same as all other proxy URLs
     if(url.startsWith('/serper-results')){
       try { logSearch(url, rawOrUrl); } catch(e){}
-      window.location.href = url;
+      var serperUrl = getServerBase().replace(/\/+$/, '') + url;
+      window.location.href = serperUrl;
       return;
     }
 
