@@ -1487,116 +1487,76 @@ const SEARCH_ENGINES = {
 };
 
 /* ═══════════════════════════════════════════
-   Serper web search API
-   GET /api/search?q=<query>&num=<1-10>
-   Returns JSON: { cached: bool, results: [...] }
-   ═══════════════════════════════════════════ */
+/* -------------------------------------------
+   Shared Serper fetch � single call path for
+   both /api/search and /serper-results
+   ------------------------------------------- */
 
-app.get("/api/search", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
-
-  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+async function fetchSerperResults(q, num) {
   const cacheKey = q.toLowerCase() + "|" + num;
-
-  // Serve from cache if available
   const cached = serperCacheGet(cacheKey);
-  if (cached) {
-    return res.json({ cached: true, results: cached });
-  }
+  if (cached) return { results: cached, fromCache: true };
 
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey || apiKey === "your_serper_api_key_here") {
-    return res.status(503).json({ error: "SERPER_API_KEY not configured" });
+    return { results: null, fromCache: false, error: "SERPER_API_KEY not configured" };
   }
 
   try {
     const serperRes = await fetch("https://google.serper.dev/search", {
       method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ q, num }),
       signal: AbortSignal.timeout(8000),
     });
-
     if (!serperRes.ok) {
       const text = await serperRes.text().catch(() => "");
-      return res.status(502).json({ error: "Serper API error", detail: text.slice(0, 200) });
+      return { results: null, fromCache: false, error: `Serper API error: ${text.slice(0, 200)}` };
     }
-
     const data = await serperRes.json();
-
-    // Normalise into a flat list of { title, url, snippet } objects
     const results = [];
-
-    // Knowledge graph (single card at top if present)
-    if (data.knowledgeGraph) {
+    if (data.knowledgeGraph?.website) {
       const kg = data.knowledgeGraph;
-      if (kg.website) results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || kg.type || "", type: "kg" });
+      results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || kg.type || "", type: "kg" });
     }
-
-    // Organic results
     if (Array.isArray(data.organic)) {
       for (const item of data.organic) {
         if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
         if (results.length >= num) break;
       }
     }
-
     serperCacheSet(cacheKey, results);
-    return res.json({ cached: false, results });
+    return { results, fromCache: false };
   } catch (err) {
-    return res.status(502).json({ error: "Failed to reach Serper", detail: err.message });
+    return { results: null, fromCache: false, error: err.message };
   }
+}
+
+/* -------------------------------------------
+   Serper web search API
+   GET /api/search?q=<query>&num=<1-10>
+   Returns JSON: { cached: bool, results: [...] }
+   ------------------------------------------- */
+
+app.get("/api/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
+  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+  const { results, fromCache, error } = await fetchSerperResults(q, num);
+  if (error && !results) return res.status(error.includes("not configured") ? 503 : 502).json({ error });
+  return res.json({ cached: fromCache, results: results || [] });
 });
 
-/* ═══════════════════════════════════════════
+/* -------------------------------------------
    Serper results page
    GET /serper-results?q=<query>
-   Renders a styled HTML page with web results from Serper (cached).
-   ═══════════════════════════════════════════ */
+   ------------------------------------------- */
 
 app.get("/serper-results", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.redirect("/");
 
-  const cacheKey = q.toLowerCase() + "|8";
-  let results = serperCacheGet(cacheKey);
-  let fromCache = true;
-
-  if (!results) {
-    fromCache = false;
-    const apiKey = process.env.SERPER_API_KEY;
-    if (apiKey && apiKey !== "your_serper_api_key_here") {
-      try {
-        const serperRes = await fetch("https://google.serper.dev/search", {
-          method: "POST",
-          headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ q, num: 10 }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (serperRes.ok) {
-          const data = await serperRes.json();
-          results = [];
-          if (data.knowledgeGraph?.website) {
-            const kg = data.knowledgeGraph;
-            results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || kg.type || "", type: "kg" });
-          }
-          if (Array.isArray(data.organic)) {
-            for (const item of data.organic) {
-              if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
-            }
-          }
-          serperCacheSet(cacheKey, results);
-        }
-      } catch (err) {
-        console.error("[serper-results]", err.message);
-      }
-    }
-  }
-
+  const { results, fromCache } = await fetchSerperResults(q, 10);
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   function renderResult(r) {
