@@ -1442,7 +1442,40 @@ async function navigate(rawOrUrl){
       try { addToHistory(url, domain); } catch(e){}
     }
 
-    var proxyUrl = buildServerProxyUrl(url);
+    // ── URL domain cache ──
+    // For URLs: cache the proxy URL keyed by base domain (exact match only).
+    // Any path under the same domain (e.g. youtube.com/watch?v=xyz) resolves
+    // to the cached base proxy URL (youtube.com) instead of fetching again.
+    var proxyUrl;
+    if(url && /^https?:\/\//i.test(url)){
+      try {
+        var parsedHost = new URL(url).hostname; // exact match only, no fuzzy
+        var domCacheKey = 'void_url_' + parsedHost;
+        var domCached = null;
+        try {
+          var domEntry = JSON.parse(sessionStorage.getItem(domCacheKey) || 'null');
+          // TTL: 24h
+          if(domEntry && domEntry.proxyUrl && Date.now() - domEntry.ts < 24 * 60 * 60 * 1000){
+            domCached = domEntry.proxyUrl;
+          }
+        } catch(e){}
+
+        if(domCached){
+          proxyUrl = domCached;
+        } else {
+          proxyUrl = buildServerProxyUrl(url);
+          // Cache using just the base origin (scheme+host) as the canonical URL
+          var baseUrl = new URL(url).origin; // e.g. https://youtube.com
+          var baseProxyUrl = buildServerProxyUrl(baseUrl);
+          try { sessionStorage.setItem(domCacheKey, JSON.stringify({ proxyUrl: baseProxyUrl, ts: Date.now() })); } catch(e){}
+        }
+      } catch(e){
+        proxyUrl = buildServerProxyUrl(url);
+      }
+    } else {
+      proxyUrl = buildServerProxyUrl(url);
+    }
+
     if(!proxyUrl) return;
 
     if($('opt-iframe') && $('opt-iframe').checked){
