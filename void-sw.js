@@ -7,9 +7,8 @@ var CFG = { proxy: '', origin: '', cookies: {} };
 
 var VOID_PATHS = new Set([
   '/', '/void.html', '/void-admin.html', '/void-sw.js',
-  '/server.js', '/worker.js', '/favicon.ico', '/favicon.svg', '/index.html',
-  '/package.json', '/wrangler.toml', '/package-lock.json',
-  '/scramjet.html', '/uv.html', '/uv-boot.mjs', '/scramjet-boot.mjs',
+  '/server.js', '/favicon.ico', '/favicon.svg', '/index.html',
+  '/package.json', '/package-lock.json',
 ]);
 
 function swCacheGet(key) {

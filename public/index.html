@@ -41,17 +41,7 @@
     .hint-row { display: flex; gap: .5rem; align-items: center; color: var(--muted); font-size: .84rem; }
     kbd { display: inline-flex; align-items: center; justify-content: center; padding: .35rem .7rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.05); color: #fff; font-size: .78rem; }
     .footer { margin-top: 2rem; color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-align: center; }
-    .settings { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.9); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
-    .settings.open { opacity: 1; pointer-events: auto; }
-    .settings-panel { width: min(520px, calc(100% - 2rem)); padding: 2rem; border: 1px solid var(--border); border-radius: 26px; background: rgba(0,0,0,.92); }
-    .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-    .settings-header h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: .18em; color: var(--text); }
-    .settings-close { width: 2.8rem; height: 2.8rem; border-radius: 14px; border: 1px solid var(--border); background: transparent; color: #fff; cursor: pointer; font-size: 1.15rem; }
-    .mode-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-    .mode-btn { padding: 1rem; border: 1px solid var(--border); border-radius: 18px; background: transparent; color: #fff; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; transition: transform .2s, background .2s; }
-    .mode-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.06); }
-    .mode-btn.active { background: rgba(255,255,255,.1); border-color: #fff; }
-    @media (max-width: 600px) { .page { padding: 1.3rem; border-radius: 20px; } .input-row { flex-direction: column; } .go-btn { width: 100%; } .mode-btns { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .page { padding: 1.3rem; border-radius: 20px; } .input-row { flex-direction: column; } .go-btn { width: 100%; } }
   </style>
 </head>
 <body>
@@ -63,70 +53,14 @@
       <input id="url" type="text" placeholder="Enter URL or search term" autocomplete="off" spellcheck="false" autofocus />
       <button type="submit" class="go-btn">Go</button>
     </div>
-    <div class="mode-label">Mode: <span id="mode-value">Cloudflare</span></div>
-  </form>
-  <div class="hint-row">Press <kbd>Q</kbd> for settings</div>
-  <div class="footer">UV · SJ · Cloudflare</div>
-</div>
-
-<div id="settings" class="settings" aria-hidden="true">
-  <div class="settings-panel">
-    <div class="settings-header">
-      <h2>Settings</h2>
-      <button id="settings-close" class="settings-close" type="button" aria-label="Close settings">×</button>
-    </div>
-    <div class="mode-btns" id="mode-btns">
-      <button type="button" class="mode-btn active" data-m="cloudflare">Cloudflare</button>
-      <button type="button" class="mode-btn" data-m="uv">UV</button>
-      <button type="button" class="mode-btn" data-m="sj">SJ</button>
-    </div>
-  </div>
+    </form>
+  <div class="footer">Void Proxy</div>
 </div>
 
 <script>
 (function(){
   var form = document.getElementById('f');
   var urlInput = document.getElementById('url');
-  var settings = document.getElementById('settings');
-  var settingsClose = document.getElementById('settings-close');
-  var modeValue = document.getElementById('mode-value');
-  var currentMode = 'cloudflare';
-
-  function openSettings() {
-    settings.classList.add('open');
-    settings.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeSettings() {
-    settings.classList.remove('open');
-    settings.setAttribute('aria-hidden', 'true');
-  }
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key.toLowerCase() === 'q' && !e.repeat) {
-      e.preventDefault();
-      if (settings.classList.contains('open')) closeSettings();
-      else openSettings();
-    }
-    if (e.key === 'Escape') {
-      closeSettings();
-    }
-  });
-
-  settingsClose.addEventListener('click', closeSettings);
-  settings.addEventListener('click', function(e) {
-    if (e.target === settings) closeSettings();
-  });
-
-  document.querySelectorAll('.mode-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      currentMode = btn.dataset.m;
-      modeValue.textContent = btn.textContent.trim();
-      closeSettings();
-    });
-  });
 
   function buildUrl(raw) {
     var value = String(raw || '').trim();
@@ -136,19 +70,11 @@
     return 'https://duckduckgo.com/?q=' + encodeURIComponent(value);
   }
 
-  function buildGoUrl(raw) {
-    var target = buildUrl(raw);
-    if (!target) return null;
-    if (currentMode === 'uv') return '/uv.html?url=' + encodeURIComponent(target);
-    if (currentMode === 'sj') return '/scramjet.html?url=' + encodeURIComponent(target);
-    return '/go?url=' + encodeURIComponent(target) + '&mode=server';
-  }
-
   form.addEventListener('submit', function(e) {
     e.preventDefault();
-    var goUrl = buildGoUrl(urlInput.value);
-    if (!goUrl) return;
-    location.assign(goUrl);
+    var target = buildUrl(urlInput.value);
+    if (!target) return;
+    location.assign('/go?url=' + encodeURIComponent(target) + '&mode=server');
   });
 })();
 </script>

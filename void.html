@@ -10,16 +10,8 @@
   <meta name="void-version" content="3.2.4"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
-  <!-- Default mode when localStorage has no void_prefs yet (server). -->
+  <!-- Default mode: server-side proxy -->
   <meta name="void-default-mode" content="server"/>
-  <!-- Scramjet: void-scramjet-path=/ → https://host/?url=… (no /scramjet.html in the link). Omit meta to use /scramjet.html?url= instead. -->
-  <meta name="void-scramjet-base" content="https://scuv2.tailf49039.ts.net"/>
-  <meta name="void-scramjet-path" content="/"/>
-  <!-- UV: void-uv-path=/ → https://host:8443/?url=… (no /uv.html in the link). Omit meta to use /uv.html?url= instead. -->
-  <meta name="void-uv-base" content="https://scuv2.tailf49039.ts.net:8443"/>
-  <meta name="void-uv-path" content="/"/>
-  <!-- Client mode: full CORS proxy base including ?url= (must match your Worker) -->
-  <meta name="void-cors-proxy-base" content="https://void-proxy.aadizzz786.workers.dev/?url="/>
   <!-- hello from the void 🌌 -->
   <!-- frogs are just software bugs that escaped -->
   <title>Void</title>
@@ -54,33 +46,20 @@
     .wavy-grad {
       position: absolute; inset: -20%;
       background:
-        linear-gradient(120deg, transparent 0%, rgba(124,106,255,.18) 40%, transparent 70%),
-        linear-gradient(260deg, transparent 0%, rgba(255,95,143,.12) 35%, transparent 70%),
-        linear-gradient(380deg, transparent 0%, rgba(52,211,153,.08) 40%, transparent 75%);
-      background-size: 150% 150%;
-      animation: wavy-drift 30s linear infinite;
-      filter: blur(50px);
-      opacity: 0.9;
-    }
-    @keyframes wavy-drift {
-      0% { background-position: 0% 0%; }
-      100% { background-position: 100% 100%; }
+        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(124,106,255,.1) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 50% at 80% 70%, rgba(255,95,143,.07) 0%, transparent 50%);
+      filter: blur(60px);
+      opacity: 1;
     }
     @media (prefers-reduced-motion: reduce) { .wavy-grad { animation: none; } }
     .bg .grid {
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
-      background-size: 48px 48px;
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: 52px 52px;
     }
-    .bg .noise-grad {
-      position: absolute; inset: -15%;
-      background:
-        radial-gradient(ellipse 70% 50% at 25% 35%, rgba(124,106,255,.1) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 70% at 75% 65%, rgba(255,95,143,.08) 0%, transparent 50%);
-      opacity: 0.9;
-    }
+    .bg .noise-grad { display: none; }
 
     .app {
       position: relative; z-index: 1;
@@ -90,13 +69,13 @@
     }
 
     .brand, .card, .hint-row, .foot {
-      opacity: 0; transform: translateY(18px);
-      animation: enter .7s cubic-bezier(.16,1,.3,1) forwards;
+      opacity: 0; transform: translateY(14px);
+      animation: enter .55s cubic-bezier(.16,1,.3,1) forwards;
     }
-    .brand    { animation-delay: .15s; }
-    .card      { animation-delay: .28s; }
-    .hint-row { animation-delay: .4s; }
-    .foot      { animation-delay: .5s; }
+    .brand    { animation-delay: .08s; }
+    .card     { animation-delay: .18s; }
+    .hint-row { animation-delay: .28s; }
+    .foot     { animation-delay: .36s; }
     @keyframes enter { to { opacity: 1; transform: translateY(0); } }
 
     .landing {
@@ -116,21 +95,14 @@
 
     .brand { text-align: center; }
     .brand .logo-text {
-      font-size: clamp(4.5rem, 14vw, 8rem); font-weight: 900;
-      letter-spacing: -.08em; line-height: .82;
-      background: linear-gradient(135deg, #fff 0%, #d0cbff 25%, #a78bfa 50%, #ff5f8f 75%, #ff8f5f 100%);
-      background-size: 200% 200%;
-      animation: grad-shift 6s ease infinite;
+      font-size: clamp(3.5rem, 11vw, 6rem); font-weight: 900;
+      letter-spacing: -.07em; line-height: 1;
+      background: linear-gradient(135deg, #fff 0%, #d4cfff 35%, #a78bfa 65%, #ff5f8f 100%);
       -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 0 50px rgba(124,106,255,.2));
-    }
-    @keyframes grad-shift {
-      0%, 100% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
     }
     .brand p {
-      font-size: .68rem; font-weight: 600; letter-spacing: .45em;
-      text-transform: uppercase; color: var(--muted); margin-top: .6rem;
+      font-size: .65rem; font-weight: 500; letter-spacing: .4em;
+      text-transform: uppercase; color: var(--muted); margin-top: .5rem;
     }
 
     .card {
@@ -311,6 +283,8 @@
     }
     .sug-tag.bk { background: rgba(124,106,255,.12); color: var(--accent); }
     .sug-tag.hist { background: rgba(52,211,153,.1); color: var(--green); }
+    .sug-tag.web { background: rgba(255,95,143,.1); color: var(--accent2); }
+    .sug-tag.kg  { background: rgba(255,180,0,.1); color: #f5c342; }
 
     .hint-row {
       font-size: .62rem; color: var(--muted); letter-spacing: .02em;
@@ -767,6 +741,10 @@
         <button class="eng-btn" data-e="yahoo">
           <img class="ico" src="https://www.google.com/s2/favicons?domain=yahoo.com&sz=32" alt=""/>Yahoo
         </button>
+        <button class="eng-btn" data-e="serper">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=serper.dev&sz=32" alt=""/>Serper
+          <span class="rec-badge" style="background:linear-gradient(135deg,#7c6aff,#ff5f8f);">API</span>
+        </button>
         <button class="eng-more-btn" id="eng-more-btn">More <span class="arrow">&#9660;</span></button>
       </div>
       <div class="engines engines-extra" id="engines-extra">
@@ -870,30 +848,16 @@
 <div class="toast" id="toast"></div>
 
 <div class="void-embed-overlay" id="void-embed-overlay" aria-hidden="true">
-  <div class="void-embed-top">
-    <button type="button" id="void-embed-close" title="Close overlay and return to Void">← Void</button>
-    <div class="void-embed-nav" id="void-embed-nav" aria-label="Proxy navigation">
-      <button type="button" id="void-embed-home" title="Proxy home (shell)">Home</button>
-      <button type="button" id="void-embed-back" title="Back in proxy (Alt+←)">Back</button>
-      <button type="button" id="void-embed-reload" title="Reload frame">Reload</button>
-    </div>
-    <div class="void-embed-music" id="music-ctrl-embed" title="Play / pause — volume">
-      <div class="music-ico">
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-      </div>
-      <span class="music-label" id="music-label-embed">Music</span>
-      <input type="range" class="music-vol" id="music-vol-embed" min="0" max="100" value="25"/>
-    </div>
-    <span id="void-embed-label" class="void-embed-url" title="What you typed in Void — click to copy">Proxy</span>
-  </div>
-  <div class="void-embed-wrap">
+  <!-- Minimal floating close — __vbar injected by the proxy handles all navigation -->
+  <button type="button" id="void-embed-close" title="Close and return to Void" style="position:fixed;top:6px;left:10px;z-index:2147483646;display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:rgba(6,6,11,.88);border:1px solid rgba(255,255,255,.09);color:#9a9bb8;font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;backdrop-filter:blur(10px);transition:background .15s,color .15s;" onmouseover="this.style.background='rgba(124,106,255,.18)';this.style.color='#fff'" onmouseout="this.style.background='rgba(6,6,11,.88)';this.style.color='#9a9bb8'">&#8592; Void</button>
+  <div class="void-embed-wrap" style="padding-top:0;">
     <div id="void-embed-frame-container" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
     <div class="void-embed-loading" id="void-embed-loading" aria-hidden="true">
       <div class="void-embed-loading-inner state-loading" id="void-embed-loading-inner">
         <span class="void-embed-status-icon void-embed-icon-loading" id="void-embed-status-icon" aria-hidden="true">●</span>
         <p id="void-embed-loading-title">Loading proxy…</p>
         <div class="void-embed-loading-bar" id="void-embed-loading-bar" role="progressbar" aria-label="Loading"></div>
-        <div class="void-embed-loading-sub" id="void-embed-loading-sub">Scramjet / UV may take a few seconds. Press Esc or Back to cancel.</div>
+        <div class="void-embed-loading-sub" id="void-embed-loading-sub">This may take a few seconds. Press Esc or Back to cancel.</div>
       </div>
     </div>
   </div>
@@ -1162,6 +1126,7 @@ var SEARCH = {
   mojeek:    function(q){ return 'https://www.mojeek.com/search?q=' + encodeURIComponent(q); },
   swisscows: function(q){ return 'https://swisscows.com/web?query=' + encodeURIComponent(q); },
   ask:       function(q){ return 'https://www.ask.com/web?q=' + encodeURIComponent(q); },
+  serper:    function(q){ return '/serper-results?q=' + encodeURIComponent(q); },
 };
 
 function toUrl(raw){
@@ -1212,7 +1177,7 @@ function _voidEmbedSetLoadingState(state, msg){
     }
     if(title) title.textContent = msg || 'Loading proxy\u2026';
     if(bar) bar.style.display = '';
-    if(sub) sub.textContent = 'Scramjet / UV may take a few seconds. Press Esc or Back to cancel.';
+    if(sub) sub.textContent = 'This may take a few seconds. Press Esc or Back to cancel.';
   } else if(state === 'ready'){
     if(icon){
       icon.textContent = '\u2713';
@@ -1382,7 +1347,11 @@ function getMode(){
 }
 
 function getServerBase(){
-  return 'https://math-quiz-alpha-gilt.vercel.app/';
+  // Dynamically use the current origin so this works on any deployment
+  if(typeof window !== 'undefined' && window.location && window.location.origin){
+    return window.location.origin + '/';
+  }
+  return '/';
 }
 
 /* ──────────── Mode UI toggling ──────────── */
@@ -1447,6 +1416,13 @@ async function navigate(rawOrUrl){
       url = toUrl(rawOrUrl);
     }
     if(!url) return;
+
+    // Serper results page is local — navigate directly, no proxy needed
+    if(url.startsWith('/serper-results')){
+      try { logSearch(url, rawOrUrl); } catch(e){}
+      window.location.href = url;
+      return;
+    }
 
     if(url){
       try { logSearch(url, rawOrUrl); } catch(e){}
@@ -1516,32 +1492,89 @@ input.addEventListener('keydown', function(e){
 });
 
 input.addEventListener('input', function(){
-  var q = input.value.trim().toLowerCase();
+  var q = input.value.trim();
+  var ql = q.toLowerCase();
   if(!q || q.length < 2){ closeSuggestions(); return; }
-  var results = [];
+
+  // ── Local results (bookmarks + history) ──
+  var localResults = [];
   getBookmarks().forEach(function(b){
-    if(b.url.toLowerCase().includes(q) || (b.title||'').toLowerCase().includes(q))
-      results.push({ url: b.url, title: b.title, type: 'bk' });
+    if(b.url.toLowerCase().includes(ql) || (b.title||'').toLowerCase().includes(ql))
+      localResults.push({ url: b.url, title: b.title, type: 'bk' });
   });
   getBrowsingHistory().forEach(function(h){
-    if(h.url.toLowerCase().includes(q) || (h.title||'').toLowerCase().includes(q)){
-      if(!results.some(function(r){ return r.url === h.url; }))
-        results.push({ url: h.url, title: h.title, type: 'hist' });
+    if(h.url.toLowerCase().includes(ql) || (h.title||'').toLowerCase().includes(ql)){
+      if(!localResults.some(function(r){ return r.url === h.url; }))
+        localResults.push({ url: h.url, title: h.title, type: 'hist' });
     }
   });
-  if(!results.length){ closeSuggestions(); return; }
-  var sg = $('search-suggest'); sg.innerHTML = '';
-  results.slice(0, 8).forEach(function(r){
+
+  // Show local results immediately
+  renderSuggestions(localResults, [], q);
+
+  // ── Serper web results ──
+  // Skip fetch if input looks like a URL
+  var isUrl = /^https?:\/\//i.test(q) || (/^[^\s]+\.[^\s]{2,}$/.test(q) && !q.includes(' '));
+  if(isUrl) return;
+
+  // Check client-side sessionStorage cache first
+  var cacheKey = 'void_serper_' + ql;
+  try {
+    var cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+    if(cached && Array.isArray(cached.results) && Date.now() - cached.ts < 24 * 60 * 60 * 1000){
+      renderSuggestions(localResults, cached.results, q);
+      return;
+    }
+  } catch(e){}
+
+  // Debounce: only fire after 300 ms of no typing
+  clearTimeout(input._serperTimer);
+  input._serperTimer = setTimeout(function(){
+    if(input.value.trim().toLowerCase() !== ql) return; // stale
+    fetch('/api/search?q=' + encodeURIComponent(q) + '&num=6')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if(!data || !Array.isArray(data.results)) return;
+        // Cache in sessionStorage
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), results: data.results })); } catch(e){}
+        if(input.value.trim().toLowerCase() !== ql) return; // user moved on
+        renderSuggestions(localResults, data.results, q);
+      })
+      .catch(function(){});
+  }, 300);
+});
+
+function renderSuggestions(localResults, webResults, q){
+  var sg = $('search-suggest');
+  if(!sg) return;
+  sg.innerHTML = '';
+  var all = [];
+
+  // Local first (up to 3)
+  localResults.slice(0, 3).forEach(function(r){ all.push(r); });
+
+  // Web results tagged as 'web', de-duplicated against local
+  webResults.forEach(function(r){
+    if(!all.some(function(a){ return a.url === r.url; }))
+      all.push({ url: r.url, title: r.title, snippet: r.snippet, type: r.type || 'web' });
+  });
+
+  if(!all.length){ sg.classList.remove('show'); return; }
+
+  all.slice(0, 9).forEach(function(r){
     var d = document.createElement('div'); d.className = 'sug-item'; d.dataset.url = r.url;
     var domain = ''; try { domain = new URL(r.url).hostname; } catch(e){}
+    var tagLabel = r.type === 'bk' ? 'Bookmark' : r.type === 'hist' ? 'History' : r.type === 'kg' ? 'Info' : 'Web';
+    var tagClass = r.type === 'bk' ? 'bk' : r.type === 'hist' ? 'hist' : 'web';
+    var snippet = r.snippet ? '<small style="display:block;font-size:.65rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + r.snippet.replace(/</g,'&lt;').slice(0,80) + '</small>' : '';
     d.innerHTML = '<img src="https://www.google.com/s2/favicons?domain=' + domain + '&sz=32" alt=""/>'
-      + '<span>' + (r.title || domain || r.url).replace(/</g,'&lt;') + '</span>'
-      + '<span class="sug-tag ' + r.type + '">' + (r.type === 'bk' ? 'Bookmark' : 'History') + '</span>';
+      + '<span style="min-width:0;flex:1;">' + (r.title || domain || r.url).replace(/</g,'&lt;') + snippet + '</span>'
+      + '<span class="sug-tag ' + tagClass + '">' + tagLabel + '</span>';
     d.addEventListener('click', function(){ closeSuggestions(); input.value = r.url; navigate(r.url); });
     sg.appendChild(d);
   });
   sg.classList.add('show');
-});
+}
 
 input.addEventListener('blur', function(){ setTimeout(closeSuggestions, 200); });
 function closeSuggestions(){ var sg = $('search-suggest'); if(sg) sg.classList.remove('show'); }
@@ -1694,7 +1727,7 @@ function savePrefs(){
       inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
       offline: $('opt-offline') ? $('opt-offline').checked : false,
-      serverBackend: 'https://math-quiz-alpha-gilt.vercel.app/',
+      serverBackend: window.location.origin + '/',
     }));
   } catch(e){}
 }

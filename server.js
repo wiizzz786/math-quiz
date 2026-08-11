@@ -10,6 +10,22 @@ import tls from "node:tls";
 import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+
+// Load .env manually (no external dep needed)
+try {
+  const envPath = join(dirname(fileURLToPath(import.meta.url)), ".env");
+  const envLines = readFileSync(envPath, "utf8").split("\n");
+  for (const line of envLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    if (key && !(key in process.env)) process.env[key] = val;
+  }
+} catch { /* .env is optional */ }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -36,6 +52,35 @@ async function cacheSet(key, ct, body) {
   }
 
   _resourceCache.set(key, { ct, body: bodyBuf, ts: Date.now() });
+}
+
+/* ═══════════════════════════════════════════
+   Serper search result cache (server-side)
+   Keyed by lowercase trimmed query string.
+   Results expire after SERPER_CACHE_TTL ms.
+   ═══════════════════════════════════════════ */
+
+const SERPER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const SERPER_CACHE_MAX = 500;
+const _serperCache = new Map();
+
+function serperCacheGet(query) {
+  const entry = _serperCache.get(query);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > SERPER_CACHE_TTL) {
+    _serperCache.delete(query);
+    return null;
+  }
+  return entry.data;
+}
+
+function serperCacheSet(query, data) {
+  if (_serperCache.size >= SERPER_CACHE_MAX) {
+    // evict oldest
+    const oldest = _serperCache.keys().next().value;
+    _serperCache.delete(oldest);
+  }
+  _serperCache.set(query, { data, ts: Date.now() });
 }
 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -1440,6 +1485,205 @@ const SEARCH_ENGINES = {
   bing:    q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
   yahoo:   q => "https://search.yahoo.com/search?p=" + encodeURIComponent(q),
 };
+
+/* ═══════════════════════════════════════════
+   Serper web search API
+   GET /api/search?q=<query>&num=<1-10>
+   Returns JSON: { cached: bool, results: [...] }
+   ═══════════════════════════════════════════ */
+
+app.get("/api/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
+
+  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+  const cacheKey = q.toLowerCase() + "|" + num;
+
+  // Serve from cache if available
+  const cached = serperCacheGet(cacheKey);
+  if (cached) {
+    return res.json({ cached: true, results: cached });
+  }
+
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey || apiKey === "your_serper_api_key_here") {
+    return res.status(503).json({ error: "SERPER_API_KEY not configured" });
+  }
+
+  try {
+    const serperRes = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ q, num }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!serperRes.ok) {
+      const text = await serperRes.text().catch(() => "");
+      return res.status(502).json({ error: "Serper API error", detail: text.slice(0, 200) });
+    }
+
+    const data = await serperRes.json();
+
+    // Normalise into a flat list of { title, url, snippet } objects
+    const results = [];
+
+    // Knowledge graph (single card at top if present)
+    if (data.knowledgeGraph) {
+      const kg = data.knowledgeGraph;
+      if (kg.website) results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || kg.type || "", type: "kg" });
+    }
+
+    // Organic results
+    if (Array.isArray(data.organic)) {
+      for (const item of data.organic) {
+        if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
+        if (results.length >= num) break;
+      }
+    }
+
+    serperCacheSet(cacheKey, results);
+    return res.json({ cached: false, results });
+  } catch (err) {
+    return res.status(502).json({ error: "Failed to reach Serper", detail: err.message });
+  }
+});
+
+/* ═══════════════════════════════════════════
+   Serper results page
+   GET /serper-results?q=<query>
+   Renders a styled HTML page with web results from Serper (cached).
+   ═══════════════════════════════════════════ */
+
+app.get("/serper-results", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.redirect("/");
+
+  const cacheKey = q.toLowerCase() + "|8";
+  let results = serperCacheGet(cacheKey);
+  let fromCache = true;
+
+  if (!results) {
+    fromCache = false;
+    const apiKey = process.env.SERPER_API_KEY;
+    if (apiKey && apiKey !== "your_serper_api_key_here") {
+      try {
+        const serperRes = await fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ q, num: 10 }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (serperRes.ok) {
+          const data = await serperRes.json();
+          results = [];
+          if (data.knowledgeGraph?.website) {
+            const kg = data.knowledgeGraph;
+            results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || kg.type || "", type: "kg" });
+          }
+          if (Array.isArray(data.organic)) {
+            for (const item of data.organic) {
+              if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
+            }
+          }
+          serperCacheSet(cacheKey, results);
+        }
+      } catch (err) {
+        console.error("[serper-results]", err.message);
+      }
+    }
+  }
+
+  const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  function renderResult(r) {
+    let domain = "";
+    try { domain = new URL(r.url).hostname; } catch {}
+    const favicon = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32` : "";
+    const proxyUrl = enc(r.url);
+    const safeTitle = r.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safeSnippet = (r.snippet || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safeDomain = domain.replace(/&/g, "&amp;");
+    const badge = r.type === "kg" ? `<span class="badge kg">Info</span>` : "";
+    return `<a class="result" href="${proxyUrl}">
+      <div class="result-head">
+        ${favicon ? `<img class="fav" src="${favicon}" alt="" onerror="this.style.display='none'"/>` : ""}
+        <span class="domain">${safeDomain}</span>${badge}
+      </div>
+      <div class="result-title">${safeTitle}</div>
+      ${safeSnippet ? `<div class="result-snippet">${safeSnippet}</div>` : ""}
+    </a>`;
+  }
+
+  const resultsHtml = results && results.length
+    ? results.map(renderResult).join("\n")
+    : `<div class="no-results">No results found — try a different query or switch search engines.</div>`;
+
+  res.type("text/html; charset=utf-8").send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${safeQ} — Serper · Void</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
+.topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
+.topbar input{flex:1;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;color:#eef0f8;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;transition:border-color .2s;}
+.topbar input:focus{border-color:#7c6aff;}
+.topbar button{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);border:none;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;}
+.topbar .back{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#9a9bb8;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+.topbar .back:hover{background:rgba(255,255,255,.08);color:#eef0f8;}
+
+.main{max-width:700px;margin:0 auto;padding:24px 20px 60px;}
+.meta{font-size:.7rem;color:#464660;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+.meta .dot{width:3px;height:3px;border-radius:50%;background:#464660;}
+.cache-tag{font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;background:rgba(52,211,153,.1);color:#34d399;text-transform:uppercase;}
+
+.result{display:block;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.02);margin-bottom:10px;transition:background .15s,border-color .15s,transform .15s;}
+.result:hover{background:rgba(255,255,255,.04);border-color:rgba(124,106,255,.3);transform:translateY(-2px);}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.fav{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+.domain{font-size:.68rem;color:#646478;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{font-size:.5rem;font-weight:800;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;}
+.badge.kg{background:rgba(255,180,0,.12);color:#f5c342;}
+.result-title{font-size:.95rem;font-weight:600;color:#c4c6e8;margin-bottom:5px;line-height:1.4;}
+.result:hover .result-title{color:#eef0f8;}
+.result-snippet{font-size:.78rem;color:#646478;line-height:1.6;}
+
+.no-results{text-align:center;padding:60px 20px;color:#464660;font-size:.85rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="logo" href="/">void</a>
+  <a class="back" href="/">← Home</a>
+  <form action="/serper-results" method="get">
+    <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false" autofocus/>
+    <button type="submit">Search</button>
+  </form>
+</div>
+<div class="main">
+  <div class="meta">
+    <span>${results ? results.length : 0} results for <strong style="color:#9a9bb8">"${safeQ}"</strong></span>
+    <span class="dot"></span>
+    <span>via Serper API</span>
+    ${fromCache ? "" : `<span class="dot"></span><span class="cache-tag">live</span>`}
+    ${fromCache ? `<span class="dot"></span><span class="cache-tag" style="background:rgba(124,106,255,.1);color:#a78bfa;">cached</span>` : ""}
+  </div>
+  ${resultsHtml}
+</div>
+</body>
+</html>`);
+});
 
 app.get("/go", (req, res) => {
   let url = (req.query.url || "").trim();
