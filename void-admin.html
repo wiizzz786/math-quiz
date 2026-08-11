@@ -873,14 +873,14 @@ $('btn-check-update').addEventListener('click', function(){
       var lines = [];
 
       if(dlVoid){
-        _downloadBlob(voidHtml, 'void.html');
-        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void.html</strong> v' + remoteVoid + '</span> <span style="color:var(--muted);">(local was v' + VOID_VER + ')</span>');
+        _downloadBlob(voidHtml, 'void-v' + remoteVoid + '.html');
+        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-v' + remoteVoid + '.html</strong></span> <span style="color:var(--muted);">(local was v' + VOID_VER + ')</span>');
       } else {
         lines.push('<span style="color:var(--sub);"><strong>void.html</strong> \u2014 local v' + VOID_VER + ', remote v' + remoteVoid + ' \u2014 ' + (remoteVoid === VOID_VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
       }
       if(dlAdmin){
-        _downloadBlob(adminHtml, 'void-admin.html');
-        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-admin.html</strong> v' + remoteAdmin + '</span> <span style="color:var(--muted);">(local was v' + VER + ')</span>');
+        _downloadBlob(adminHtml, 'void-admin-v' + remoteAdmin + '.html');
+        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-admin-v' + remoteAdmin + '.html</strong></span> <span style="color:var(--muted);">(local was v' + VER + ')</span>');
       } else {
         lines.push('<span style="color:var(--sub);"><strong>void-admin.html</strong> \u2014 local v' + VER + ', remote v' + remoteAdmin + ' \u2014 ' + (remoteAdmin === VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
       }
