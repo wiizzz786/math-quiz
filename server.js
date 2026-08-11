@@ -56,7 +56,8 @@ async function cacheSet(key, ct, body) {
 
 /* ═══════════════════════════════════════════
    Serper search result cache (server-side)
-   Keyed by lowercase trimmed query string.
+   Smart fuzzy caching: normalizes queries and
+   matches near-typos within edit distance 2.
    Results expire after SERPER_CACHE_TTL ms.
    ═══════════════════════════════════════════ */
 
@@ -64,23 +65,69 @@ const SERPER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const SERPER_CACHE_MAX = 500;
 const _serperCache = new Map();
 
-function serperCacheGet(query) {
-  const entry = _serperCache.get(query);
+// Normalize: lowercase, collapse whitespace, strip punctuation noise
+function normalizeQuery(q) {
+  return q.toLowerCase().trim().replace(/\s+/g, " ").replace(/[^\w\s]/g, "");
+}
+
+// Levenshtein distance — O(n*m) but queries are short so fine
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+// Max edit distance allowed to consider two queries "the same"
+// Scales with query length: 1 for short (≤5 chars), 2 for medium, 3 for long
+function maxEditDistance(q) {
+  if (q.length <= 5) return 1;
+  if (q.length <= 12) return 2;
+  return 3;
+}
+
+// Find a cached key that fuzzy-matches the normalized query
+function fuzzyFindCacheKey(normQ, suffix) {
+  const exact = normQ + suffix;
+  if (_serperCache.has(exact)) return exact;
+  const maxDist = maxEditDistance(normQ);
+  for (const key of _serperCache.keys()) {
+    if (!key.endsWith(suffix)) continue;
+    const keyQ = key.slice(0, key.length - suffix.length);
+    if (levenshtein(normQ, keyQ) <= maxDist) return key;
+  }
+  return null;
+}
+
+function serperCacheGet(query, suffix = "") {
+  const normQ = normalizeQuery(query);
+  const key = fuzzyFindCacheKey(normQ, suffix);
+  if (!key) return null;
+  const entry = _serperCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.ts > SERPER_CACHE_TTL) {
-    _serperCache.delete(query);
+    _serperCache.delete(key);
     return null;
   }
   return entry.data;
 }
 
-function serperCacheSet(query, data) {
+function serperCacheSet(query, data, suffix = "") {
   if (_serperCache.size >= SERPER_CACHE_MAX) {
-    // evict oldest
     const oldest = _serperCache.keys().next().value;
     _serperCache.delete(oldest);
   }
-  _serperCache.set(query, { data, ts: Date.now() });
+  const key = normalizeQuery(query) + suffix;
+  _serperCache.set(key, { data, ts: Date.now() });
 }
 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -1488,13 +1535,13 @@ const SEARCH_ENGINES = {
 
 /* ═══════════════════════════════════════════
 /* -------------------------------------------
-   Shared Serper fetch � single call path for
+   Shared Serper fetch � single call path for
    both /api/search and /serper-results
    ------------------------------------------- */
 
 async function fetchSerperResults(q, num) {
-  const cacheKey = q.toLowerCase() + "|" + num;
-  const cached = serperCacheGet(cacheKey);
+  const suffix = "|" + num;
+  const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
   const apiKey = process.env.SERPER_API_KEY;
@@ -1525,7 +1572,7 @@ async function fetchSerperResults(q, num) {
         if (results.length >= num) break;
       }
     }
-    serperCacheSet(cacheKey, results);
+    serperCacheSet(q, results, suffix);
     return { results, fromCache: false };
   } catch (err) {
     return { results: null, fromCache: false, error: err.message };

@@ -1530,8 +1530,30 @@ input.addEventListener('input', function(){
   if(isUrl) return;
 
   // Check client-side sessionStorage cache first
+  // Fuzzy match: find any cached key within edit distance of current query
+  function clientLevenshtein(a, b) {
+    if(a === b) return 0;
+    var dp = [];
+    for(var i = 0; i <= a.length; i++) { dp[i] = [i]; }
+    for(var j = 1; j <= b.length; j++) dp[0][j] = j;
+    for(var i = 1; i <= a.length; i++) {
+      for(var j = 1; j <= b.length; j++) {
+        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      }
+    }
+    return dp[a.length][b.length];
+  }
+  var maxDist = ql.length <= 5 ? 1 : ql.length <= 12 ? 2 : 3;
   var cacheKey = 'void_serper_' + ql;
+  // Scan sessionStorage for a fuzzy match
   try {
+    for(var si = 0; si < sessionStorage.length; si++) {
+      var sk = sessionStorage.key(si);
+      if(!sk || !sk.startsWith('void_serper_')) continue;
+      var skQ = sk.slice('void_serper_'.length);
+      if(clientLevenshtein(ql, skQ) <= maxDist) { cacheKey = sk; break; }
+    }
+  } catch(e){}  try {
     var cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
     if(cached && Array.isArray(cached.results) && Date.now() - cached.ts < 24 * 60 * 60 * 1000){
       renderSuggestions(localResults, cached.results, q);
