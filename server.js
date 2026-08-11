@@ -1756,10 +1756,23 @@ a{text-decoration:none;color:inherit;}
 </html>`);
 });
 
+app.get("/api/health", (_req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.json({ status: "ok", version: "3.2.4", uptime: Math.floor(process.uptime()) });
+});
+
 app.get("/api/raw", async (req, res) => {
   const targetUrl = (req.query.url || "").trim();
   if (!targetUrl) return res.status(400).send("Missing url parameter");
   try {
+    const parsed = new URL(targetUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return res.status(400).send("Only http and https protocols are supported");
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host.startsWith("169.254.")) {
+      return res.status(403).send("Forbidden host");
+    }
     const r = await fetch(targetUrl, {
       headers: { "User-Agent": "Void-Proxy/3.2.4" }
     });
@@ -1767,6 +1780,7 @@ app.get("/api/raw", async (req, res) => {
     const content = await r.text();
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=60");
     res.send(content);
   } catch (err) {
     res.status(500).send("Fetch error: " + err.message);
@@ -1835,3 +1849,18 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => console.log(`Void proxy running on http://0.0.0.0:${PORT}`));
+
+function gracefulShutdown(signal) {
+  console.log(`Received ${signal}. Shutting down Void proxy server gracefully...`);
+  server.close(() => {
+    console.log("HTTP server closed.");
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error("Forced shutdown after timeout.");
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
