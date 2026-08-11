@@ -2271,7 +2271,6 @@ function resolveVoidUpdateUrl(){
   var m = document.querySelector('meta[name="void-update-url"]');
   var custom = m && m.content ? m.content.trim() : '';
   if(custom) return custom;
-  if(/^https?:/i.test(location.protocol)) return new URL('void.html', location.href).href;
   return 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html';
 }
 $('settings-upd-btn').addEventListener('click', function(){
