@@ -791,20 +791,7 @@
           <span class="toggle-track"></span>
           Eruda
         </label>
-        <label class="opt" title="Force Offline Mode (Load from passive SSD cache)">
-          <input type="checkbox" id="opt-offline"/>
-          <span class="toggle-track"></span>
-          Offline Cache Viewer
-        </label>
-      </div>
 
-      <div class="opts" style="display: block; margin-top: 12px; margin-bottom: 24px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
-        <div style="display: flex; gap: 8px; align-items: flex-start;">
-          <textarea id="void-cache-input" placeholder="Cache multiple URLs (separated by spaces or newlines)..." autocomplete="off" style="flex:1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; border-radius: 6px; outline: none; font-family: inherit; font-size: 0.85rem; resize: vertical; min-height: 40px;"></textarea>
-          <button type="button" id="void-cache-btn" style="background: linear-gradient(135deg, rgba(124,106,255,0.5), rgba(255,95,143,0.5)); border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer; transition: opacity 0.2s; font-weight: 600;">Go</button>
-        </div>
-        <div id="void-cache-status" style="font-size: 0.75rem; color: #a7cf9b; margin-top: 6px; min-height: 14px;"></div>
-      </div>
 
       <div class="section-row">
         <div class="section-hdr"><span>Bookmarks</span></div>
@@ -1363,7 +1350,6 @@ function buildServerProxyUrl(targetUrl){
   var base = getServerBase();
   var q = 'url=' + encodeURIComponent(targetUrl);
   if($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
-  if($('opt-offline') && $('opt-offline').checked) q += '&offline=1';
   return base.replace(/\/+$/,'') + '/go?' + q;
 }
 
@@ -1726,7 +1712,6 @@ function savePrefs(){
       newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
       inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
-      offline: $('opt-offline') ? $('opt-offline').checked : false,
       serverBackend: window.location.origin + '/',
     }));
   } catch(e){}
@@ -1742,12 +1727,11 @@ function loadPrefs(){
     if($('opt-newtab')) $('opt-newtab').checked = !!p.newtab;
     if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
     if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
-    if($('opt-offline')) $('opt-offline').checked = !!p.offline;
   } catch(e){}
   updateModeUI();
 }
 
-['opt-newtab','opt-iframe','opt-eruda','opt-offline'].forEach(function(id){
+['opt-newtab','opt-iframe','opt-eruda'].forEach(function(id){
   var el = $(id);
   if(el) el.addEventListener('change', function(){ sfxToggle(); savePrefs(); });
 });
@@ -2343,38 +2327,6 @@ if(landing) landing.style.opacity = '0';
   setTimeout(finishBoot, t);
 })();
 
-  // Cache Site logic
-  var vcBtn = document.getElementById('void-cache-btn');
-  var vcInp = document.getElementById('void-cache-input');
-  var vcStatus = document.getElementById('void-cache-status');
-  if (vcBtn && vcInp && vcStatus) {
-    vcBtn.addEventListener('click', function() {
-      var val = vcInp.value.trim();
-      if(!val) return;
-      var urls = val.split(/[\s\n]+/).filter(Boolean).map(function(u) {
-        return /^https?:\/\//i.test(u) ? u : 'https://' + u;
-      });
-      vcStatus.textContent = 'Starting background crawler...';
-      vcStatus.style.color = '#c4c6db';
-      fetch('/api/cache-site', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls: urls })
-      }).then(function(r) { return r.json(); }).then(function(res) {
-         if(res.success) {
-           vcStatus.textContent = 'Crawling in background! (Turn on offline cache to view)';
-           vcStatus.style.color = '#a7cf9b';
-           vcInp.value = '';
-         } else {
-           vcStatus.textContent = res.error || 'Failed.';
-           vcStatus.style.color = '#ff5f8f';
-         }
-      }).catch(function() {
-         vcStatus.textContent = 'Network error.';
-         vcStatus.style.color = '#ff5f8f';
-      });
-    });
-  }
 
   window.addEventListener('message', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
