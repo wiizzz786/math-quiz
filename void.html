@@ -1420,10 +1420,18 @@ async function navigate(rawOrUrl){
     }
     if(!url) return;
 
-    // Serper results page — route through server base same as all other proxy URLs
+    // Serper results page — embed in the overlay like any other page
     if(url.startsWith('/serper-results')){
       try { logSearch(url, rawOrUrl); } catch(e){}
       var serperUrl = getServerBase().replace(/\/+$/, '') + url;
+      if($('opt-iframe') && $('opt-iframe').checked){
+        showVoidEmbedOverlay(serperUrl, rawOrUrl, serperUrl);
+        return;
+      }
+      if($('opt-newtab') && $('opt-newtab').checked){
+        window.open(serperUrl, '_blank');
+        return;
+      }
       window.location.href = serperUrl;
       return;
     }
