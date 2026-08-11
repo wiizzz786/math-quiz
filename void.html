@@ -889,7 +889,14 @@
       <div class="settings-sec-title">Update</div>
       <p class="settings-info" style="margin-top:0;margin-bottom:.6rem">Current version: <code id="s-cur-ver"></code> <span id="s-ver-status"></span></p>
       <button class="settings-upd-btn" id="settings-upd-btn">Check for Update</button>
-      <p class="settings-info">Compares your <code>void-version</code> to <code>void-update-url</code> (default: GitHub raw <code>wiizzz786/math-quiz</code> main). Override the meta if you fork. Hosted over HTTPS with no meta, it uses same-origin <code>void.html</code>.</p>
+      <div id="s-update-choice" style="display:none;margin-top:.75rem;display:none;gap:8px;flex-wrap:wrap;">
+        <button id="s-update-yes" style="flex:1;padding:.6rem 1rem;border-radius:8px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);border:none;color:#fff;font-weight:700;font-size:.78rem;cursor:pointer;">Download update</button>
+        <button id="s-update-no" style="flex:1;padding:.6rem 1rem;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#9a9bb8;font-weight:600;font-size:.78rem;cursor:pointer;">Stay on current</button>
+      </div>
+    </div>
+    <div class="settings-sec">
+      <div class="settings-sec-title">Serper API Usage</div>
+      <div id="s-serper-stats" style="font-size:.72rem;color:var(--muted);line-height:1.8;"></div>
     </div>
     <div class="settings-sec">
       <div class="settings-sec-title">Keyboard Shortcuts</div>
@@ -1779,7 +1786,7 @@ document.addEventListener('keydown', function(e){
     e.preventDefault();
     var so = $('settings-overlay');
     if(so.classList.contains('visible')){ so.classList.remove('visible'); sfxClose(); }
-    else { so.classList.add('visible'); sfxOpen(); }
+    else { so.classList.add('visible'); sfxOpen(); renderSerperStats(); }
   }
 });
 
@@ -1901,6 +1908,37 @@ if(_voidEmbedHome) _voidEmbedHome.addEventListener('click', voidEmbedGoHome);
 if(_voidEmbedBack) _voidEmbedBack.addEventListener('click', voidEmbedHistoryBack);
 if(_voidEmbedReload) _voidEmbedReload.addEventListener('click', voidEmbedReload);
 
+/* ──────────── Serper usage stats ──────────── */
+function renderSerperStats(){
+  var el = $('s-serper-stats');
+  if(!el) return;
+  var keys = [];
+  try {
+    for(var i = 0; i < sessionStorage.length; i++){
+      var k = sessionStorage.key(i);
+      if(k && k.startsWith('void_serper_')) keys.push(k);
+    }
+  } catch(e){}
+  if(!keys.length){
+    el.innerHTML = '<span style="color:var(--muted)">No searches cached this session.</span>';
+    return;
+  }
+  var rows = keys.map(function(k){
+    var q = k.slice('void_serper_'.length);
+    var entry = null;
+    try { entry = JSON.parse(sessionStorage.getItem(k) || 'null'); } catch(e){}
+    var count = entry && entry.results ? entry.results.length : 0;
+    var age = entry && entry.ts ? Math.round((Date.now() - entry.ts) / 60000) : 0;
+    return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
+      + '<span style="color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">' + q.replace(/</g,'&lt;') + '</span>'
+      + '<span style="color:var(--muted);flex-shrink:0;margin-left:8px;">' + count + ' results &middot; ' + (age < 1 ? 'just now' : age + 'm ago') + '</span>'
+      + '</div>';
+  }).join('');
+  el.innerHTML = '<div style="margin-bottom:6px;color:var(--sub);font-weight:600;">' + keys.length + ' cached search' + (keys.length !== 1 ? 'es' : '') + ' this session</div>'
+    + rows
+    + '<button onclick="(function(){try{Object.keys(sessionStorage).forEach(function(k){if(k.startsWith(\'void_serper_\'))sessionStorage.removeItem(k);});}catch(e){} renderSerperStats(); })()" style="margin-top:8px;padding:4px 12px;border-radius:6px;background:rgba(255,95,143,.08);border:1px solid rgba(255,95,143,.15);color:#ff5f8f;font-size:.65rem;font-weight:600;cursor:pointer;">Clear cache</button>';
+}
+
 /* ──────────── Settings panel ──────────── */
 $('settings-x').addEventListener('click', function(){
   $('settings-overlay').classList.remove('visible');
@@ -1911,6 +1949,7 @@ $('settings-overlay').addEventListener('click', function(e){
     $('settings-overlay').classList.remove('visible');
     sfxClose();
   }
+  renderSerperStats();
 });
 /* ──────────── Ambient Music ──────────── */
 var _ambAudio = $('ambient-audio');
@@ -2227,22 +2266,29 @@ function resolveVoidUpdateUrl(){
 }
 $('settings-upd-btn').addEventListener('click', function(){
   var btn = $('settings-upd-btn');
+  var choiceEl = $('s-update-choice');
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
+  if(choiceEl) choiceEl.style.display = 'none';
   var rawUrl = resolveVoidUpdateUrl();
   if(!rawUrl){
     btn.disabled = false;
     btn.textContent = 'Check for Update';
     sfxError();
-    toast('Host Void over HTTPS (or set <meta name="void-update-url">) to check for updates.');
+    toast('Host Void over HTTPS to check for updates.');
     return;
   }
-  fetch(rawUrl, { cache: 'no-store', credentials: 'omit' })
+  // Route through our own proxy to avoid CORS issues with GitHub raw
+  var fetchUrl = rawUrl;
+  if(/^https?:/i.test(rawUrl) && rawUrl.indexOf(location.origin) === -1){
+    fetchUrl = getServerBase().replace(/\/+$/,'') + '/go?url=' + encodeURIComponent(rawUrl);
+  }
+  fetch(fetchUrl, { cache: 'no-store', credentials: 'omit' })
     .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function(html){
       var remoteVer = extractMetaContentFromHtml(html, 'void-version');
       if(!remoteVer){
-        throw new Error('Could not find void-version in remote void.html (malformed or blocked).');
+        throw new Error('Could not read version from remote file.');
       }
       var local = parseVersion(VOID_VERSION);
       var remote = parseVersion(remoteVer);
@@ -2250,36 +2296,58 @@ $('settings-upd-btn').addEventListener('click', function(){
       var statusEl = $('s-ver-status');
       if(isNewer){
         if(statusEl){
-          statusEl.textContent = '\u2192 v' + remoteVer + ' available!';
+          statusEl.textContent = '\u2192 v' + remoteVer + ' available';
           statusEl.style.color = '#ff5f8f';
           statusEl.style.fontWeight = '700';
         }
-        var blob = new Blob([html], { type: 'text/html' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'void.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        btn.textContent = 'Downloaded v' + remoteVer + '!';
+        btn.textContent = 'Update available';
+        btn.disabled = false;
         sfxSuccess();
+        // Show choice buttons
+        if(choiceEl){
+          choiceEl.style.display = 'flex';
+          var yesBtn = $('s-update-yes');
+          var noBtn = $('s-update-no');
+          if(yesBtn){
+            yesBtn.onclick = function(){
+              var blob = new Blob([html], { type: 'text/html' });
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'void.html';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(a.href);
+              choiceEl.style.display = 'none';
+              btn.textContent = 'Downloaded v' + remoteVer + '!';
+              btn.disabled = true;
+              setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);
+            };
+          }
+          if(noBtn){
+            noBtn.onclick = function(){
+              choiceEl.style.display = 'none';
+              if(statusEl){ statusEl.textContent = '(skipped v' + remoteVer + ')'; statusEl.style.color = '#464660'; }
+              btn.textContent = 'Check for Update';
+            };
+          }
+        }
       } else {
         if(statusEl){
-          statusEl.textContent = '\u2714 v' + VOID_VERSION + ' (remote v' + remoteVer + ')';
+          statusEl.textContent = '\u2714 up to date (remote v' + remoteVer + ')';
           statusEl.style.color = '#34d399';
           statusEl.style.fontWeight = '600';
         }
-        btn.textContent = remoteVer === VOID_VERSION ? 'Up to date!' : 'Same or newer locally';
+        btn.textContent = 'Up to date!';
         sfxSuccess();
+        setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 3000);
       }
-      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);
     })
     .catch(function(err){
       btn.disabled = false;
       btn.textContent = 'Check for Update';
       sfxError();
-      toast('Update failed: ' + err.message);
+      toast('Update check failed: ' + err.message);
     });
 });
 
