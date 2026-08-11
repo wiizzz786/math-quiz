@@ -1756,6 +1756,23 @@ a{text-decoration:none;color:inherit;}
 </html>`);
 });
 
+app.get("/api/raw", async (req, res) => {
+  const targetUrl = (req.query.url || "").trim();
+  if (!targetUrl) return res.status(400).send("Missing url parameter");
+  try {
+    const r = await fetch(targetUrl, {
+      headers: { "User-Agent": "Void-Proxy/3.2.4" }
+    });
+    if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
+    const content = await r.text();
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.send(content);
+  } catch (err) {
+    res.status(500).send("Fetch error: " + err.message);
+  }
+});
+
 app.get("/go", (req, res) => {
   let url = (req.query.url || "").trim();
   if (!url) return res.redirect("/");

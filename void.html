@@ -2273,7 +2273,31 @@ $('settings-upd-btn').addEventListener('click', function(){
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
   if(choiceEl) choiceEl.style.display = 'none';
-  var rawUrl = resolveVoidUpdateUrl();
+  var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html';
+
+  var urlsToTry = [
+    primaryUrl,
+    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html',
+    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@main/void.html',
+    getServerBase().replace(/\/+$/,'') + '/api/raw?url=' + encodeURIComponent(primaryUrl)
+  ];
+
+  function tryFetchNext(index){
+    if(index >= urlsToTry.length){
+      return Promise.reject(new Error('Network error. Failed to reach repository across 4 fallback endpoints.'));
+    }
+    var target = urlsToTry[index];
+    var opts = { cache: 'no-store' };
+    if(target.indexOf('api.github.com') !== -1){
+      opts.headers = { 'Accept': 'application/vnd.github.v3.raw' };
+    }
+    return fetch(target, opts).then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).catch(function(){
+      return tryFetchNext(index + 1);
+    });
+  }
 
   function processUpdate(html){
     var remoteVer = extractMetaContentFromHtml(html, 'void-version');
@@ -2333,18 +2357,7 @@ $('settings-upd-btn').addEventListener('click', function(){
     }
   }
 
-  fetch(rawUrl, { cache: 'no-store' })
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    })
-    .catch(function(err){
-      var proxyUrl = getServerBase().replace(/\/+$/,'') + '/proxy?url=' + encodeURIComponent(rawUrl);
-      return fetch(proxyUrl, { cache: 'no-store' }).then(function(r){
-        if(!r.ok) throw new Error('Proxy HTTP ' + r.status);
-        return r.text();
-      });
-    })
+  tryFetchNext(0)
     .then(function(html){
       processUpdate(html);
     })
