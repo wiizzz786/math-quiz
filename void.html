@@ -5,9 +5,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <!-- "Check for Update" in Settings fetches this GitHub raw file (override if you fork). -->
-  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html"/>
-  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void-admin.html"/>
-  <meta name="void-version" content="3.2.5"/>
+  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.6/void.html"/>
+  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.6/void-admin.html"/>
+  <meta name="void-version" content="3.2.6"/>
   <meta name="void-uid" content=""/>
   <meta name="void-owner" content=""/>
   <!-- Default mode: server-side proxy -->
@@ -2111,6 +2111,22 @@ function logSearch(url, rawQuery){
 
 /* ──────────── Version & User ID ──────────── */
 var VOID_VERSION = (document.querySelector('meta[name="void-version"]') || {}).content || '0.0.0';
+(function checkCachedSelfUpdate(){
+  try {
+    var cachedHtml = localStorage.getItem('void_cached_app_html');
+    var cachedVer = localStorage.getItem('void_cached_app_ver');
+    if(cachedHtml && cachedVer && cachedVer !== VOID_VERSION){
+      var local = parseVersion(VOID_VERSION);
+      var remote = parseVersion(cachedVer);
+      var isNewer = remote[0] > local[0] || (remote[0] === local[0] && remote[1] > local[1]) || (remote[0] === local[0] && remote[1] === local[1] && remote[2] > local[2]);
+      if(isNewer){
+        document.open();
+        document.write(cachedHtml);
+        document.close();
+      }
+    }
+  } catch(e){}
+})();
 var VOID_UID_META = document.querySelector('meta[name="void-uid"]');
 var VOID_OWNER_META = document.querySelector('meta[name="void-owner"]');
 
@@ -2256,7 +2272,7 @@ function resolveVoidUpdateUrl(){
   var custom = m && m.content ? m.content.trim() : '';
   if(custom) return custom;
   if(/^https?:/i.test(location.protocol)) return new URL('void.html', location.href).href;
-  return 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html';
+  return 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.6/void.html';
 }
 $('settings-upd-btn').addEventListener('click', function(){
   var btn = $('settings-upd-btn');
@@ -2264,14 +2280,14 @@ $('settings-upd-btn').addEventListener('click', function(){
   btn.disabled = true;
   btn.textContent = 'Checking\u2026';
   if(choiceEl) choiceEl.style.display = 'none';
-  var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html';
+  var primaryUrl = resolveVoidUpdateUrl() || 'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.6/void.html';
   var cb = (primaryUrl.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
 
   var urlsToTry = [
     primaryUrl + cb,
-    'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.5/void.html' + cb,
-    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html?ref=v3.2.5&' + cb.slice(1),
-    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@v3.2.5/void.html' + cb,
+    'https://raw.githubusercontent.com/wiizzz786/math-quiz/v3.2.6/void.html' + cb,
+    'https://api.github.com/repos/wiizzz786/math-quiz/contents/void.html?ref=v3.2.6&' + cb.slice(1),
+    'https://cdn.jsdelivr.net/gh/wiizzz786/math-quiz@v3.2.6/void.html' + cb,
     getServerBase().replace(/\/+$/,'') + '/api/raw?url=' + encodeURIComponent(primaryUrl + cb)
   ];
 
@@ -2316,6 +2332,14 @@ $('settings-upd-btn').addEventListener('click', function(){
         var noBtn = $('s-update-no');
         if(yesBtn){
           yesBtn.onclick = function(){
+            try {
+              localStorage.setItem('void_cached_app_html', html);
+              localStorage.setItem('void_cached_app_ver', remoteVer);
+            } catch(e){}
+            toast('Updating in-place to v' + remoteVer + '\u2026');
+            btn.textContent = 'Updating\u2026';
+            btn.disabled = true;
+
             var blob = new Blob([html], { type: 'text/html' });
             var a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -2324,10 +2348,12 @@ $('settings-upd-btn').addEventListener('click', function(){
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
-            choiceEl.style.display = 'none';
-            btn.textContent = 'Downloaded v' + remoteVer + '!';
-            btn.disabled = true;
-            setTimeout(function(){ btn.disabled = false; btn.textContent = 'Check for Update'; }, 4000);
+
+            setTimeout(function(){
+              document.open();
+              document.write(html);
+              document.close();
+            }, 600);
           };
         }
         if(noBtn){
