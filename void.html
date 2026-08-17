@@ -3,565 +3,128 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Void Proxy - Terminal Interface</title>
+  <title>Void - Plain Text Proxy Inspector</title>
   <style>
-    :root {
-      --bg: #050508;
-      --term-bg: #0a0a0f;
-      --green: #00ff66;
-      --cyan: #00f0ff;
-      --purple: #b57edc;
-      --amber: #ffb000;
-      --text: #00ff66;
-      --dim: #008833;
-      --border: #004411;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
     body {
-      font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      line-height: 1.45;
-      text-shadow: 0 0 4px rgba(0, 255, 102, 0.4);
-    }
-    /* CRT Scanline Overlay */
-    body::after {
-      content: " ";
-      display: block;
-      position: fixed; inset: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-      z-index: 999;
-      background-size: 100% 3px, 6px 100%;
-      pointer-events: none;
-    }
-    .term-window {
-      width: 100%;
-      max-width: 760px;
-      background: var(--term-bg);
-      border: 2px solid #00ff66;
-      border-radius: 8px;
-      box-shadow: 0 0 25px rgba(0, 255, 102, 0.15), inset 0 0 15px rgba(0, 255, 102, 0.05);
-      overflow: hidden;
-      position: relative;
-    }
-    .term-bar {
-      background: #00220a;
-      border-bottom: 2px solid #00ff66;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.78rem;
-      font-weight: bold;
+      font-family: monospace, Courier, monospace;
+      margin: 20px;
+      background: #000;
       color: #00ff66;
-      user-select: none;
+      line-height: 1.4;
     }
-    .term-dots {
-      display: flex;
-      gap: 6px;
+    h1, h2 {
+      font-size: 1.1rem;
+      border-bottom: 1px solid #00ff66;
+      padding-bottom: 4px;
+      margin-top: 15px;
     }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
+    .box {
+      border: 1px solid #00ff66;
+      padding: 12px;
+      margin-bottom: 15px;
+      background: #080808;
     }
-    .dot-red { background: #ff4444; }
-    .dot-yellow { background: #ffbb11; }
-    .dot-green { background: #00ff66; }
-
-    .term-body {
-      padding: 20px;
-    }
-    .banner {
-      color: var(--cyan);
-      font-size: 2.5rem;
-      font-weight: 900;
-      letter-spacing: 0.15em;
-      text-align: center;
-      margin-bottom: 16px;
-      text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
-    }
-    .sys-info {
-      color: var(--amber);
-      font-size: 0.76rem;
-      margin-bottom: 18px;
-      padding: 8px 10px;
-      border: 1px dashed var(--dim);
-      background: rgba(0, 20, 0, 0.4);
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .sys-info span { color: #fff; }
-
-    /* Command Prompt Form */
-    .cmd-line {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 18px;
-      background: #001104;
-      border: 1.5px solid #00ff66;
-      padding: 8px 12px;
-      border-radius: 4px;
-    }
-    .prompt-label {
-      color: var(--purple);
-      font-weight: bold;
-      font-size: 0.85rem;
-      white-space: nowrap;
-    }
-    .prompt-input {
-      flex: 1;
-      min-width: 0;
-      background: transparent;
-      border: none;
-      color: var(--green);
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: bold;
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input[type="text"] {
+      width: 100%;
+      max-width: 650px;
+      padding: 8px;
+      margin-top: 4px;
+      background: #111;
+      color: #00ff66;
+      border: 1px solid #00ff66;
+      font-family: monospace;
       outline: none;
-      text-shadow: 0 0 6px rgba(0, 255, 102, 0.6);
     }
-    .prompt-input::placeholder {
-      color: #005522;
-      font-weight: normal;
-    }
-    .cmd-btn {
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
       background: #00ff66;
       color: #000;
       border: none;
-      font-family: inherit;
-      font-weight: bold;
-      font-size: 0.8rem;
-      padding: 6px 14px;
-      cursor: pointer;
-      border-radius: 2px;
-    }
-    .cmd-btn:hover {
-      background: #00cc52;
-      box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
-    }
-
-    /* Terminal Controls / Buttons */
-    .sec-header {
-      font-size: 0.74rem;
-      color: var(--purple);
-      margin-top: 14px;
-      margin-bottom: 6px;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-    }
-    .term-btn-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .t-btn {
-      background: #001505;
-      border: 1px solid #008833;
-      color: #00aa44;
-      font-family: inherit;
-      font-size: 0.76rem;
-      padding: 5px 10px;
-      cursor: pointer;
-      border-radius: 3px;
-      transition: all 0.15s;
-    }
-    .t-btn:hover {
-      border-color: #00ff66;
-      color: #00ff66;
-    }
-    .t-btn.active {
-      background: rgba(0, 255, 102, 0.15);
-      border-color: #00ff66;
-      color: #00ff66;
-      font-weight: bold;
-      box-shadow: 0 0 8px rgba(0, 255, 102, 0.3);
-    }
-
-    /* Output Console */
-    .console-hdr {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      color: var(--cyan);
-      margin-top: 18px;
-      margin-bottom: 6px;
-      border-bottom: 1px solid #004411;
-      padding-bottom: 4px;
-    }
-    .action-link {
-      color: var(--cyan);
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    .action-link:hover { color: #fff; }
-    #console-out {
-      background: #000;
-      border: 1px solid #004411;
-      padding: 10px;
-      font-size: 0.74rem;
-      height: 140px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      color: #00cc55;
-    }
-
-    /* Settings Overlay Modal */
-    .settings-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 100;
-      background: rgba(5, 5, 8, 0.95);
-      backdrop-filter: blur(8px);
-      display: none;
-      flex-direction: column;
-      padding: 20px;
-      border: 2px solid var(--purple);
-    }
-    .settings-overlay.show { display: flex; }
-    .settings-hdr {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1.5px solid var(--purple);
-      padding-bottom: 8px;
-      margin-bottom: 16px;
-      font-size: 1rem;
-      color: var(--purple);
-      font-weight: bold;
-    }
-    .settings-close {
-      background: var(--purple);
-      color: #000;
-      border: none;
-      padding: 2px 8px;
-      font-family: inherit;
+      font-family: monospace;
       font-weight: bold;
       cursor: pointer;
     }
-    .settings-sec {
-      margin-bottom: 14px;
-      font-size: 0.78rem;
-    }
-    .settings-sec h4 {
-      color: var(--cyan);
-      margin-bottom: 4px;
-    }
-    .kbd-pill {
-      background: #00220a;
+    button:hover { background: #00cc52; }
+    pre {
+      background: #050505;
       border: 1px solid #00ff66;
-      color: #00ff66;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 0.7rem;
+      padding: 12px;
+      font-size: 0.8rem;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #33ff88;
     }
+    .status-ok { color: #00ff66; }
+    .status-err { color: #ff3366; }
   </style>
 </head>
 <body>
 
-  <div class="term-window">
-    <div class="term-bar">
-      <div class="term-dots">
-        <span class="dot dot-red"></span>
-        <span class="dot dot-yellow"></span>
-        <span class="dot dot-green"></span>
-      </div>
-      <div>root@void:~ (bash)</div>
-      <div>v4.0.4</div>
-    </div>
+  <h1>VOID - PLAIN TEXT PROXY &amp; SERVICE WORKER CHECKER</h1>
 
-    <div class="term-body">
-      <div class="banner">VOID</div>
-
-      <div class="sys-info">
-        <div>[HOST]: <span id="s-host">...</span></div>
-        <div>[PROTO]: <span id="s-proto">...</span></div>
-        <div>[SW]: <span id="s-sw">...</span></div>
-        <div>[UID]: <span id="s-uid">...</span></div>
-      </div>
-
-      <form id="term-form">
-        <div class="sec-header">
-          <span>COMMAND PROMPT</span>
-          <span class="action-link" id="btn-open-settings">[Press Q for Settings]</span>
-        </div>
-        <div class="cmd-line">
-          <span class="prompt-label">void@proxy:~$</span>
-          <input type="text" id="term-input" class="prompt-input" placeholder="enter target URL or search query..." required autocomplete="off" spellcheck="false"/>
-          <button type="submit" class="cmd-btn">RUN &gt;</button>
-        </div>
-      </form>
-
-      <div class="sec-header">PROXY MODE</div>
-      <div class="term-btn-group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="server">Server Side</button>
-        <button type="button" class="t-btn" data-v="scramjet">Scramjet (WISP)</button>
-      </div>
-
-      <div class="sec-header">SEARCH ENGINE</div>
-      <div class="term-btn-group" id="engine-group">
-        <button type="button" class="t-btn active" data-v="serpapi">SerpApi</button>
-        <button type="button" class="t-btn" data-v="serper">Serper</button>
-        <button type="button" class="t-btn" data-v="brave">Brave</button>
-        <button type="button" class="t-btn" data-v="google">Google</button>
-        <button type="button" class="t-btn" data-v="ddg">DuckDuckGo</button>
-      </div>
-
-      <div class="console-hdr">
-        <span>stdout / debug log</span>
-        <div>
-          <span class="action-link" id="btn-check-update">[check github update]</span> &nbsp;
-          <span class="action-link" id="btn-clear">[clear]</span>
-        </div>
-      </div>
-      <div id="console-out">Initializing Void OS v4.0.4 Kernel...</div>
-    </div>
-
-    <!-- Settings Overlay -->
-    <div class="settings-overlay" id="settings-overlay">
-      <div class="settings-hdr">
-        <span>=== SETTINGS & SYSTEM INFO ===</span>
-        <button type="button" class="settings-close" id="btn-close-settings">[X] ESC</button>
-      </div>
-
-      <div class="settings-sec">
-        <h4>User Identifier</h4>
-        <div>User ID: <span id="set-uid" style="color:var(--amber); font-weight:bold;">...</span></div>
-      </div>
-
-      <div class="settings-sec">
-        <h4>Version & Auto Update</h4>
-        <div>Local Version: <span style="color:#fff;">v4.0.4</span></div>
-        <div id="set-upd-status">Status: Checking GitHub repo (wiizzz786/math-quiz)...</div>
-        <button type="button" class="cmd-btn" id="btn-do-update" style="margin-top:6px; display:none;">Download Latest Update</button>
-      </div>
-
-      <div class="settings-sec">
-        <h4>Keyboard Shortcuts</h4>
-        <div><span class="kbd-pill">Q</span> Open / Close Settings</div>
-        <div><span class="kbd-pill">Esc</span> Close Modal / Overlay</div>
-        <div><span class="kbd-pill">Enter</span> Run Command / Search</div>
-      </div>
-
-      <div class="settings-sec">
-        <h4>About</h4>
-        <div>Void Proxy Engine v4.0.4 — Client & Server Web Proxy</div>
-      </div>
-    </div>
+  <div class="box">
+    <div><strong>VERSION:</strong> v4.0.4</div>
+    <div><strong>SERVICE WORKER CONNECTION:</strong> <span id="sw-status">Checking...</span></div>
+    <div><strong>USER ID:</strong> <span id="user-id">...</span></div>
+    <div><strong>HOST ORIGIN:</strong> <span id="host-origin">...</span></div>
   </div>
+
+  <form id="fetch-form">
+    <h2>FETCH &amp; INSPECT WEBSITE OUTPUT (NO NAVIGATION)</h2>
+    <label for="target-url">Target Website URL or Query:</label>
+    <input type="text" id="target-url" placeholder="https://example.com" required autocomplete="off"/>
+    <br/>
+    <button type="submit">FETCH WEBSITE OUTPUT</button>
+  </form>
+
+  <h2>RETURNED OUTPUT</h2>
+  <pre id="output-box">No output fetched yet. Enter a website URL above and click Fetch.</pre>
 
   <script>
     (function() {
-      var APP_VER = '4.0.4';
-      var GITHUB_REPO = 'wiizzz786/math-quiz';
+      var swStatus = document.getElementById('sw-status');
+      var userIdEl = document.getElementById('user-id');
+      var hostOrigin = document.getElementById('host-origin');
+      var form = document.getElementById('fetch-form');
+      var urlInput = document.getElementById('target-url');
+      var outputBox = document.getElementById('output-box');
 
-      var hostEl = document.getElementById('s-host');
-      var protoEl = document.getElementById('s-proto');
-      var swEl = document.getElementById('s-sw');
-      var uidEl = document.getElementById('s-uid');
-      var setUidEl = document.getElementById('set-uid');
-      var consoleOut = document.getElementById('console-out');
-      var form = document.getElementById('term-form');
-      var input = document.getElementById('term-input');
-      var settingsOverlay = document.getElementById('settings-overlay');
-      var updStatusEl = document.getElementById('set-upd-status');
-      var doUpdBtn = document.getElementById('btn-do-update');
+      hostOrigin.textContent = window.location.origin;
 
-      var mode = 'server';
-      var engine = 'serpapi';
-
-      var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
-      if (isVercel) {
-        var bannerEl = document.querySelector('.banner');
-        if (bannerEl) bannerEl.innerHTML = 'VOID <span style="font-size:0.4em; color:var(--purple); vertical-align:middle; border:1px solid var(--purple); padding:2px 8px; border-radius:4px; letter-spacing:0.1em;">VERCEL CLOUD</span>';
-      }
-
-      hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
-      protoEl.textContent = window.location.protocol.replace(':', '').toUpperCase();
-
-      /* ── User ID Generator & Storage ── */
+      /* User ID Generator */
       function getUID() {
         var id = localStorage.getItem('void_uid');
         if (!id) {
-          var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          id = 'UID-';
-          for (var i = 0; i < 8; i++) {
-            if (i === 4) id += '-';
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
+          id = 'UID-' + Math.random().toString(36).substr(2, 9).toUpperCase();
           localStorage.setItem('void_uid', id);
         }
         return id;
       }
-      var uid = getUID();
-      uidEl.textContent = uid;
-      setUidEl.textContent = uid;
+      userIdEl.textContent = getUID();
 
-      function log(msg) {
-        var t = new Date().toISOString().split('T')[1].slice(0, 8);
-        consoleOut.textContent += '\n[' + t + '] ' + msg;
-        consoleOut.scrollTop = consoleOut.scrollHeight;
-      }
-
+      /* Service Worker Check */
       if ('serviceWorker' in navigator) {
-        swEl.textContent = 'ONLINE';
-        swEl.style.color = '#00ff66';
-      } else {
-        swEl.textContent = 'OFFLINE';
-        swEl.style.color = '#ff4444';
-      }
-
-      /* ── Settings Overlay Toggle ── */
-      function toggleSettings() {
-        var isShown = settingsOverlay.classList.toggle('show');
-        if (isShown) {
-          log('Opened Settings menu (Q).');
-          checkGitHubUpdate();
-        }
-      }
-
-      document.getElementById('btn-open-settings').addEventListener('click', toggleSettings);
-      document.getElementById('btn-close-settings').addEventListener('click', function() {
-        settingsOverlay.classList.remove('show');
-      });
-
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'q' || e.key === 'Q') {
-          var ae = document.activeElement;
-          if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
-          e.preventDefault();
-          toggleSettings();
-        }
-        if (e.key === 'Escape' && settingsOverlay.classList.contains('show')) {
-          settingsOverlay.classList.remove('show');
-        }
-      });
-
-      /* ── Semver Version Compare ── */
-      function parseVer(v) {
-        return (v || '').replace(/^v/, '').split('.').map(function(n) { return parseInt(n, 10) || 0; });
-      }
-      function isNewerVer(remote, local) {
-        var r = parseVer(remote);
-        var l = parseVer(local);
-        for (var i = 0; i < Math.max(r.length, l.length); i++) {
-          var rv = r[i] || 0;
-          var lv = l[i] || 0;
-          if (rv > lv) return true;
-          if (rv < lv) return false;
-        }
-        return false;
-      }
-
-      /* ── GitHub Update Checker ── */
-      function checkGitHubUpdate() {
-        log('Checking GitHub for updates (' + GITHUB_REPO + ')...');
-        updStatusEl.textContent = 'Status: Checking GitHub repo...';
-        fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
-          .then(function(res) { return res.ok ? res.json() : null; })
-          .then(function(pkg) {
-            if (!pkg || !pkg.version) {
-              updStatusEl.textContent = 'Status: Unable to fetch GitHub release info.';
-              log('Update check failed: No package.json found on main branch.');
-              return;
-            }
-            log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
-            if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + ']</span>';
-              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
-              doUpdBtn.style.display = 'inline-block';
-              doUpdBtn.onclick = function() {
-                log('Redirecting to latest GitHub repository commit...');
-                window.open('https://github.com/' + GITHUB_REPO + '/commits/main', '_blank');
-              };
-            } else {
-              updStatusEl.innerHTML = '<span style="color:var(--cyan);">System is fully up to date (v' + APP_VER + ').</span>';
-              log('System up to date (v' + APP_VER + ').');
-            }
+        swStatus.textContent = 'SUPPORTED & CONNECTED';
+        swStatus.className = 'status-ok';
+        navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' })
+          .then(function(reg) {
+            swStatus.textContent = 'CONNECTED (Scope: ' + reg.scope + ')';
           })
           .catch(function(err) {
-            updStatusEl.textContent = 'Status: Update check failed (' + err.message + ')';
-            log('Update check error: ' + err.message);
+            swStatus.textContent = 'SUPPORTED (Registration: ' + err.message + ')';
           });
+      } else {
+        swStatus.textContent = 'NOT SUPPORTED';
+        swStatus.className = 'status-err';
       }
 
-      document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
-
-      /* ── Fast Terminal Boot Sequence ── */
-      (function bootSequence() {
-        log('User Authenticated: ' + uid);
-        log('Mounting VFS and Proxy Modules...');
-        log('SW Status: ONLINE | Mode: ' + mode + ' | Engine: ' + engine);
-        setTimeout(checkGitHubUpdate, 400);
-      })();
-
-      function bindGroup(id, onSelect) {
-        var el = document.getElementById(id);
-        el.addEventListener('click', function(e) {
-          var btn = e.target.closest('.t-btn');
-          if (!btn) return;
-          el.querySelectorAll('.t-btn').forEach(function(b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-          onSelect(btn.dataset.v);
-        });
-      }
-
-      bindGroup('mode-group', function(val) {
-        mode = val;
-        log('Option set: --mode=' + val);
-      });
-
-      bindGroup('engine-group', function(val) {
-        engine = val;
-        log('Option set: --engine=' + val);
-      });
-
-      document.getElementById('btn-clear').addEventListener('click', function() {
-        consoleOut.textContent = 'Console reset.';
-      });
-
-      var DOMAIN_SHORTCUTS = {
-        'google': 'https://www.google.com',
-        'youtube': 'https://www.youtube.com',
-        'discord': 'https://discord.com',
-        'reddit': 'https://reddit.com',
-        'github': 'https://github.com',
-        'twitter': 'https://twitter.com',
-        'x': 'https://x.com',
-        'instagram': 'https://instagram.com',
-        'tiktok': 'https://tiktok.com',
-        'wikipedia': 'https://wikipedia.org',
-        'spotify': 'https://spotify.com'
-      };
-
-      var ENGINES = {
-        serpapi: function(q) { return '/serpapi-results?q=' + encodeURIComponent(q); },
-        serper: function(q) { return '/serper-results?q=' + encodeURIComponent(q); },
-        brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
-        google: function(q) { return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
-        ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
-      };
-
-      function resolveQuery(raw) {
-        var val = raw.trim();
-        if (!val) return null;
-        if (/^https?:\/\//i.test(val)) return val;
-        var low = val.toLowerCase();
-        if (DOMAIN_SHORTCUTS[low]) return DOMAIN_SHORTCUTS[low];
-        if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(val) && !val.includes(' ')) return 'https://' + val;
-        var searchFn = ENGINES[engine] || ENGINES.google;
-        return searchFn(val);
+      function logOutput(msg) {
+        outputBox.textContent = msg;
       }
 
       function getOriginBase() {
@@ -571,40 +134,38 @@
         return 'https://math-quiz-alpha-gilt.vercel.app';
       }
 
-      form.addEventListener('submit', async function(e) {
+      form.addEventListener('submit', function(e) {
         e.preventDefault();
-        var target = resolveQuery(input.value);
-        if (!target) return;
+        var rawUrl = urlInput.value.trim();
+        if (!rawUrl) return;
+
+        var targetUrl = rawUrl;
+        if (!/^https?:\/\//i.test(targetUrl)) {
+          if (targetUrl.includes('.') && !targetUrl.includes(' ')) {
+            targetUrl = 'https://' + targetUrl;
+          } else {
+            targetUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(targetUrl);
+          }
+        }
+
+        logOutput('[FETCHING OUTPUT FROM]: ' + targetUrl + '\nPlease wait...\n');
 
         var base = getOriginBase();
-        log('Target resolved -> ' + target);
-
-        if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
-          var destSearch = base + target;
-          log('Executing API Search View: ' + destSearch);
-          window.location.href = destSearch;
-          return;
-        }
-
-        if (mode === 'scramjet') {
-          log('Spawning Scramjet ServiceWorker thread...');
-          if ('serviceWorker' in navigator) {
-            try {
-              var reg = await navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' });
-              log('Scramjet SW Scope: ' + reg.scope);
-            } catch (err) {
-              log('Scramjet SW Error: ' + err.message);
-            }
-          }
-          var encoded = btoa(target).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-          var dest = base + '/scramjet/service/' + encoded;
-          log('Navigating -> ' + dest);
-          window.location.href = dest;
-        } else {
-          var destServer = base + '/go?url=' + encodeURIComponent(target) + '&mode=server';
-          log('Navigating -> ' + destServer);
-          window.location.href = destServer;
-        }
+        var endpoint = base + '/api/raw?url=' + encodeURIComponent(targetUrl);
+        fetch(endpoint)
+          .then(function(res) {
+            return res.text().then(function(text) {
+              return { status: res.status, ok: res.ok, text: text };
+            });
+          })
+          .then(function(data) {
+            var headerStr = '=== HTTP STATUS: ' + data.status + ' ===\n';
+            headerStr += '=== TARGET: ' + targetUrl + ' ===\n\n';
+            logOutput(headerStr + (data.text || '[Empty Response Body]'));
+          })
+          .catch(function(err) {
+            logOutput('[ERROR FETCHING OUTPUT]: ' + err.message + '\nMake sure the proxy server is running.');
+          });
       });
     })();
   </script>
