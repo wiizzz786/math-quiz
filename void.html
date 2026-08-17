@@ -79,11 +79,12 @@
     }
     .banner {
       color: var(--cyan);
-      white-space: pre;
-      font-size: 0.7rem;
-      line-height: 1.2;
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      text-align: center;
       margin-bottom: 16px;
-      overflow-x: auto;
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
     }
     .sys-info {
       color: var(--amber);
@@ -224,14 +225,7 @@
     </div>
 
     <div class="term-body">
-      <div class="banner">
-  _   _  ____  _____ _____   _____  _____   ______XZWS
- | | | |/ __ \|_   _|  __ \ |  __ \|  __ \ / __   |
- | | | | |  | | | | | |  | || |__) | |__) | |  |  |
- | | | | |  | | | | | |  | ||  ___/|  _  /| |  |  |
-  \ \_/ / |__| |_| |_| |__| || |    | | \ \| |__|  |
-   \___/ \____/|_____|_____/ |_|    |_|  \_\\______/
-      </div>
+      <div class="banner">VOID</div>
 
       <div class="sys-info">
         [SYS] HOST: <span id="s-host">...</span> | PROTO: <span id="s-proto">...</span> | SW: <span id="s-sw">...</span>
@@ -246,19 +240,19 @@
         </div>
       </form>
 
-      <div class="sec-header">[FLAGS] PROXY MODE</div>
+      <div class="sec-header">PROXY MODE</div>
       <div class="term-btn-group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="server">[--mode=server]</button>
-        <button type="button" class="t-btn" data-v="scramjet">[--mode=scramjet]</button>
+        <button type="button" class="t-btn active" data-v="server">Server Side</button>
+        <button type="button" class="t-btn" data-v="scramjet">Scramjet (WISP)</button>
       </div>
 
-      <div class="sec-header">[FLAGS] SEARCH ENGINE</div>
+      <div class="sec-header">SEARCH ENGINE</div>
       <div class="term-btn-group" id="engine-group">
-        <button type="button" class="t-btn active" data-v="serpapi">[--engine=serpapi]</button>
-        <button type="button" class="t-btn" data-v="serper">[--engine=serper]</button>
-        <button type="button" class="t-btn" data-v="brave">[--engine=brave]</button>
-        <button type="button" class="t-btn" data-v="google">[--engine=google]</button>
-        <button type="button" class="t-btn" data-v="ddg">[--engine=ddg]</button>
+        <button type="button" class="t-btn active" data-v="serpapi">SerpApi</button>
+        <button type="button" class="t-btn" data-v="serper">Serper</button>
+        <button type="button" class="t-btn" data-v="brave">Brave</button>
+        <button type="button" class="t-btn" data-v="google">Google</button>
+        <button type="button" class="t-btn" data-v="ddg">DuckDuckGo</button>
       </div>
 
       <div class="console-hdr">
