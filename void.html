@@ -289,7 +289,7 @@
         <span class="dot dot-green"></span>
       </div>
       <div>root@void:~ (bash)</div>
-      <div>v4.1.0</div>
+      <div>v4.1.1</div>
     </div>
 
     <div class="term-body">
@@ -336,7 +336,7 @@
           <span class="action-link" id="btn-clear">[clear]</span>
         </div>
       </div>
-      <div id="console-out">Initializing Void OS v4.1.0 Kernel...</div>
+      <div id="console-out">Initializing Void OS v4.1.1 Kernel...</div>
     </div>
 
     <!-- Settings Overlay -->
@@ -353,11 +353,12 @@
 
       <div class="settings-sec">
         <h4>Version &amp; Update System</h4>
-        <div>Local Version: <span style="color:#fff; font-weight:bold;">v4.1.0</span></div>
-        <div id="set-upd-status" style="margin-top:4px;">Status: Standby. Check or apply manual update below.</div>
+        <div>Local Version: <span style="color:#fff; font-weight:bold;">v4.1.1</span></div>
+        <div id="set-upd-status" style="margin-top:4px;">Status: Standby. Check, apply update, or download below.</div>
         <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
           <button type="button" class="cmd-btn" id="btn-manual-check">🔄 Check GitHub Update</button>
-          <button type="button" class="cmd-btn" id="btn-manual-apply" style="background:var(--cyan); color:#000;">⚡ Apply Manual Update</button>
+          <button type="button" class="cmd-btn" id="btn-manual-apply" style="background:var(--cyan); color:#000;">⚡ Apply Instant Update</button>
+          <button type="button" class="cmd-btn" id="btn-direct-download" style="background:var(--amber); color:#000;">📥 Direct Download void.html</button>
         </div>
       </div>
 
@@ -370,14 +371,14 @@
 
       <div class="settings-sec">
         <h4>About</h4>
-        <div>Void Proxy Engine v4.1.0 — Web Client</div>
+        <div>Void Proxy Engine v4.1.1 — Web Client</div>
       </div>
     </div>
   </div>
 
   <script>
     (function() {
-      var APP_VER = '4.1.0';
+      var APP_VER = '4.1.1';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -392,6 +393,7 @@
       var updStatusEl = document.getElementById('set-upd-status');
       var manualCheckBtn = document.getElementById('btn-manual-check');
       var manualApplyBtn = document.getElementById('btn-manual-apply');
+      var directDownloadBtn = document.getElementById('btn-direct-download');
 
       var mode = 'server';
       var engine = 'serpapi';
@@ -485,7 +487,7 @@
             }
             log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
             if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + '] Press Apply Manual Update!</span>';
+              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + '] Press Apply Instant Update or Download!</span>';
               log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
             } else {
               updStatusEl.innerHTML = '<span style="color:var(--cyan);">System is fully up to date (v' + APP_VER + ').</span>';
@@ -525,8 +527,35 @@
           });
       }
 
+      function directDownloadFile() {
+        log('[DIRECT DOWNLOAD]: Fetching latest void.html code from GitHub for file download...');
+        updStatusEl.innerHTML = '<span style="color:var(--amber);">[DOWNLOAD]: Preparing void.html download file...</span>';
+        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
+        fetch(rawUrl)
+          .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.text();
+          })
+          .then(function(html) {
+            var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'void.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            log('[DIRECT DOWNLOAD SUCCESS]: void.html file downloaded directly to your device!');
+            updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[DOWNLOAD COMPLETE]: void.html saved to device!</span>';
+          })
+          .catch(function(err) {
+            log('[DIRECT DOWNLOAD ERROR]: ' + err.message);
+            updStatusEl.innerHTML = '<span style="color:#ff4444;">[DOWNLOAD FAILED]: ' + err.message + '</span>';
+          });
+      }
+
       if (manualCheckBtn) manualCheckBtn.addEventListener('click', checkGitHubUpdate);
       if (manualApplyBtn) manualApplyBtn.addEventListener('click', applyManualUpdate);
+      if (directDownloadBtn) directDownloadBtn.addEventListener('click', directDownloadFile);
       document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
 
       (function bootSequence() {
