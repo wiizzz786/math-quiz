@@ -1,82 +1,344 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <meta name="void-update-url" content=""/>
-  <title>Void</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b7aff'/%3E%3Cstop offset='50%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%23f472b6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Void Proxy - Terminal Interface</title>
   <style>
     :root {
-      --bg: #000;
-      --surface: rgba(255,255,255,.05);
-      --border: rgba(255,255,255,.22);
-      --text: #fff;
-      --muted: rgba(255,255,255,.68);
+      --bg: #06060b;
+      --surface: rgba(12, 12, 18, 0.94);
+      --border: rgba(0, 255, 102, 0.25);
+      --c-green: #00ff66;
+      --c-purple: #a78bfa;
+      --c-cyan: #00f0ff;
+      --text: #eef0f8;
+      --muted: #5e6280;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { min-height: 100%; width: 100%; background: #000; color: var(--text); font-family: system-ui, sans-serif; }
-    body { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.08), transparent 18%),
-                  radial-gradient(circle at 80% 30%, rgba(255,255,255,.05), transparent 14%),
-                  linear-gradient(135deg, rgba(255,255,255,.02), transparent 46%, rgba(255,255,255,.03));
-      opacity: .65;
-      animation: float 14s ease-in-out infinite alternate;
-      pointer-events: none;
+    body {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.5;
     }
-    @keyframes float { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
-    .page { position: relative; width: min(640px, calc(100% - 2rem)); padding: 2rem; border: 1px solid var(--border); border-radius: 28px; background: rgba(0,0,0,.72); box-shadow: 0 0 0 1px rgba(255,255,255,.08); backdrop-filter: blur(18px); }
-    .title { font-size: clamp(2.4rem, 7vw, 4rem); letter-spacing: -.06em; text-transform: uppercase; margin-bottom: .8rem; }
-    .subtitle { color: var(--muted); text-transform: uppercase; letter-spacing: .24em; font-size: .78rem; margin-bottom: 2rem; }
-    .input-row { display: flex; gap: .75rem; align-items: center; margin-bottom: 1.4rem; }
-    .input-row input { flex: 1; min-width: 0; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.04); color: var(--text); font-size: 1rem; outline: none; }
-    .input-row input::placeholder { color: rgba(255,255,255,.45); }
-    .go-btn { padding: 1rem 1.6rem; border: 1px solid var(--border); border-radius: 18px; background: transparent; color: #fff; font-weight: 700; cursor: pointer; transition: transform .2s, background .2s; }
-    .go-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.08); }
-    .mode-label { color: var(--muted); font-size: .92rem; margin-bottom: 1.5rem; }
-    .mode-label span { color: #fff; font-weight: 700; }
-    .hint-row { display: flex; gap: .5rem; align-items: center; color: var(--muted); font-size: .84rem; }
-    kbd { display: inline-flex; align-items: center; justify-content: center; padding: .35rem .7rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.05); color: #fff; font-size: .78rem; }
-    .footer { margin-top: 2rem; color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-align: center; }
-    @media (max-width: 600px) { .page { padding: 1.3rem; border-radius: 20px; } .input-row { flex-direction: column; } .go-btn { width: 100%; } }
+    .wrap {
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 26px;
+      box-shadow: 0 0 40px rgba(0, 255, 102, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 22px;
+    }
+    .title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      background: linear-gradient(135deg, var(--c-green), var(--c-cyan), var(--c-purple));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #000;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+    .status-bar span { color: var(--c-cyan); font-weight: bold; }
+    .status-bar .green { color: var(--c-green); }
+
+    /* Centered Search Bar */
+    .search-wrap {
+      margin-bottom: 22px;
+    }
+    .search-row {
+      display: flex;
+      gap: 10px;
+      background: #000;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 5px 5px 5px 12px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-row:focus-within {
+      border-color: var(--c-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+    }
+    .search-row input {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      color: var(--c-green);
+      font-family: inherit;
+      font-size: 0.92rem;
+      outline: none;
+    }
+    .search-row input::placeholder {
+      color: rgba(94, 98, 128, 0.7);
+    }
+    .search-btn {
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, var(--c-green), var(--c-cyan));
+      color: #000;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .search-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    /* Interactive Buttons */
+    .sec-label {
+      font-size: 0.68rem;
+      color: var(--c-purple);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .btn-item {
+      padding: 7px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-item:hover {
+      border-color: var(--c-cyan);
+      color: var(--text);
+    }
+    .btn-item.active {
+      background: rgba(0, 240, 255, 0.1);
+      border-color: var(--c-cyan);
+      color: var(--c-cyan);
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+
+    /* Terminal Log */
+    .log-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--c-green);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-top: 20px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    .clear-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.65rem;
+      cursor: pointer;
+    }
+    .clear-btn:hover { color: var(--text); }
+    #log-out {
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.74rem;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: #888;
+    }
   </style>
 </head>
 <body>
-<div class="page">
-  <div class="title">void</div>
-  <div class="subtitle">Minimal proxy launcher</div>
-  <form id="f">
-    <div class="input-row">
-      <input id="url" type="text" placeholder="Enter URL or search term" autocomplete="off" spellcheck="false" />
-      <button type="submit" class="go-btn">Go</button>
+
+  <div class="wrap">
+    <div class="header">
+      <div class="title">VOID PROXY</div>
+      <div class="subtitle">Terminal Debug Interface</div>
     </div>
+
+    <div class="status-bar">
+      <div>ORIGIN: <span id="s-host">...</span></div>
+      <div>PROTO: <span id="s-proto">...</span></div>
+      <div>SW: <span class="green" id="s-sw">CHECKING</span></div>
+    </div>
+
+    <form class="search-wrap" id="search-form">
+      <div class="search-row">
+        <input type="text" id="target-input" placeholder="Enter URL or search query..." required autocomplete="off" spellcheck="false"/>
+        <button type="submit" class="search-btn">EXECUTE &gt;</button>
+      </div>
     </form>
-  <div class="footer">Void Proxy</div>
-</div>
 
-<script>
-(function(){
-  var form = document.getElementById('f');
-  var urlInput = document.getElementById('url');
+    <div class="sec-label">PROXY MODE</div>
+    <div class="btn-group" id="mode-btns">
+      <button type="button" class="btn-item active" data-v="server">SERVER SIDE (/p/)</button>
+      <button type="button" class="btn-item" data-v="scramjet">SCRAMJET (WISP WORKER)</button>
+    </div>
 
-  function buildUrl(raw) {
-    var value = String(raw || '').trim();
-    if (!value) return null;
-    if (/^https?:\/\//i.test(value)) return value;
-    if (value.includes('.') && !value.includes(' ')) return 'https://' + value;
-    return 'https://duckduckgo.com/?q=' + encodeURIComponent(value);
-  }
+    <div class="sec-label">SEARCH ENGINE</div>
+    <div class="btn-group" id="engine-btns">
+      <button type="button" class="btn-item active" data-v="serpapi">SERPAPI</button>
+      <button type="button" class="btn-item" data-v="serper">SERPER</button>
+      <button type="button" class="btn-item" data-v="brave">BRAVE</button>
+      <button type="button" class="btn-item" data-v="google">GOOGLE</button>
+      <button type="button" class="btn-item" data-v="ddg">DUCKDUCKGO</button>
+    </div>
 
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    var target = buildUrl(urlInput.value);
-    if (!target) return;
-    location.assign('/go?url=' + encodeURIComponent(target) + '&mode=server');
-  });
-})();
-</script>
+    <div class="log-hdr">
+      <span>Terminal Log</span>
+      <button type="button" class="clear-btn" id="clear-log">[CLEAR]</button>
+    </div>
+    <div id="log-out">Terminal online. Awaiting commands...</div>
+  </div>
+
+  <script>
+    (function() {
+      var hostEl = document.getElementById('s-host');
+      var protoEl = document.getElementById('s-proto');
+      var swEl = document.getElementById('s-sw');
+      var logOut = document.getElementById('log-out');
+      var form = document.getElementById('search-form');
+      var input = document.getElementById('target-input');
+
+      var mode = 'server';
+      var engine = 'serpapi';
+
+      hostEl.textContent = window.location.hostname || 'localhost';
+      protoEl.textContent = window.location.protocol.replace(':', '').toUpperCase();
+
+      function printLog(msg) {
+        var t = new Date().toISOString().split('T')[1].slice(0, 8);
+        logOut.textContent += '\n[' + t + '] ' + msg;
+        logOut.scrollTop = logOut.scrollHeight;
+      }
+
+      if ('serviceWorker' in navigator) {
+        swEl.textContent = 'ACTIVE';
+      } else {
+        swEl.textContent = 'DISABLED';
+        swEl.style.color = '#ff3366';
+      }
+
+      function setupGroup(id, onChange) {
+        var group = document.getElementById(id);
+        group.addEventListener('click', function(e) {
+          var btn = e.target.closest('.btn-item');
+          if (!btn) return;
+          group.querySelectorAll('.btn-item').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          onChange(btn.dataset.v);
+        });
+      }
+
+      setupGroup('mode-btns', function(val) {
+        mode = val;
+        printLog('Mode switched: ' + val);
+      });
+
+      setupGroup('engine-btns', function(val) {
+        engine = val;
+        printLog('Engine switched: ' + val);
+      });
+
+      document.getElementById('clear-log').addEventListener('click', function() {
+        logOut.textContent = 'Logs cleared.';
+      });
+
+      var ENGINES = {
+        serpapi: function(q) { return '/serpapi-results?q=' + encodeURIComponent(q); },
+        serper: function(q) { return '/serper-results?q=' + encodeURIComponent(q); },
+        brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
+        google: function(q) { return 'https://www.google.com/search?q=' + encodeURIComponent(q); },
+        ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
+      };
+
+      function resolveTarget(raw) {
+        var val = raw.trim();
+        if (!val) return null;
+        if (/^https?:\/\//i.test(val)) return val;
+        if (val.includes('.') && !val.includes(' ')) return 'https://' + val;
+        var searchFn = ENGINES[engine] || ENGINES.serpapi;
+        return searchFn(val);
+      }
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var target = resolveTarget(input.value);
+        if (!target) return;
+
+        printLog('Resolved target: ' + target);
+
+        if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
+          printLog('Launching search view: ' + target);
+          window.location.href = target;
+          return;
+        }
+
+        if (mode === 'scramjet') {
+          printLog('Initiating Scramjet ServiceWorker...');
+          if ('serviceWorker' in navigator) {
+            try {
+              var reg = await navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' });
+              printLog('Scramjet SW Scope: ' + reg.scope);
+            } catch (err) {
+              printLog('Scramjet SW Error: ' + err.message);
+            }
+          }
+          var encoded = btoa(target).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+          var dest = '/scramjet/service/' + encoded;
+          printLog('Executing Scramjet route: ' + dest);
+          window.location.href = dest;
+        } else {
+          var destServer = '/go?url=' + encodeURIComponent(target) + '&mode=server';
+          printLog('Executing Server Proxy route: ' + destServer);
+          window.location.href = destServer;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
