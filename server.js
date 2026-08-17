@@ -1970,7 +1970,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "3.2.7", uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "3.2.8", uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -1986,7 +1986,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/3.2.7" }
+      headers: { "User-Agent": "Void-Proxy/3.2.8" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();

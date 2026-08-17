@@ -278,7 +278,7 @@
         <span class="dot dot-green"></span>
       </div>
       <div>root@void:~ (bash)</div>
-      <div>v3.2.7</div>
+      <div>v3.2.8</div>
     </div>
 
     <div class="term-body">
@@ -325,7 +325,7 @@
           <span class="action-link" id="btn-clear">[clear]</span>
         </div>
       </div>
-      <div id="console-out">Initializing Void OS v3.2.7 Kernel...</div>
+      <div id="console-out">Initializing Void OS v3.2.8 Kernel...</div>
     </div>
 
     <!-- Settings Overlay -->
@@ -342,7 +342,7 @@
 
       <div class="settings-sec">
         <h4>Version & Auto Update</h4>
-        <div>Local Version: <span style="color:#fff;">v3.2.7</span></div>
+        <div>Local Version: <span style="color:#fff;">v3.2.8</span></div>
         <div id="set-upd-status">Status: Checking GitHub repo (wiizzz786/math-quiz)...</div>
         <button type="button" class="cmd-btn" id="btn-do-update" style="margin-top:6px; display:none;">Download Latest Update</button>
       </div>
@@ -356,14 +356,14 @@
 
       <div class="settings-sec">
         <h4>About</h4>
-        <div>Void Proxy Engine v3.2.7 — Client & Server Web Proxy</div>
+        <div>Void Proxy Engine v3.2.8 — Client & Server Web Proxy</div>
       </div>
     </div>
   </div>
 
   <script>
     (function() {
-      var APP_VER = '3.2.7';
+      var APP_VER = '3.2.8';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -558,16 +558,25 @@
         return searchFn(val);
       }
 
+      function getOriginBase() {
+        if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol)) {
+          return window.location.origin;
+        }
+        return 'https://math-quiz-alpha-gilt.vercel.app';
+      }
+
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
         var target = resolveQuery(input.value);
         if (!target) return;
 
+        var base = getOriginBase();
         log('Target resolved -> ' + target);
 
         if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
-          log('Executing API Search View: ' + target);
-          window.location.href = target;
+          var destSearch = base + target;
+          log('Executing API Search View: ' + destSearch);
+          window.location.href = destSearch;
           return;
         }
 
@@ -582,11 +591,11 @@
             }
           }
           var encoded = btoa(target).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-          var dest = '/scramjet/service/' + encoded;
+          var dest = base + '/scramjet/service/' + encoded;
           log('Navigating -> ' + dest);
           window.location.href = dest;
         } else {
-          var destServer = '/go?url=' + encodeURIComponent(target) + '&mode=server';
+          var destServer = base + '/go?url=' + encodeURIComponent(target) + '&mode=server';
           log('Navigating -> ' + destServer);
           window.location.href = destServer;
         }
