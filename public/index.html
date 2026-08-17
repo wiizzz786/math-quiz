@@ -288,11 +288,27 @@
         logOut.textContent = 'Logs cleared.';
       });
 
+      var COMMON_DOMAINS = {
+        'google': 'https://www.google.com',
+        'youtube': 'https://www.youtube.com',
+        'discord': 'https://discord.com',
+        'reddit': 'https://reddit.com',
+        'github': 'https://github.com',
+        'twitter': 'https://twitter.com',
+        'x': 'https://x.com',
+        'instagram': 'https://instagram.com',
+        'tiktok': 'https://tiktok.com',
+        'wikipedia': 'https://wikipedia.org',
+        'spotify': 'https://spotify.com',
+        'chatgpt': 'https://chatgpt.com',
+        'openai': 'https://openai.com'
+      };
+
       var ENGINES = {
         serpapi: function(q) { return '/serpapi-results?q=' + encodeURIComponent(q); },
         serper: function(q) { return '/serper-results?q=' + encodeURIComponent(q); },
         brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
-        google: function(q) { return 'https://www.google.com/search?q=' + encodeURIComponent(q); },
+        google: function(q) { return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
         ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
       };
 
@@ -300,8 +316,12 @@
         var val = raw.trim();
         if (!val) return null;
         if (/^https?:\/\//i.test(val)) return val;
-        if (val.includes('.') && !val.includes(' ')) return 'https://' + val;
-        var searchFn = ENGINES[engine] || ENGINES.serpapi;
+        var low = val.toLowerCase();
+        if (COMMON_DOMAINS[low]) return COMMON_DOMAINS[low];
+        if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(val) && !val.includes(' ')) {
+          return 'https://' + val;
+        }
+        var searchFn = ENGINES[engine] || ENGINES.google;
         return searchFn(val);
       }
 

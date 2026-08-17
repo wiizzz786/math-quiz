@@ -514,6 +514,9 @@ function buildHeaders(req, targetUrl) {
   }
   const scoped = scopeCookiesForTarget(req.headers.cookie, targetUrl);
   if (scoped) h["cookie"] = scoped;
+  if (!h["user-agent"]) {
+    h["user-agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+  }
   h["accept-encoding"] = "gzip, deflate, br";
   return h;
 }
@@ -1790,18 +1793,18 @@ a{text-decoration:none;color:inherit;}
     return;
   }
 
-  fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
+    fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
     .then(function(r){return r.ok?r.json():null;})
     .then(function(data){
       if(!data||!Array.isArray(data.results)){
-        document.getElementById('results').innerHTML='<div class="no-results">Search failed — check your API key.</div>';
+        location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
         return;
       }
       saveCache(qNorm,data.results);
       render(data.results,data.cached||false);
     })
     .catch(function(){
-      document.getElementById('results').innerHTML='<div class="no-results">Network error.</div>';
+      location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
     });
 })();
 </script>
@@ -1950,14 +1953,14 @@ a{text-decoration:none;color:inherit;}
     .then(function(r){return r.ok?r.json():null;})
     .then(function(data){
       if(!data||!Array.isArray(data.results)){
-        document.getElementById('results').innerHTML='<div class="no-results">Search failed — check your SerpApi key.</div>';
+        location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
         return;
       }
       saveCache(qNorm,data.results);
       render(data.results,data.cached||false);
     })
     .catch(function(){
-      document.getElementById('results').innerHTML='<div class="no-results">Network error.</div>';
+      location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
     });
 })();
 </script>
