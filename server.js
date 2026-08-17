@@ -11,6 +11,9 @@ import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
+import * as wisp from "@mercuryworkshop/wisp-js/server";
+import { scramjetPath } from "@mercuryworkshop/scramjet/path";
+import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 // Load .env manually (no external dep needed)
 try {
@@ -138,6 +141,9 @@ app.use(express.static(join(__dirname, "public"), {
   etag: true,
   lastModified: true,
 }));
+app.use("/scramjet/", express.static(scramjetPath));
+app.use("/baremux/", express.static(baremuxPath));
+app.use("/epoxy/", express.static(join(__dirname, "node_modules", "@mercuryworkshop", "epoxy-transport", "dist")));
 
 /* ═══════════════════════════════════════════
    URL encoding / decoding helpers
@@ -1572,12 +1578,59 @@ async function fetchSerperResults(q, num) {
         if (results.length >= num) break;
       }
     }
+  } catch (err) {
+    return { results: null, fromCache: false, error: err.message };
+  }
+}
+
+/* -------------------------------------------
+   SerpApi fetch & search API
+   ------------------------------------------- */
+
+async function fetchSerpApiResults(q, num) {
+  const suffix = "|serpapi|" + num;
+  const cached = serperCacheGet(q, suffix);
+  if (cached) return { results: cached, fromCache: true };
+
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey || apiKey === "your_serpapi_key_here") {
+    return { results: null, fromCache: false, error: "SERPAPI_KEY not configured" };
+  }
+
+  try {
+    const url = `https://serpapi.com/search.json?q=${encodeURIComponent(q)}&num=${num}&engine=google&api_key=${apiKey}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { results: null, fromCache: false, error: `SerpApi error: ${text.slice(0, 200)}` };
+    }
+    const data = await res.json();
+    const results = [];
+    if (data.knowledge_graph?.website) {
+      const kg = data.knowledge_graph;
+      results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || "", type: "kg" });
+    }
+    if (Array.isArray(data.organic_results)) {
+      for (const item of data.organic_results) {
+        if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
+        if (results.length >= num) break;
+      }
+    }
     serperCacheSet(q, results, suffix);
     return { results, fromCache: false };
   } catch (err) {
     return { results: null, fromCache: false, error: err.message };
   }
 }
+
+app.get("/api/serpapi-search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
+  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+  const { results, fromCache, error } = await fetchSerpApiResults(q, num);
+  if (error && !results) return res.status(error.includes("not configured") ? 503 : 502).json({ error });
+  return res.json({ cached: fromCache, results: results || [] });
+});
 
 /* -------------------------------------------
    Serper web search API
@@ -1756,6 +1809,162 @@ a{text-decoration:none;color:inherit;}
 </html>`);
 });
 
+app.get("/serpapi-results", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.redirect("/");
+
+  const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  res.type("text/html; charset=utf-8").send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${safeQ} — SerpApi · Void</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
+.topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
+.topbar input{flex:1;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;color:#eef0f8;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;transition:border-color .2s;}
+.topbar input:focus{border-color:#7c6aff;}
+.topbar button{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);border:none;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;}
+.topbar .back{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#9a9bb8;font-size:.8rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;}
+.topbar .back:hover{background:rgba(255,255,255,.08);color:#eef0f8;}
+.main{max-width:700px;margin:0 auto;padding:24px 20px 60px;}
+.meta{font-size:.7rem;color:#464660;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.meta .dot{width:3px;height:3px;border-radius:50%;background:#464660;}
+.cache-tag{font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;text-transform:uppercase;}
+.cache-tag.live{background:rgba(52,211,153,.1);color:#34d399;}
+.cache-tag.cached{background:rgba(124,106,255,.1);color:#a78bfa;}
+.result{display:block;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.02);margin-bottom:10px;transition:background .15s,border-color .15s,transform .15s;}
+.result:hover{background:rgba(255,255,255,.04);border-color:rgba(124,106,255,.3);transform:translateY(-2px);}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.fav{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+.domain{font-size:.68rem;color:#646478;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{font-size:.5rem;font-weight:800;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;background:rgba(255,180,0,.12);color:#f5c342;}
+.result-title{font-size:.95rem;font-weight:600;color:#c4c6e8;margin-bottom:5px;line-height:1.4;}
+.result:hover .result-title{color:#eef0f8;}
+.result-snippet{font-size:.78rem;color:#646478;line-height:1.6;}
+.no-results{text-align:center;padding:60px 20px;color:#464660;font-size:.85rem;}
+.spinner{display:flex;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:#464660;font-size:.8rem;}
+.spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(124,106,255,.2);border-top-color:#7c6aff;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="logo" href="/">void</a>
+  <a class="back" href="javascript:history.back()">← Back</a>
+  <form id="sf" action="/serpapi-results" method="get">
+    <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
+    <button type="submit">Search</button>
+  </form>
+</div>
+<div class="main">
+  <div class="meta" id="meta"></div>
+  <div id="results"><div class="spinner"><div class="spin"></div>Searching…</div></div>
+</div>
+<script>
+(function(){
+  var Q = ${JSON.stringify(safeQ)};
+  var CACHE_TTL = 24 * 60 * 60 * 1000;
+  var CACHE_PREFIX = 'void_serpapi_';
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function levenshtein(a,b){
+    if(a===b)return 0;
+    var dp=[];
+    for(var i=0;i<=a.length;i++){dp[i]=[i];}
+    for(var j=1;j<=b.length;j++)dp[0][j]=j;
+    for(var i=1;i<=a.length;i++)for(var j=1;j<=b.length;j++)
+      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    return dp[a.length][b.length];
+  }
+
+  function maxDist(q){ return q.length<=5?1:q.length<=12?2:3; }
+
+  function normQ(q){ return q.toLowerCase().trim().replace(/\s+/g,' ').replace(/[^\w\s]/g,''); }
+
+  function findCache(qNorm){
+    try{
+      for(var i=0;i<sessionStorage.length;i++){
+        var k=sessionStorage.key(i);
+        if(!k||!k.startsWith(CACHE_PREFIX))continue;
+        var kq=k.slice(CACHE_PREFIX.length);
+        if(levenshtein(qNorm,kq)<=maxDist(qNorm)){
+          var entry=JSON.parse(sessionStorage.getItem(k)||'null');
+          if(entry&&Array.isArray(entry.results)&&Date.now()-entry.ts<CACHE_TTL)
+            return{results:entry.results,cached:true};
+        }
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function saveCache(qNorm,results){
+    try{ sessionStorage.setItem(CACHE_PREFIX+qNorm,JSON.stringify({results:results,ts:Date.now()})); }catch(e){}
+  }
+
+  function renderResult(r){
+    var domain='';try{domain=new URL(r.url).hostname;}catch(e){}
+    var fav=domain?'<img class="fav" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32" alt="" onerror="this.style.display=\'none\'"/>':'';
+    var badge=r.type==='kg'?'<span class="badge">Info</span>':'';
+    var snippet=r.snippet?'<div class="result-snippet">'+esc(r.snippet.slice(0,160))+'</div>':'';
+    var proxyUrl='/p/'+btoa(r.url).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');
+    return '<a class="result" href="'+proxyUrl+'">'
+      +'<div class="result-head">'+fav+'<span class="domain">'+esc(domain)+'</span>'+badge+'</div>'
+      +'<div class="result-title">'+esc(r.title||domain||r.url)+'</div>'
+      +snippet+'</a>';
+  }
+
+  function render(results, fromCache){
+    var meta=document.getElementById('meta');
+    var res=document.getElementById('results');
+    if(meta){
+      meta.innerHTML='<span>'+results.length+' results for <strong style="color:#9a9bb8">"'+esc(Q)+'"</strong></span>'
+        +'<span class="dot"></span><span>via SerpApi</span>'
+        +(fromCache
+          ?'<span class="dot"></span><span class="cache-tag cached">cached</span>'
+          :'<span class="dot"></span><span class="cache-tag live">live</span>');
+    }
+    if(res){
+      res.innerHTML=results.length
+        ?results.map(renderResult).join('')
+        :'<div class="no-results">No results found — try a different query.</div>';
+    }
+  }
+
+  var qNorm=normQ(Q);
+  var hit=findCache(qNorm);
+  if(hit){
+    render(hit.results,true);
+    return;
+  }
+
+  fetch('/api/serpapi-search?q='+encodeURIComponent(Q)+'&num=10')
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(data){
+      if(!data||!Array.isArray(data.results)){
+        document.getElementById('results').innerHTML='<div class="no-results">Search failed — check your SerpApi key.</div>';
+        return;
+      }
+      saveCache(qNorm,data.results);
+      render(data.results,data.cached||false);
+    })
+    .catch(function(){
+      document.getElementById('results').innerHTML='<div class="no-results">Network error.</div>';
+    });
+})();
+</script>
+</body>
+</html>`);
+});
+
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.json({ status: "ok", version: "3.2.6", uptime: Math.floor(process.uptime()) });
@@ -1841,7 +2050,9 @@ const PORT = process.env.PORT || 8080;
 const server = createServer(app);
 
 server.on("upgrade", (req, socket, head) => {
-  if ((req.url || "").startsWith("/pe-ws/")) {
+  if ((req.url || "").startsWith("/wisp/")) {
+    wisp.server.routeRequest(req, socket, head);
+  } else if ((req.url || "").startsWith("/pe-ws/")) {
     handlePeWsUpgrade(req, socket, head);
   } else {
     socket.destroy();

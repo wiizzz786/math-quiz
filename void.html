@@ -723,6 +723,7 @@
       <div class="section-hdr"><span>Proxy Mode</span></div>
       <div class="mode-btns" id="mode-btns">
         <button type="button" class="mode-btn active" data-m="server">Server Side <span class="tag">DEFAULT</span></button>
+        <button type="button" class="mode-btn" data-m="scramjet">Scramjet <span class="tag">WISP</span></button>
       </div>
 
       <div class="section-hdr"><span>Search Engine</span></div>
@@ -745,6 +746,10 @@
         </button>
         <button class="eng-btn" data-e="serper">
           <img class="ico" src="https://www.google.com/s2/favicons?domain=serper.dev&sz=32" alt=""/>Serper
+          <span class="rec-badge">API</span>
+        </button>
+        <button class="eng-btn" data-e="serpapi">
+          <img class="ico" src="https://www.google.com/s2/favicons?domain=serpapi.com&sz=32" alt=""/>SerpApi
           <span class="rec-badge">API</span>
         </button>
         <button class="eng-more-btn" id="eng-more-btn">More <span class="arrow">&#9660;</span></button>
@@ -1130,6 +1135,7 @@ var SEARCH = {
   swisscows: function(q){ return 'https://swisscows.com/web?query=' + encodeURIComponent(q); },
   ask:       function(q){ return 'https://www.ask.com/web?q=' + encodeURIComponent(q); },
   serper:    function(q){ return '/serper-results?q=' + encodeURIComponent(q); },
+  serpapi:   function(q){ return '/serpapi-results?q=' + encodeURIComponent(q); },
 };
 
 function toUrl(raw){
@@ -1359,7 +1365,29 @@ function getServerBase(){
 
 /* ──────────── Mode UI toggling ──────────── */
 function updateModeUI(){
-  // Server-side only
+  document.querySelectorAll('#mode-btns .mode-btn').forEach(function(btn){
+    if(btn.dataset.m === mode) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+}
+
+var _scramjetInitPromise = null;
+function initScramjetServiceWorker(){
+  if(_scramjetInitPromise) return _scramjetInitPromise;
+  if(!('serviceWorker' in navigator)) return Promise.resolve(false);
+  _scramjetInitPromise = (async function(){
+    try {
+      var reg = await navigator.serviceWorker.register('/scramjet/scramjet.worker.js', {
+        scope: '/scramjet/service/',
+      });
+      console.log('[Scramjet] Registered Service Worker scope:', reg.scope);
+      return true;
+    } catch(err){
+      console.error('[Scramjet] SW Registration failed:', err);
+      return false;
+    }
+  })();
+  return _scramjetInitPromise;
 }
 
 function buildServerProxyUrl(targetUrl){
@@ -1367,6 +1395,15 @@ function buildServerProxyUrl(targetUrl){
   var q = 'url=' + encodeURIComponent(targetUrl);
   if($('opt-eruda') && $('opt-eruda').checked) q += '&eruda=1';
   return base.replace(/\/+$/,'') + '/go?' + q;
+}
+
+function buildProxyUrlForTarget(targetUrl){
+  if(mode === 'scramjet'){
+    var base = getServerBase().replace(/\/+$/,'');
+    var encoded = btoa(targetUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    return base + '/scramjet/service/' + encoded;
+  }
+  return buildServerProxyUrl(targetUrl);
 }
 
 function buildProxyShellUrl(){
@@ -1419,19 +1456,19 @@ async function navigate(rawOrUrl){
     }
     if(!url) return;
 
-    // Serper results page — embed in the overlay like any other page
-    if(url.startsWith('/serper-results')){
+    // Serper / SerpApi results page — embed in the overlay like any other page
+    if(url.startsWith('/serper-results') || url.startsWith('/serpapi-results')){
       try { logSearch(url, rawOrUrl); } catch(e){}
-      var serperUrl = getServerBase().replace(/\/+$/, '') + url;
+      var searchResUrl = getServerBase().replace(/\/+$/, '') + url;
       if($('opt-iframe') && $('opt-iframe').checked){
-        showVoidEmbedOverlay(serperUrl, rawOrUrl, serperUrl);
+        showVoidEmbedOverlay(searchResUrl, rawOrUrl, searchResUrl);
         return;
       }
       if($('opt-newtab') && $('opt-newtab').checked){
-        window.open(serperUrl, '_blank');
+        window.open(searchResUrl, '_blank');
         return;
       }
-      window.location.href = serperUrl;
+      window.location.href = searchResUrl;
       return;
     }
 
@@ -1441,19 +1478,18 @@ async function navigate(rawOrUrl){
       try { addToHistory(url, domain); } catch(e){}
     }
 
-    // ── URL domain cache ──
-    // For URLs: cache the proxy URL keyed by base domain (exact match only).
-    // Any path under the same domain (e.g. youtube.com/watch?v=xyz) resolves
-    // to the cached base proxy URL (youtube.com) instead of fetching again.
+    if(mode === 'scramjet'){
+      await initScramjetServiceWorker();
+    }
+
     var proxyUrl;
     if(url && /^https?:\/\//i.test(url)){
       try {
-        var parsedHost = new URL(url).hostname; // exact match only, no fuzzy
-        var domCacheKey = 'void_url_' + parsedHost;
+        var parsedHost = new URL(url).hostname;
+        var domCacheKey = 'void_url_' + mode + '_' + parsedHost;
         var domCached = null;
         try {
           var domEntry = JSON.parse(sessionStorage.getItem(domCacheKey) || 'null');
-          // TTL: 24h
           if(domEntry && domEntry.proxyUrl && Date.now() - domEntry.ts < 24 * 60 * 60 * 1000){
             domCached = domEntry.proxyUrl;
           }
@@ -1462,17 +1498,16 @@ async function navigate(rawOrUrl){
         if(domCached){
           proxyUrl = domCached;
         } else {
-          proxyUrl = buildServerProxyUrl(url);
-          // Cache using just the base origin (scheme+host) as the canonical URL
-          var baseUrl = new URL(url).origin; // e.g. https://youtube.com
-          var baseProxyUrl = buildServerProxyUrl(baseUrl);
+          proxyUrl = buildProxyUrlForTarget(url);
+          var baseUrl = new URL(url).origin;
+          var baseProxyUrl = buildProxyUrlForTarget(baseUrl);
           try { sessionStorage.setItem(domCacheKey, JSON.stringify({ proxyUrl: baseProxyUrl, ts: Date.now() })); } catch(e){}
         }
       } catch(e){
-        proxyUrl = buildServerProxyUrl(url);
+        proxyUrl = buildProxyUrlForTarget(url);
       }
     } else {
-      proxyUrl = buildServerProxyUrl(url);
+      proxyUrl = buildProxyUrlForTarget(url);
     }
 
     if(!proxyUrl) return;
@@ -1597,7 +1632,8 @@ input.addEventListener('input', function(){
   clearTimeout(input._serperTimer);
   input._serperTimer = setTimeout(function(){
     if(input.value.trim().toLowerCase() !== ql) return; // stale
-    fetch('/api/search?q=' + encodeURIComponent(q) + '&num=6')
+    var apiEndpoint = engine === 'serpapi' ? '/api/serpapi-search' : '/api/search';
+    fetch(apiEndpoint + '?q=' + encodeURIComponent(q) + '&num=6')
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
         if(!data || !Array.isArray(data.results)) return;
@@ -1790,7 +1826,7 @@ function savePrefs(){
   try {
     localStorage.setItem('void_prefs', JSON.stringify({
       engine: engine,
-      mode: 'server',
+      mode: mode,
       newtab: $('opt-newtab') ? $('opt-newtab').checked : false,
       inframe: $('opt-iframe') ? $('opt-iframe').checked : false,
       eruda: $('opt-eruda') ? $('opt-eruda').checked : false,
@@ -1806,12 +1842,28 @@ function loadPrefs(){
       var btn = document.querySelector('.eng-btn[data-e="'+p.engine+'"]');
       if(btn) btn.click();
     }
+    if(p.mode){
+      mode = p.mode;
+      if(mode === 'scramjet') initScramjetServiceWorker();
+    }
     if($('opt-newtab')) $('opt-newtab').checked = !!p.newtab;
     if($('opt-iframe')) $('opt-iframe').checked = p.inframe !== undefined ? !!p.inframe : true;
     if($('opt-eruda')) $('opt-eruda').checked = !!p.eruda;
   } catch(e){}
   updateModeUI();
 }
+
+document.querySelectorAll('#mode-btns .mode-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    sfxClick();
+    mode = btn.dataset.m;
+    if(mode === 'scramjet'){
+      initScramjetServiceWorker();
+    }
+    updateModeUI();
+    savePrefs();
+  });
+});
 
 ['opt-newtab','opt-iframe','opt-eruda'].forEach(function(id){
   var el = $(id);
