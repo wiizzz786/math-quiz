@@ -278,7 +278,7 @@
         <span class="dot dot-green"></span>
       </div>
       <div>root@void:~ (bash)</div>
-      <div>v4.0.3</div>
+      <div>v4.0.4</div>
     </div>
 
     <div class="term-body">
@@ -325,7 +325,7 @@
           <span class="action-link" id="btn-clear">[clear]</span>
         </div>
       </div>
-      <div id="console-out">Initializing Void OS v4.0.3 Kernel...</div>
+      <div id="console-out">Initializing Void OS v4.0.4 Kernel...</div>
     </div>
 
     <!-- Settings Overlay -->
@@ -342,7 +342,7 @@
 
       <div class="settings-sec">
         <h4>Version & Auto Update</h4>
-        <div>Local Version: <span style="color:#fff;">v4.0.3</span></div>
+        <div>Local Version: <span style="color:#fff;">v4.0.4</span></div>
         <div id="set-upd-status">Status: Checking GitHub repo (wiizzz786/math-quiz)...</div>
         <button type="button" class="cmd-btn" id="btn-do-update" style="margin-top:6px; display:none;">Download Latest Update</button>
       </div>
@@ -356,14 +356,14 @@
 
       <div class="settings-sec">
         <h4>About</h4>
-        <div>Void Proxy Engine v4.0.3 — Client & Server Web Proxy</div>
+        <div>Void Proxy Engine v4.0.4 — Client & Server Web Proxy</div>
       </div>
     </div>
   </div>
 
   <script>
     (function() {
-      var APP_VER = '4.0.3';
+      var APP_VER = '4.0.4';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -381,7 +381,13 @@
       var mode = 'server';
       var engine = 'serpapi';
 
-      hostEl.textContent = window.location.hostname || 'localhost';
+      var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
+      if (isVercel) {
+        var bannerEl = document.querySelector('.banner');
+        if (bannerEl) bannerEl.innerHTML = 'VOID <span style="font-size:0.4em; color:var(--purple); vertical-align:middle; border:1px solid var(--purple); padding:2px 8px; border-radius:4px; letter-spacing:0.1em;">VERCEL CLOUD</span>';
+      }
+
+      hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
       protoEl.textContent = window.location.protocol.replace(':', '').toUpperCase();
 
       /* ── User ID Generator & Storage ── */
