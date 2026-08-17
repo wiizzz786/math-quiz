@@ -289,7 +289,7 @@
         <span class="dot dot-green"></span>
       </div>
       <div>root@void:~ (bash)</div>
-      <div>v4.0.9</div>
+      <div>v4.1.0</div>
     </div>
 
     <div class="term-body">
@@ -336,7 +336,7 @@
           <span class="action-link" id="btn-clear">[clear]</span>
         </div>
       </div>
-      <div id="console-out">Initializing Void OS v4.0.9 Kernel...</div>
+      <div id="console-out">Initializing Void OS v4.1.0 Kernel...</div>
     </div>
 
     <!-- Settings Overlay -->
@@ -352,10 +352,13 @@
       </div>
 
       <div class="settings-sec">
-        <h4>Version &amp; Auto Update</h4>
-        <div>Local Version: <span style="color:#fff;">v4.0.9</span></div>
-        <div id="set-upd-status">Status: Checking GitHub repo (wiizzz786/math-quiz)...</div>
-        <button type="button" class="cmd-btn" id="btn-do-update" style="margin-top:6px; display:none;">Download Latest Update</button>
+        <h4>Version &amp; Update System</h4>
+        <div>Local Version: <span style="color:#fff; font-weight:bold;">v4.1.0</span></div>
+        <div id="set-upd-status" style="margin-top:4px;">Status: Standby. Check or apply manual update below.</div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="cmd-btn" id="btn-manual-check">🔄 Check GitHub Update</button>
+          <button type="button" class="cmd-btn" id="btn-manual-apply" style="background:var(--cyan); color:#000;">⚡ Apply Manual Update</button>
+        </div>
       </div>
 
       <div class="settings-sec">
@@ -367,14 +370,14 @@
 
       <div class="settings-sec">
         <h4>About</h4>
-        <div>Void Proxy Engine v4.0.9 — Terminal Web Client</div>
+        <div>Void Proxy Engine v4.1.0 — Web Client</div>
       </div>
     </div>
   </div>
 
   <script>
     (function() {
-      var APP_VER = '4.0.9';
+      var APP_VER = '4.1.0';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -387,7 +390,8 @@
       var input = document.getElementById('term-input');
       var settingsOverlay = document.getElementById('settings-overlay');
       var updStatusEl = document.getElementById('set-upd-status');
-      var doUpdBtn = document.getElementById('btn-do-update');
+      var manualCheckBtn = document.getElementById('btn-manual-check');
+      var manualApplyBtn = document.getElementById('btn-manual-apply');
 
       var mode = 'server';
       var engine = 'serpapi';
@@ -470,34 +474,59 @@
 
       function checkGitHubUpdate() {
         log('Checking GitHub for updates (' + GITHUB_REPO + ')...');
-        updStatusEl.textContent = 'Status: Checking GitHub repo...';
+        updStatusEl.innerHTML = '<span style="color:var(--cyan);">Status: Checking GitHub repo...</span>';
         fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
           .then(function(res) { return res.ok ? res.json() : null; })
           .then(function(pkg) {
             if (!pkg || !pkg.version) {
-              updStatusEl.textContent = 'Status: Unable to fetch GitHub release info.';
+              updStatusEl.innerHTML = '<span style="color:#ff4444;">Status: Unable to fetch GitHub release info.</span>';
               log('Update check failed.');
               return;
             }
             log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
             if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + ']</span>';
+              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + '] Press Apply Manual Update!</span>';
               log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
-              doUpdBtn.style.display = 'inline-block';
-              doUpdBtn.onclick = function() {
-                window.open('https://github.com/' + GITHUB_REPO + '/commits/main', '_blank');
-              };
             } else {
               updStatusEl.innerHTML = '<span style="color:var(--cyan);">System is fully up to date (v' + APP_VER + ').</span>';
               log('System up to date (v' + APP_VER + ').');
             }
           })
           .catch(function(err) {
-            updStatusEl.textContent = 'Status: Update check failed (' + err.message + ')';
+            updStatusEl.innerHTML = '<span style="color:#ff4444;">Status: Update check failed (' + err.message + ')</span>';
             log('Update check error: ' + err.message);
           });
       }
 
+      function applyManualUpdate() {
+        log('[MANUAL UPDATE]: Fetching raw void.html from GitHub main branch...');
+        updStatusEl.innerHTML = '<span style="color:var(--cyan);">[UPDATE IN PROGRESS]: Fetching latest code from GitHub...</span>';
+        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
+        fetch(rawUrl)
+          .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.text();
+          })
+          .then(function(html) {
+            log('[MANUAL UPDATE SUCCESS]: Received fresh void.html (' + html.length + ' bytes).');
+            updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE APPLIED]: Reloading client...</span>';
+            try {
+              document.open();
+              document.write(html);
+              document.close();
+              log('[MANUAL UPDATE COMPLETE]: Client updated and reloaded with latest code!');
+            } catch(e) {
+              window.location.reload(true);
+            }
+          })
+          .catch(function(err) {
+            log('[MANUAL UPDATE ERROR]: Failed to fetch raw update (' + err.message + ').');
+            updStatusEl.innerHTML = '<span style="color:#ff4444;">[UPDATE FAILED]: ' + err.message + '</span>';
+          });
+      }
+
+      if (manualCheckBtn) manualCheckBtn.addEventListener('click', checkGitHubUpdate);
+      if (manualApplyBtn) manualApplyBtn.addEventListener('click', applyManualUpdate);
       document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
 
       (function bootSequence() {
