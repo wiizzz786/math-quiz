@@ -2,455 +2,391 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Void - Web Proxy Client</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Void - Terminal Client</title>
   <style>
     :root {
-      --bg: #07070c;
-      --surface: rgba(18, 18, 28, 0.82);
-      --surface-hover: rgba(28, 28, 42, 0.9);
-      --border: rgba(0, 240, 255, 0.2);
-      --border-glow: rgba(0, 240, 255, 0.5);
-      --c-green: #00ff66;
-      --c-purple: #a78bfa;
-      --c-cyan: #00f0ff;
-      --c-pink: #f472b6;
-      --c-amber: #fbbf24;
-      --text: #f1f3f9;
-      --muted: #717594;
-      --radius: 20px;
+      --bg: #030305;
+      --term-bg: #07070b;
+      --green: #00ff66;
+      --green-dim: #00aa44;
+      --green-dark: #003311;
+      --cyan: #00f0ff;
+      --purple: #a78bfa;
+      --amber: #ffb000;
+      --text: #00ff66;
+      --muted: #008833;
+      --border: #00ff66;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
       min-height: 100vh;
       background: var(--bg);
       color: var(--text);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
-      line-height: 1.5;
-      overflow-x: hidden;
-      position: relative;
+      padding: 20px;
+      line-height: 1.45;
+      text-shadow: 0 0 4px rgba(0, 255, 102, 0.4);
     }
-
-    /* Dynamic Ambient Background Animations */
-    body::before {
-      content: '';
-      position: fixed; inset: -30%;
-      background: 
-        radial-gradient(circle at 20% 20%, rgba(0, 255, 102, 0.08), transparent 35%),
-        radial-gradient(circle at 80% 30%, rgba(167, 139, 250, 0.1), transparent 40%),
-        radial-gradient(circle at 50% 80%, rgba(0, 240, 255, 0.08), transparent 35%);
-      filter: blur(40px);
-      animation: float-bg 18s ease-in-out infinite alternate;
-      pointer-events: none;
-      z-index: 0;
-    }
-    @keyframes float-bg {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(2%, 3%) scale(1.05); }
-    }
-
-    /* CRT Scanline Overlay Effect */
-    .scanline-overlay {
+    /* CRT Scanline Overlay */
+    body::after {
+      content: " ";
+      display: block;
       position: fixed; inset: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
-      background-size: 100% 4px;
-      z-index: 1;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 999;
+      background-size: 100% 3px, 6px 100%;
       pointer-events: none;
-      opacity: 0.7;
     }
-
-    /* Main Container Card */
-    .app-card {
-      position: relative;
-      z-index: 2;
+    .term-window {
       width: 100%;
-      max-width: 760px;
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px;
-      backdrop-filter: blur(20px);
-      box-shadow: 
-        0 20px 60px rgba(0, 0, 0, 0.8),
-        0 0 30px rgba(0, 240, 255, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      transition: border-color 0.3s;
+      max-width: 820px;
+      background: var(--term-bg);
+      border: 2px solid #00ff66;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 255, 102, 0.2), inset 0 0 15px rgba(0, 255, 102, 0.05);
+      overflow: hidden;
+      position: relative;
     }
-
-    /* Top Bar Header */
-    .header-bar {
+    .term-bar {
+      background: #001a08;
+      border-bottom: 2px solid #00ff66;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24px;
+      font-size: 0.82rem;
+      font-weight: bold;
+      color: #00ff66;
+      user-select: none;
     }
-    .brand-group {
+    .term-dots {
       display: flex;
-      align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
-    .brand-title {
-      font-size: 2.2rem;
-      font-weight: 900;
-      letter-spacing: -0.04em;
-      text-transform: uppercase;
-      background: linear-gradient(135deg, var(--c-green), var(--c-cyan), var(--c-purple));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      display: inline-block;
     }
-    .brand-badge {
-      font-size: 0.65rem;
-      font-weight: 800;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(167, 139, 250, 0.15);
-      color: var(--c-purple);
-      border: 1px solid rgba(167, 139, 250, 0.3);
-    }
-    .settings-trigger-btn {
-      padding: 8px 14px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    .settings-trigger-btn:hover {
-      background: rgba(167, 139, 250, 0.15);
-      border-color: var(--c-purple);
-      color: var(--c-purple);
-      transform: translateY(-1px);
-    }
+    .dot-red { background: #ff4444; }
+    .dot-yellow { background: #ffbb11; }
+    .dot-green { background: #00ff66; }
 
-    /* System Badges Bar */
-    .status-row {
+    .term-body {
+      padding: 24px 28px;
+    }
+    .banner {
+      color: var(--cyan);
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-align: center;
+      margin-top: 6px;
+      margin-bottom: 24px;
+      text-shadow: 0 0 16px rgba(0, 240, 255, 0.7);
+    }
+    .sys-info {
+      color: var(--amber);
+      font-size: 0.78rem;
+      margin-bottom: 24px;
+      padding: 10px 14px;
+      border: 1px dashed #00ff66;
+      background: rgba(0, 20, 0, 0.4);
       display: flex;
       flex-wrap: wrap;
+      justify-content: space-between;
       gap: 10px;
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px dashed rgba(0, 240, 255, 0.2);
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.76rem;
-      margin-bottom: 24px;
     }
-    .status-item { color: var(--muted); }
-    .status-item span { color: var(--c-cyan); font-weight: 700; }
-    .status-item span.green { color: var(--c-green); }
-    .status-item span.amber { color: var(--c-amber); }
+    .sys-info div { color: var(--amber); }
+    .sys-info span { color: #fff; font-weight: bold; }
 
-    /* Search Bar Form */
-    .search-form {
-      position: relative;
-      margin-bottom: 24px;
-    }
-    .search-input-group {
+    /* Command Prompt Form */
+    .sec-header {
+      font-size: 0.76rem;
+      color: var(--purple);
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-weight: bold;
       display: flex;
+      justify-content: space-between;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .cmd-line {
+      display: flex;
+      align-items: center;
       gap: 10px;
+      margin-bottom: 22px;
       background: #000;
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 6px 6px 6px 16px;
-      transition: border-color 0.25s, box-shadow 0.25s;
+      border: 1.5px solid #00ff66;
+      padding: 6px 6px 6px 14px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 8px rgba(0, 255, 102, 0.1);
     }
-    .search-input-group:focus-within {
-      border-color: var(--c-cyan);
-      box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+    .prompt-label {
+      color: var(--purple);
+      font-weight: bold;
+      font-size: 0.88rem;
+      white-space: nowrap;
     }
-    .search-input {
+    .prompt-input {
       flex: 1;
       min-width: 0;
       background: transparent;
       border: none;
-      color: var(--c-green);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.95rem;
-      font-weight: 700;
-      outline: none;
-    }
-    .search-input::placeholder {
-      color: rgba(113, 117, 148, 0.6);
-      font-weight: 400;
-    }
-    .launch-btn {
-      padding: 12px 24px;
-      border-radius: 10px;
-      border: none;
-      background: linear-gradient(135deg, var(--c-green), var(--c-cyan));
-      color: #000;
+      color: var(--green);
       font-family: inherit;
-      font-weight: 800;
-      font-size: 0.88rem;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.2s;
+      font-size: 0.92rem;
+      font-weight: bold;
+      outline: none;
+      text-shadow: 0 0 6px rgba(0, 255, 102, 0.6);
     }
-    .launch-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 20px rgba(0, 255, 102, 0.4);
+    .prompt-input::placeholder {
+      color: #005522;
+      font-weight: normal;
+    }
+    .cmd-btn {
+      background: #00ff66;
+      color: #000;
+      border: none;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: 0.82rem;
+      padding: 8px 18px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .cmd-btn:hover {
+      background: #00cc52;
+      box-shadow: 0 0 12px rgba(0, 255, 102, 0.6);
     }
 
-    /* Option Pill Groups */
-    .option-sec {
-      margin-bottom: 20px;
-    }
-    .option-title {
-      font-size: 0.72rem;
-      font-weight: 800;
-      color: var(--c-purple);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      margin-bottom: 10px;
-    }
-    .pill-group {
+    /* Terminal Controls / Buttons */
+    .term-btn-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
+      margin-bottom: 20px;
     }
-    .pill-btn {
-      padding: 8px 16px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--muted);
+    .t-btn {
+      background: #001205;
+      border: 1px solid #008833;
+      color: #00aa44;
       font-family: inherit;
       font-size: 0.8rem;
       font-weight: 600;
+      padding: 7px 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      border-radius: 6px;
+      transition: all 0.15s;
     }
-    .pill-btn:hover {
-      border-color: var(--c-cyan);
-      color: var(--text);
-      transform: translateY(-1px);
+    .t-btn:hover {
+      border-color: #00ff66;
+      color: #00ff66;
     }
-    .pill-btn.active {
-      background: rgba(0, 240, 255, 0.12);
-      border-color: var(--c-cyan);
-      color: var(--c-cyan);
-      font-weight: 700;
-      box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+    .t-btn.active {
+      background: #00ff66;
+      border-color: #00ff66;
+      color: #000000;
+      font-weight: 800;
+      box-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
     }
 
-    /* Output Console Log */
-    .log-hdr {
+    /* Output Console */
+    .console-hdr {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--c-green);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      margin-top: 24px;
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-    .log-action {
-      color: var(--muted);
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-    .log-action:hover { color: var(--text); }
-    #terminal-log {
-      background: #000;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 14px;
-      font-family: 'JetBrains Mono', monospace;
       font-size: 0.76rem;
-      max-height: 160px;
+      color: var(--cyan);
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+    .action-link {
+      color: var(--cyan);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .action-link:hover { color: #fff; }
+    #console-out {
+      background: #000000;
+      border: 1.5px solid #00ff66;
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 0.78rem;
+      height: 160px;
       overflow-y: auto;
       white-space: pre-wrap;
-      color: #888;
-      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+      color: #00ff66;
+      box-shadow: inset 0 0 10px rgba(0, 255, 102, 0.1);
     }
 
-    /* Modal Overlay Settings */
-    .modal-overlay {
+    /* Settings Overlay Modal */
+    .settings-overlay {
       position: absolute;
       inset: 0;
       z-index: 100;
-      background: rgba(6, 6, 12, 0.96);
-      backdrop-filter: blur(12px);
-      border-radius: var(--radius);
+      background: rgba(5, 5, 8, 0.96);
+      backdrop-filter: blur(8px);
       display: none;
       flex-direction: column;
-      padding: 28px;
-      border: 2px solid var(--c-purple);
-      box-shadow: 0 0 40px rgba(167, 139, 250, 0.2);
+      padding: 24px;
+      border: 2px solid var(--purple);
     }
-    .modal-overlay.open { display: flex; }
-    .modal-hdr {
+    .settings-overlay.show { display: flex; }
+    .settings-hdr {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1.5px solid rgba(167, 139, 250, 0.3);
-      padding-bottom: 12px;
-      margin-bottom: 20px;
+      border-bottom: 1.5px solid var(--purple);
+      padding-bottom: 10px;
+      margin-bottom: 18px;
+      font-size: 1.05rem;
+      color: var(--purple);
+      font-weight: bold;
     }
-    .modal-title {
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: var(--c-purple);
-      letter-spacing: 0.05em;
-    }
-    .modal-close {
-      background: var(--c-purple);
+    .settings-close {
+      background: var(--purple);
       color: #000;
       border: none;
-      padding: 4px 12px;
-      border-radius: 6px;
+      padding: 3px 10px;
       font-family: inherit;
-      font-weight: 800;
-      font-size: 0.8rem;
+      font-weight: bold;
       cursor: pointer;
-    }
-    .modal-sec {
-      margin-bottom: 18px;
-      font-size: 0.82rem;
-    }
-    .modal-sec h4 {
-      color: var(--c-cyan);
-      margin-bottom: 6px;
-      font-size: 0.85rem;
-    }
-    .kbd-tag {
-      background: rgba(0, 255, 102, 0.1);
-      border: 1px solid var(--c-green);
-      color: var(--c-green);
-      padding: 2px 6px;
       border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
+    }
+    .settings-sec {
+      margin-bottom: 16px;
+      font-size: 0.8rem;
+    }
+    .settings-sec h4 {
+      color: var(--cyan);
+      margin-bottom: 6px;
+    }
+    .kbd-pill {
+      background: #00220a;
+      border: 1px solid #00ff66;
+      color: #00ff66;
+      padding: 2px 6px;
+      border-radius: 3px;
       font-size: 0.72rem;
     }
   </style>
 </head>
 <body>
 
-  <div class="scanline-overlay"></div>
-
-  <div class="app-card">
-    <div class="header-bar">
-      <div class="brand-group">
-        <div class="brand-title">VOID</div>
-        <span class="brand-badge">CLIENT v4.0.6</span>
+  <div class="term-window">
+    <div class="term-bar">
+      <div class="term-dots">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
       </div>
-      <button type="button" class="settings-trigger-btn" id="btn-settings">
-        <span>⚙</span> Settings (Q)
-      </button>
+      <div>root@void:~ (bash)</div>
+      <div>v4.0.7</div>
     </div>
 
-    <div class="status-row">
-      <div class="status-item">HOST: <span id="lbl-host">...</span></div>
-      <div class="status-item">PROTO: <span id="lbl-proto">...</span></div>
-      <div class="status-item">SW: <span class="green" id="lbl-sw">Checking...</span></div>
-      <div class="status-item">UID: <span class="amber" id="lbl-uid">...</span></div>
+    <div class="term-body">
+      <div class="banner">VOID</div>
+
+      <div class="sys-info">
+        <div>[HOST]: <span id="s-host">noodalmath.duckdns.org</span></div>
+        <div>[PROTO]: <span id="s-proto">HTTPS</span></div>
+        <div>[SW]: <span id="s-sw">ONLINE</span></div>
+        <div>[UID]: <span id="s-uid">UID-KKBB-RVWL</span></div>
+      </div>
+
+      <form id="term-form">
+        <div class="sec-header">
+          <span>COMMAND PROMPT</span>
+          <span class="action-link" id="btn-open-settings">[Press Q for Settings]</span>
+        </div>
+        <div class="cmd-line">
+          <span class="prompt-label">void@proxy:~$</span>
+          <input type="text" id="term-input" class="prompt-input" placeholder="enter target URL or search query..." required autocomplete="off" spellcheck="false"/>
+          <button type="submit" class="cmd-btn">RUN &gt;</button>
+        </div>
+      </form>
+
+      <div class="sec-header">PROXY MODE</div>
+      <div class="term-btn-group" id="mode-group">
+        <button type="button" class="t-btn active" data-v="server">Server Side</button>
+        <button type="button" class="t-btn" data-v="scramjet">Scramjet (WISP)</button>
+      </div>
+
+      <div class="sec-header">SEARCH ENGINE</div>
+      <div class="term-btn-group" id="engine-group">
+        <button type="button" class="t-btn active" data-v="serpapi">SerpApi</button>
+        <button type="button" class="t-btn" data-v="serper">Serper</button>
+        <button type="button" class="t-btn" data-v="brave">Brave</button>
+        <button type="button" class="t-btn" data-v="google">Google</button>
+        <button type="button" class="t-btn" data-v="ddg">DuckDuckGo</button>
+      </div>
+
+      <div class="console-hdr">
+        <span>stdout / debug log</span>
+        <div>
+          <span class="action-link" id="btn-check-update">[check github update]</span> &nbsp;
+          <span class="action-link" id="btn-clear">[clear]</span>
+        </div>
+      </div>
+      <div id="console-out">Initializing Void OS v4.0.7 Kernel...</div>
     </div>
 
-    <form class="search-form" id="main-form">
-      <div class="search-input-group">
-        <input type="text" id="main-input" class="search-input" placeholder="Search the web or enter target URL..." required autocomplete="off" spellcheck="false"/>
-        <button type="submit" class="launch-btn">LAUNCH PROXY ➔</button>
-      </div>
-    </form>
-
-    <div class="option-sec">
-      <div class="option-title">PROXY ENGINE</div>
-      <div class="pill-group" id="mode-pills">
-        <button type="button" class="pill-btn active" data-val="server">Server Side (/p/)</button>
-        <button type="button" class="pill-btn" data-val="scramjet">Scramjet (WISP)</button>
-      </div>
-    </div>
-
-    <div class="option-sec">
-      <div class="option-title">SEARCH ENGINE</div>
-      <div class="pill-group" id="engine-pills">
-        <button type="button" class="pill-btn active" data-val="serpapi">SerpApi</button>
-        <button type="button" class="pill-btn" data-val="serper">Serper</button>
-        <button type="button" class="pill-btn" data-val="brave">Brave</button>
-        <button type="button" class="pill-btn" data-val="google">Google</button>
-        <button type="button" class="pill-btn" data-val="ddg">DuckDuckGo</button>
-      </div>
-    </div>
-
-    <div class="log-hdr">
-      <span>Console Activity Log</span>
-      <div>
-        <span class="log-action" id="btn-upd-check">[Check GitHub Update]</span> &nbsp;
-        <span class="log-action" id="btn-log-clear">[Clear Log]</span>
-      </div>
-    </div>
-    <div id="terminal-log">System booted. Ready for input.</div>
-
-    <!-- Settings Overlay Modal -->
-    <div class="modal-overlay" id="modal-settings">
-      <div class="modal-hdr">
-        <div class="modal-title">=== SETTINGS &amp; SYSTEM INFO ===</div>
-        <button type="button" class="modal-close" id="btn-close-modal">ESC / CLOSE</button>
+    <!-- Settings Overlay -->
+    <div class="settings-overlay" id="settings-overlay">
+      <div class="settings-hdr">
+        <span>=== SETTINGS &amp; SYSTEM INFO ===</span>
+        <button type="button" class="settings-close" id="btn-close-settings">[X] ESC</button>
       </div>
 
-      <div class="modal-sec">
+      <div class="settings-sec">
         <h4>User Identifier</h4>
-        <div>User ID: <span id="modal-uid" style="color:var(--c-amber); font-weight:bold;">...</span></div>
+        <div>User ID: <span id="set-uid" style="color:var(--amber); font-weight:bold;">...</span></div>
       </div>
 
-      <div class="modal-sec">
-        <h4>Version &amp; Update Checker</h4>
-        <div>Local Version: <strong style="color:#fff;">v4.0.5</strong></div>
-        <div id="modal-upd-status" style="margin-top:4px;">Status: Checking GitHub repository...</div>
-        <button type="button" class="launch-btn" id="btn-update-now" style="margin-top:8px; display:none;">Download Latest Release</button>
+      <div class="settings-sec">
+        <h4>Version &amp; Auto Update</h4>
+        <div>Local Version: <span style="color:#fff;">v4.0.7</span></div>
+        <div id="set-upd-status">Status: Checking GitHub repo (wiizzz786/math-quiz)...</div>
+        <button type="button" class="cmd-btn" id="btn-do-update" style="margin-top:6px; display:none;">Download Latest Update</button>
       </div>
 
-      <div class="modal-sec">
+      <div class="settings-sec">
         <h4>Keyboard Shortcuts</h4>
-        <div><span class="kbd-tag">Q</span> Open / Close Settings</div>
-        <div><span class="kbd-tag">Esc</span> Close Modal</div>
-        <div><span class="kbd-tag">Enter</span> Submit Proxy Request</div>
+        <div><span class="kbd-pill">Q</span> Open / Close Settings</div>
+        <div><span class="kbd-pill">Esc</span> Close Modal / Overlay</div>
+        <div><span class="kbd-pill">Enter</span> Run Command / Search</div>
       </div>
 
-      <div class="modal-sec">
-        <h4>Client Engine</h4>
-        <div>Void Proxy Engine v4.0.5 — Web Client Interface</div>
+      <div class="settings-sec">
+        <h4>About</h4>
+        <div>Void Proxy Engine v4.0.7 — Terminal Web Client</div>
       </div>
     </div>
   </div>
 
   <script>
     (function() {
-      var APP_VER = '4.0.6';
+      var APP_VER = '4.0.7';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
-      var hostEl = document.getElementById('lbl-host');
-      var protoEl = document.getElementById('lbl-proto');
-      var swEl = document.getElementById('lbl-sw');
-      var uidEl = document.getElementById('lbl-uid');
-      var modalUidEl = document.getElementById('modal-uid');
-      var logBox = document.getElementById('terminal-log');
-      var form = document.getElementById('main-form');
-      var input = document.getElementById('main-input');
-      var modal = document.getElementById('modal-settings');
-      var updStatusEl = document.getElementById('modal-upd-status');
-      var updBtn = document.getElementById('btn-update-now');
+      var hostEl = document.getElementById('s-host');
+      var protoEl = document.getElementById('s-proto');
+      var swEl = document.getElementById('s-sw');
+      var uidEl = document.getElementById('s-uid');
+      var setUidEl = document.getElementById('set-uid');
+      var consoleOut = document.getElementById('console-out');
+      var form = document.getElementById('term-form');
+      var input = document.getElementById('term-input');
+      var settingsOverlay = document.getElementById('settings-overlay');
+      var updStatusEl = document.getElementById('set-upd-status');
+      var doUpdBtn = document.getElementById('btn-do-update');
 
       var mode = 'server';
       var engine = 'serpapi';
@@ -459,7 +395,7 @@
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
       protoEl.textContent = window.location.protocol.replace(':', '').toUpperCase();
 
-      /* User ID Storage */
+      /* User ID Generator & Storage */
       function getUID() {
         var id = localStorage.getItem('void_uid');
         if (!id) {
@@ -475,32 +411,33 @@
       }
       var uid = getUID();
       uidEl.textContent = uid;
-      modalUidEl.textContent = uid;
+      setUidEl.textContent = uid;
 
       function log(msg) {
         var t = new Date().toISOString().split('T')[1].slice(0, 8);
-        logBox.textContent += '\n[' + t + '] ' + msg;
-        logBox.scrollTop = logBox.scrollHeight;
+        consoleOut.textContent += '\n[' + t + '] ' + msg;
+        consoleOut.scrollTop = consoleOut.scrollHeight;
       }
 
       if ('serviceWorker' in navigator) {
         swEl.textContent = 'ONLINE';
+        swEl.style.color = '#00ff66';
       } else {
         swEl.textContent = 'OFFLINE';
         swEl.style.color = '#ff3366';
       }
 
-      function toggleModal() {
-        var isOpen = modal.classList.toggle('open');
-        if (isOpen) {
-          log('Settings modal opened (Q).');
-          checkUpdates();
+      function toggleSettings() {
+        var isShown = settingsOverlay.classList.toggle('show');
+        if (isShown) {
+          log('Opened Settings menu (Q).');
+          checkGitHubUpdate();
         }
       }
 
-      document.getElementById('btn-settings').addEventListener('click', toggleModal);
-      document.getElementById('btn-close-modal').addEventListener('click', function() {
-        modal.classList.remove('open');
+      document.getElementById('btn-open-settings').addEventListener('click', toggleSettings);
+      document.getElementById('btn-close-settings').addEventListener('click', function() {
+        settingsOverlay.classList.remove('show');
       });
 
       document.addEventListener('keydown', function(e) {
@@ -508,17 +445,17 @@
           var ae = document.activeElement;
           if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
           e.preventDefault();
-          toggleModal();
+          toggleSettings();
         }
-        if (e.key === 'Escape' && modal.classList.contains('open')) {
-          modal.classList.remove('open');
+        if (e.key === 'Escape' && settingsOverlay.classList.contains('show')) {
+          settingsOverlay.classList.remove('show');
         }
       });
 
       function parseVer(v) {
         return (v || '').replace(/^v/, '').split('.').map(function(n) { return parseInt(n, 10) || 0; });
       }
-      function isNewer(remote, local) {
+      function isNewerVer(remote, local) {
         var r = parseVer(remote);
         var l = parseVer(local);
         for (var i = 0; i < Math.max(r.length, l.length); i++) {
@@ -530,7 +467,7 @@
         return false;
       }
 
-      function checkUpdates() {
+      function checkGitHubUpdate() {
         log('Checking GitHub for updates (' + GITHUB_REPO + ')...');
         updStatusEl.textContent = 'Status: Checking GitHub repo...';
         fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
@@ -542,55 +479,56 @@
               return;
             }
             log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
-            if (isNewer(pkg.version, APP_VER)) {
-              updStatusEl.innerHTML = '<span style="color:var(--c-green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + ']</span>';
-              log('>>> UPDATE FOUND: v' + pkg.version + ' <<<');
-              updBtn.style.display = 'inline-block';
-              updBtn.onclick = function() {
+            if (isNewerVer(pkg.version, APP_VER)) {
+              updStatusEl.innerHTML = '<span style="color:var(--green); font-weight:bold;">[UPDATE AVAILABLE: v' + pkg.version + ']</span>';
+              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
+              doUpdBtn.style.display = 'inline-block';
+              doUpdBtn.onclick = function() {
                 window.open('https://github.com/' + GITHUB_REPO + '/commits/main', '_blank');
               };
             } else {
-              updStatusEl.innerHTML = '<span style="color:var(--c-cyan);">System is up to date (v' + APP_VER + ').</span>';
-              log('System is up to date.');
+              updStatusEl.innerHTML = '<span style="color:var(--cyan);">System is fully up to date (v' + APP_VER + ').</span>';
+              log('System up to date (v' + APP_VER + ').');
             }
           })
           .catch(function(err) {
             updStatusEl.textContent = 'Status: Update check failed (' + err.message + ')';
-            log('Update error: ' + err.message);
+            log('Update check error: ' + err.message);
           });
       }
 
-      document.getElementById('btn-upd-check').addEventListener('click', checkUpdates);
+      document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
 
-      (function boot() {
+      (function bootSequence() {
         log('User Authenticated: ' + uid);
+        log('Mounting VFS and Proxy Modules...');
         log('SW Status: ONLINE | Mode: ' + mode + ' | Engine: ' + engine);
-        setTimeout(checkUpdates, 400);
+        setTimeout(checkGitHubUpdate, 400);
       })();
 
       function bindGroup(id, onSelect) {
         var el = document.getElementById(id);
         el.addEventListener('click', function(e) {
-          var btn = e.target.closest('.pill-btn');
+          var btn = e.target.closest('.t-btn');
           if (!btn) return;
-          el.querySelectorAll('.pill-btn').forEach(function(b) { b.classList.remove('active'); });
+          el.querySelectorAll('.t-btn').forEach(function(b) { b.classList.remove('active'); });
           btn.classList.add('active');
-          onSelect(btn.dataset.val);
+          onSelect(btn.dataset.v);
         });
       }
 
-      bindGroup('mode-pills', function(val) {
+      bindGroup('mode-group', function(val) {
         mode = val;
-        log('Mode selected: ' + val);
+        log('Option set: --mode=' + val);
       });
 
-      bindGroup('engine-pills', function(val) {
+      bindGroup('engine-group', function(val) {
         engine = val;
-        log('Engine selected: ' + val);
+        log('Option set: --engine=' + val);
       });
 
-      document.getElementById('btn-log-clear').addEventListener('click', function() {
-        logBox.textContent = 'Log reset.';
+      document.getElementById('btn-clear').addEventListener('click', function() {
+        consoleOut.textContent = 'Console reset.';
       });
 
       var DOMAIN_SHORTCUTS = {
@@ -643,13 +581,13 @@
 
         if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
           var destSearch = base + target;
-          log('Executing Search View: ' + destSearch);
+          log('Executing API Search View: ' + destSearch);
           window.location.href = destSearch;
           return;
         }
 
         if (mode === 'scramjet') {
-          log('Registering Scramjet ServiceWorker...');
+          log('Spawning Scramjet ServiceWorker thread...');
           if ('serviceWorker' in navigator) {
             try {
               var reg = await navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' });
