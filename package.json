@@ -1,6 +1,6 @@
 {
   "name": "void-proxy",
-  "version": "4.1.3",
+  "version": "4.1.5",
   "type": "module",
   "scripts": {
     "start": "node server.js",
