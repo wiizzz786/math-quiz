@@ -1970,7 +1970,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.1.5", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.1.6", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -1986,7 +1986,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.1.5" }
+      headers: { "User-Agent": "Void-Proxy/4.1.6" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
@@ -2030,22 +2030,41 @@ app.get("/go", (req, res) => {
 app.all("/p/:encoded", handleProxy);
 app.all("/pe/:encoded", handleExperimentalProxy);
 
+function isMinimalDomain(req) {
+  const host = (req.headers["host"] || "").toLowerCase();
+  return host.includes("noodalmath.hopto.org") || req.query.minimal === "1";
+}
+
+app.get("/void-minimal.html", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(join(__dirname, "void-minimal.html"));
+});
+
 app.get("/void.html", (_req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.sendFile(join(__dirname, "void.html"));
 });
 
-app.get("/", (_req, res) => {
+app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  if (isMinimalDomain(req)) {
+    return res.sendFile(join(__dirname, "void-minimal.html"));
+  }
   res.sendFile(join(__dirname, "public", "index.html"));
 });
 
-app.get("/index.html", (_req, res) => {
+app.get("/index.html", (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  if (isMinimalDomain(req)) {
+    return res.sendFile(join(__dirname, "void-minimal.html"));
+  }
   res.sendFile(join(__dirname, "public", "index.html"));
 });
 
-app.get("/{*path}", (_req, res) => {
+app.get("/{*path}", (req, res) => {
+  if (isMinimalDomain(req)) {
+    return res.sendFile(join(__dirname, "void-minimal.html"));
+  }
   res.sendFile(join(__dirname, "public", "index.html"));
 });
 
