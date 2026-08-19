@@ -155,15 +155,33 @@ function enc(url) {
 
 function dec(encoded) {
   try {
-    const str = String(encoded);
-    // Accept both base64url (- _) and standard base64 (+ /)
+    const str = String(encoded).trim();
+    if (!str) throw new Error("Empty URL parameter");
+
+    // Check if str is already a plain URL
+    if (/^https?:\/\//i.test(str)) {
+      return str;
+    }
+
+    // Standardize base64url (- _) to base64 (+ /)
     const normalized = str.replace(/-/g, "+").replace(/_/g, "/");
     const padding = normalized.length % 4;
     const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
-    const decoded = Buffer.from(padded, "base64").toString("utf8");
-    // Must decode to a valid http/https URL
-    if (!/^https?:\/\//i.test(decoded)) throw new Error("Decoded value is not an http/https URL");
-    return decoded;
+    const rawBinary = Buffer.from(padded, "base64").toString("binary");
+
+    // 1. Try XOR 0x3F cipher decryption
+    const xorDecoded = rawBinary.split("").map(c => String.fromCharCode(c.charCodeAt(0) ^ 0x3f)).join("");
+    if (/^https?:\/\//i.test(xorDecoded)) {
+      return xorDecoded;
+    }
+
+    // 2. Try standard UTF-8 Base64 decode
+    const decodedUtf8 = Buffer.from(padded, "base64").toString("utf8");
+    if (/^https?:\/\//i.test(decodedUtf8)) {
+      return decodedUtf8;
+    }
+
+    throw new Error("Decoded value is not a valid http/https URL");
   } catch (e) {
     throw new Error(`URL decode failed: ${e.message}`);
   }
@@ -1970,7 +1988,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.1.6", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.1.7", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -1986,7 +2004,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.1.6" }
+      headers: { "User-Agent": "Void-Proxy/4.1.7" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
@@ -2000,17 +2018,21 @@ app.get("/api/raw", async (req, res) => {
 });
 
 app.get("/go", (req, res) => {
-  let url = (req.query.url || "").trim();
-  if (!url) return res.redirect("/");
+  let rawInput = (req.query.url || "").trim();
+  if (!rawInput) return res.redirect("/");
 
-  const engine = req.query.engine || "brave";
-
-  if (!/^https?:\/\//i.test(url)) {
-    if (url.includes(".") && !url.includes(" ")) {
-      url = "https://" + url;
-    } else {
-      const searchFn = SEARCH_ENGINES[engine] || SEARCH_ENGINES.ddg;
-      url = searchFn(url);
+  let url = rawInput;
+  try {
+    url = dec(rawInput);
+  } catch (e) {
+    const engine = req.query.engine || "brave";
+    if (!/^https?:\/\//i.test(url)) {
+      if (url.includes(".") && !url.includes(" ")) {
+        url = "https://" + url;
+      } else {
+        const searchFn = SEARCH_ENGINES[engine] || SEARCH_ENGINES.ddg;
+        url = searchFn(url);
+      }
     }
   }
 

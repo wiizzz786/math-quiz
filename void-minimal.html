@@ -112,6 +112,16 @@
         return 'https://math-quiz-alpha-gilt.vercel.app';
       }
 
+      function encryptUrl(str) {
+        if (!str) return '';
+        var xored = [];
+        for (var i = 0; i < str.length; i++) {
+          xored.push(String.fromCharCode(str.charCodeAt(i) ^ 0x3f));
+        }
+        var base64 = btoa(xored.join(''));
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
+
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
         var target = resolveQuery(input.value);
@@ -124,7 +134,8 @@
           return;
         }
 
-        window.location.href = base + '/go?url=' + encodeURIComponent(target) + '&mode=server';
+        var encryptedTarget = encryptUrl(target);
+        window.location.href = base + '/go?url=' + encodeURIComponent(encryptedTarget) + '&mode=server';
       });
     })();
   </script>
