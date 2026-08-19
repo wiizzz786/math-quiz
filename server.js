@@ -1673,9 +1673,16 @@ app.get("/api/search", async (req, res) => {
    GET /serper-results?q=<query>
    ------------------------------------------- */
 
-app.get("/serper-results", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.redirect("/");
+app.get(["/serper-results", "/sr"], async (req, res) => {
+  let rawQ = (req.query.q || "").trim();
+  if (!rawQ) return res.redirect("/");
+
+  let q = rawQ;
+  try {
+    q = dec(rawQ);
+  } catch (e) {
+    // Plaintext query fallback
+  }
 
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -1830,9 +1837,16 @@ a{text-decoration:none;color:inherit;}
 </html>`);
 });
 
-app.get("/serpapi-results", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.redirect("/");
+app.get(["/serpapi-results", "/s"], async (req, res) => {
+  let rawQ = (req.query.q || "").trim();
+  if (!rawQ) return res.redirect("/");
+
+  let q = rawQ;
+  try {
+    q = dec(rawQ);
+  } catch (e) {
+    // Plaintext query fallback
+  }
 
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -1988,7 +2002,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.1.8", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.1.9", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2004,7 +2018,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.1.8" }
+      headers: { "User-Agent": "Void-Proxy/4.1.9" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
@@ -2017,7 +2031,7 @@ app.get("/api/raw", async (req, res) => {
   }
 });
 
-app.get("/go", (req, res) => {
+app.get(["/go", "/v"], (req, res) => {
   let rawInput = (req.query.url || "").trim();
   if (!rawInput) return res.redirect("/");
 

@@ -86,9 +86,19 @@
         'spotify': 'https://spotify.com'
       };
 
+      function encryptUrl(str) {
+        if (!str) return '';
+        var xored = [];
+        for (var i = 0; i < str.length; i++) {
+          xored.push(String.fromCharCode(str.charCodeAt(i) ^ 0x3f));
+        }
+        var base64 = btoa(xored.join(''));
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
+
       var ENGINES = {
-        serpapi: function(q) { return '/serpapi-results?q=' + encodeURIComponent(q); },
-        serper: function(q) { return '/serper-results?q=' + encodeURIComponent(q); },
+        serpapi: function(q) { return '/s?q=' + encodeURIComponent(encryptUrl(q)); },
+        serper: function(q) { return '/sr?q=' + encodeURIComponent(encryptUrl(q)); },
         brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
         google: function(q) { return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
         ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
@@ -112,30 +122,23 @@
         return 'https://math-quiz-alpha-gilt.vercel.app';
       }
 
-      function encryptUrl(str) {
-        if (!str) return '';
-        var xored = [];
-        for (var i = 0; i < str.length; i++) {
-          xored.push(String.fromCharCode(str.charCodeAt(i) ^ 0x3f));
-        }
-        var base64 = btoa(xored.join(''));
-        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-      }
-
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        var target = resolveQuery(input.value);
+        var rawVal = input.value.trim();
+        if (!rawVal) return;
+
+        var target = resolveQuery(rawVal);
         if (!target) return;
 
         var base = getOriginBase();
 
-        if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
+        if (target.startsWith('/s?q=') || target.startsWith('/sr?q=')) {
           window.location.href = base + target;
           return;
         }
 
         var encryptedTarget = encryptUrl(target);
-        window.location.href = base + '/go?url=' + encodeURIComponent(encryptedTarget) + '&mode=server';
+        window.location.href = base + '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
       });
     })();
   </script>
