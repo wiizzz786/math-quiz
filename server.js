@@ -643,55 +643,39 @@ async function handleProxy(req, res) {
 
     for (const [k, v] of Object.entries(axiosRes.headers)) {
       if (STRIP_RES.has(k.toLowerCase())) continue;
+      try { res.setHeader(k, v); } catch (e) {}
     }
+
+    const ct = String(axiosRes.headers["content-type"] || "");
 
     // HTML → rewrite
     if (ct.includes("text/html")) {
-      const text = await response.text();
-
-      // Temporarily patch rewriteUrl to include options
+      const text = Buffer.from(axiosRes.data).toString("utf8");
       const patched = text ? rewriteHtmlWithOpts(text, targetUrl, opts, optSuffix) : text;
-      res.type("text/html; charset=utf-8").send(patched);
-      // Cache the raw (pre-rewrite) HTML so it can be re-rewritten on cache hit with fresh options
+      res.type("text/html; charset=utf-8").status(axiosRes.status).send(patched);
       cacheSet("p:" + targetUrl, "text/html; charset=utf-8", text || "");
       return;
     }
 
     if (ct.includes("text/css")) {
-      const text = await response.text();
+      const text = Buffer.from(axiosRes.data).toString("utf8");
       const rewritten = rewriteCss(text, targetUrl);
       cacheSet("p:" + targetUrl, "text/css; charset=utf-8", rewritten);
-      res.type("text/css; charset=utf-8").send(rewritten);
+      res.type("text/css; charset=utf-8").status(axiosRes.status).send(rewritten);
       return;
     }
 
     if (ct.includes("javascript") || ct.includes("ecmascript")) {
-      const text = await response.text();
+      const text = Buffer.from(axiosRes.data).toString("utf8");
       const rewritten = rewriteJsUrls(text, targetUrl, "/p/");
       cacheSet("p:" + targetUrl, ct, rewritten);
-      res.type(ct).send(rewritten);
+      res.type(ct).status(axiosRes.status).send(rewritten);
       return;
     }
 
-    res.set("content-type", ct);
-    const cl = response.headers.get("content-length");
-    if (cl) res.set("content-length", cl);
-
-    if (/\/(image|font|woff|ttf|otf|png|jpg|jpeg|gif|webp|avif|svg|ico|mp4|webm|mp3)/i.test(ct)) {
-      res.set("Cache-Control", "public, max-age=86400");
-    }
-
-    if (response.body && typeof Readable.fromWeb === "function") {
-      try {
-        Readable.fromWeb(response.body).pipe(res);
-        return;
-      } catch (streamErr) {
-        console.error("[proxy] Stream pipe failed, falling back to buffer:", streamErr.message);
-      }
-    }
-    const buf = Buffer.from(await response.arrayBuffer());
-    if (buf.length < 2 * 1024 * 1024) cacheSet("p:" + targetUrl, ct, buf);
-    res.send(buf);
+    const rawBuf = Buffer.from(axiosRes.data);
+    cacheSet("p:" + targetUrl, ct, rawBuf);
+    return res.status(axiosRes.status).send(rawBuf);
   } catch (err) {
     if (req.method === "GET") {
       const fallback = await cacheGet("p:" + targetUrl);
@@ -706,19 +690,19 @@ async function handleProxy(req, res) {
     const safeTarget = targetUrl.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const safeErr = (err.message || "Unknown error").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     res.status(502).send(`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Void - Connection Failed</title>
+<title>Void — Connection Failed</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#06060b;color:#9a9bb8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;-webkit-font-smoothing:antialiased}
-.wrap{max-width:480px;text-align:center}
-.code{font-size:6rem;font-weight:900;letter-spacing:-.06em;line-height:1;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 40px rgba(124,106,255,.15))}
-h1{font-size:1.4rem;font-weight:700;color:#eef0f8;margin:.8rem 0 .5rem}
-p{font-size:.85rem;line-height:1.6;margin:.6rem 0}
-.url{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);padding:6px 14px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#646478;margin:.6rem 0}
-.err{font-size:.78rem;color:#ff5f8f;background:rgba(255,95,143,.06);border:1px solid rgba(255,95,143,.12);padding:8px 14px;border-radius:8px;margin:.8rem 0;font-family:'JetBrains Mono',monospace}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border-radius:10px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);color:#fff;text-decoration:none;font-weight:700;font-size:.82rem;letter-spacing:.02em;margin-top:1.2rem;box-shadow:0 4px 20px rgba(124,106,255,.3);transition:transform .15s,box-shadow .2s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(124,106,255,.4)}
+body{background:#000000;color:#ffffff;font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;-webkit-font-smoothing:antialiased}
+.wrap{max-width:500px;text-align:center;background:#050508;border:2px solid #ffffff;border-radius:12px;padding:32px;box-shadow:0 0 30px rgba(255,255,255,0.15)}
+.code{font-size:5rem;font-weight:900;letter-spacing:-.06em;line-height:1;color:#ffffff;margin-bottom:10px;}
+h1{font-size:1.3rem;font-weight:700;color:#ffffff;margin:.8rem 0 .5rem;text-transform:uppercase;}
+p{font-size:.85rem;line-height:1.6;margin:.6rem 0;color:#cccccc}
+.url{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#000000;border:1px solid #ffffff;padding:8px 14px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#ffffff;margin:.6rem 0}
+.err{font-size:.78rem;color:#ffffff;background:rgba(255,255,255,0.08);border:1px solid #ffffff;padding:8px 14px;border-radius:6px;margin:.8rem 0;font-family:'JetBrains Mono',monospace}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border-radius:6px;background:#ffffff;color:#000000;text-decoration:none;font-weight:900;font-size:.85rem;letter-spacing:.02em;margin-top:1.2rem;transition:background .15s}
+.btn:hover{background:#cccccc}
 </style></head><body>
 <div class="wrap">
 <div class="code">502</div>
@@ -726,7 +710,7 @@ p{font-size:.85rem;line-height:1.6;margin:.6rem 0}
 <p>Void couldn't reach the requested page.</p>
 <div class="url">${safeTarget}</div>
 <div class="err">${safeErr}</div>
-<p style="font-size:.78rem;color:#464660">The site may be down, blocking proxy requests, or the URL may be invalid.</p>
+<p style="font-size:.78rem;color:#888888">The site may be down, blocking proxy requests, or the URL may be invalid.</p>
 <a class="btn" href="/">&#8592; Back to Void</a>
 </div></body></html>`);
   }
@@ -1712,7 +1696,6 @@ app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
 
-  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
   try {
     const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${apiKey}`;
     const r = await axios.get(url, { timeout: 10000 });
@@ -1769,36 +1752,12 @@ app.get("/api/youtube", async (req, res) => {
   }
 });
 
-/* -------------------------------------------
-   Serper web search API
-   GET /api/search?q=<query>&num=<1-10>
-   Returns JSON: { cached: bool, results: [...] }
-   ------------------------------------------- */
-
-app.get("/api/search", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
-  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
-  const { results, fromCache, error } = await fetchSerperResults(q, num);
-  if (error && !results) return res.status(error.includes("not configured") ? 503 : 502).json({ error });
-  return res.json({ cached: fromCache, results: results || [] });
-});
-
-/* -------------------------------------------
-   Serper results page
-   GET /serper-results?q=<query>
-   ------------------------------------------- */
-
-app.get(["/serper-results", "/sr"], async (req, res) => {
+app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], async (req, res) => {
   let rawQ = (req.query.q || "").trim();
   if (!rawQ) return res.redirect("/");
 
   let q = rawQ;
-  try {
-    q = dec(rawQ);
-  } catch (e) {
-    // Plaintext query fallback
-  }
+  try { q = dec(rawQ); } catch (e) {}
 
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -1807,38 +1766,38 @@ app.get(["/serper-results", "/sr"], async (req, res) => {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${safeQ} — Serper · Void</title>
+<title>${safeQ} — Void Search</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+body{background:#000000;color:#ffffff;font-family:'JetBrains Mono',monospace;min-height:100vh;-webkit-font-smoothing:antialiased;}
 a{text-decoration:none;color:inherit;}
-.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
-.topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#050508;border-bottom:2px solid #ffffff;position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.2rem;font-weight:900;letter-spacing:-.05em;color:#ffffff;flex-shrink:0;text-transform:uppercase;}
 .topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
-.topbar input{flex:1;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;color:#eef0f8;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;transition:border-color .2s;}
-.topbar input:focus{border-color:#7c6aff;}
-.topbar button{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);border:none;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;}
-.topbar .back{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#9a9bb8;font-size:.8rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;}
-.topbar .back:hover{background:rgba(255,255,255,.08);color:#eef0f8;}
-.main{max-width:700px;margin:0 auto;padding:24px 20px 60px;}
-.meta{font-size:.7rem;color:#464660;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.meta .dot{width:3px;height:3px;border-radius:50%;background:#464660;}
-.cache-tag{font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;text-transform:uppercase;}
-.cache-tag.live{background:rgba(52,211,153,.1);color:#34d399;}
-.cache-tag.cached{background:rgba(124,106,255,.1);color:#a78bfa;}
-.result{display:block;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.02);margin-bottom:10px;transition:background .15s,border-color .15s,transform .15s;}
-.result:hover{background:rgba(255,255,255,.04);border-color:rgba(124,106,255,.3);transform:translateY(-2px);}
-.result-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
-.fav{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
-.domain{font-size:.68rem;color:#646478;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.badge{font-size:.5rem;font-weight:800;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;background:rgba(255,180,0,.12);color:#f5c342;}
-.result-title{font-size:.95rem;font-weight:600;color:#c4c6e8;margin-bottom:5px;line-height:1.4;}
-.result:hover .result-title{color:#eef0f8;}
-.result-snippet{font-size:.78rem;color:#646478;line-height:1.6;}
-.no-results{text-align:center;padding:60px 20px;color:#464660;font-size:.85rem;}
-.spinner{display:flex;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:#464660;font-size:.8rem;}
-.spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(124,106,255,.2);border-top-color:#7c6aff;animation:sp .8s linear infinite;}
+.topbar input{flex:1;background:#000000;border:1.5px solid #ffffff;border-radius:6px;color:#ffffff;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;}
+.topbar input:focus{border-color:#ffffff;box-shadow:0 0 10px rgba(255,255,255,0.3);}
+.topbar button{padding:8px 18px;border-radius:6px;background:#ffffff;border:none;color:#000000;font-weight:900;font-size:.82rem;cursor:pointer;white-space:nowrap;}
+.topbar .back{padding:8px 14px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid #ffffff;color:#ffffff;font-size:.8rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;}
+.topbar .back:hover{background:#ffffff;color:#000000;}
+.main{max-width:760px;margin:0 auto;padding:24px 20px 60px;}
+.meta{font-size:.72rem;color:#888888;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.meta .dot{width:4px;height:4px;border-radius:50%;background:#ffffff;}
+.cache-tag{font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;text-transform:uppercase;}
+.cache-tag.live{background:#ffffff;color:#000000;}
+.cache-tag.cached{background:rgba(255,255,255,0.2);color:#ffffff;}
+.result{display:block;padding:16px;border-radius:8px;border:1px solid #888888;background:#050508;margin-bottom:12px;transition:all .15s;}
+.result:hover{background:rgba(255,255,255,.05);border-color:#ffffff;}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.fav{width:14px;height:14px;border-radius:2px;flex-shrink:0;}
+.domain{font-size:.7rem;color:#888888;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{font-size:.55rem;font-weight:900;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;background:#ffffff;color:#000000;}
+.result-title{font-size:.95rem;font-weight:700;color:#ffffff;margin-bottom:6px;line-height:1.4;}
+.result:hover .result-title{color:#ffffff;text-decoration:underline;}
+.result-snippet{font-size:.78rem;color:#cccccc;line-height:1.6;}
+.no-results{text-align:center;padding:60px 20px;color:#888888;font-size:.85rem;}
+.spinner{display:flex;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:#ffffff;font-size:.85rem;font-weight:bold;}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#ffffff;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -1846,9 +1805,9 @@ a{text-decoration:none;color:inherit;}
 <div class="topbar">
   <a class="logo" href="/">void</a>
   <a class="back" href="javascript:history.back()">← Back</a>
-  <form id="sf" action="/serper-results" method="get">
+  <form id="sf" action="/s" method="get">
     <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
-    <button type="submit">Search</button>
+    <button type="submit">SEARCH</button>
   </form>
 </div>
 <div class="main">
@@ -1859,171 +1818,7 @@ a{text-decoration:none;color:inherit;}
 (function(){
   var Q = ${JSON.stringify(safeQ)};
   var CACHE_TTL = 24 * 60 * 60 * 1000;
-  var CACHE_PREFIX = 'void_serper_';
-
-  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  function levenshtein(a,b){
-    if(a===b)return 0;
-    var dp=[];
-    for(var i=0;i<=a.length;i++){dp[i]=[i];}
-    for(var j=1;j<=b.length;j++)dp[0][j]=j;
-    for(var i=1;i<=a.length;i++)for(var j=1;j<=b.length;j++)
-      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-    return dp[a.length][b.length];
-  }
-
-  function maxDist(q){ return q.length<=5?1:q.length<=12?2:3; }
-
-  function normQ(q){ return q.toLowerCase().trim().replace(/\\s+/g,' ').replace(/[^\\w\\s]/g,''); }
-
-  function findCache(qNorm){
-    try{
-      for(var i=0;i<sessionStorage.length;i++){
-        var k=sessionStorage.key(i);
-        if(!k||!k.startsWith(CACHE_PREFIX))continue;
-        var kq=k.slice(CACHE_PREFIX.length);
-        if(levenshtein(qNorm,kq)<=maxDist(qNorm)){
-          var entry=JSON.parse(sessionStorage.getItem(k)||'null');
-          if(entry&&Array.isArray(entry.results)&&Date.now()-entry.ts<CACHE_TTL)
-            return{results:entry.results,cached:true};
-        }
-      }
-    }catch(e){}
-    return null;
-  }
-
-  function saveCache(qNorm,results){
-    try{ sessionStorage.setItem(CACHE_PREFIX+qNorm,JSON.stringify({results:results,ts:Date.now()})); }catch(e){}
-  }
-
-  function renderResult(r){
-    var domain='';try{domain=new URL(r.url).hostname;}catch(e){}
-    var fav=domain?'<img class="fav" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32" alt="" onerror="this.style.display=\'none\'"/>':'';
-    var badge=r.type==='kg'?'<span class="badge">Info</span>':'';
-    var snippet=r.snippet?'<div class="result-snippet">'+esc(r.snippet.slice(0,160))+'</div>':'';
-    // proxy URL: base64url encode through parent origin
-    var proxyUrl='/p/'+btoa(r.url).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'');
-    return '<a class="result" href="'+proxyUrl+'">'
-      +'<div class="result-head">'+fav+'<span class="domain">'+esc(domain)+'</span>'+badge+'</div>'
-      +'<div class="result-title">'+esc(r.title||domain||r.url)+'</div>'
-      +snippet+'</a>';
-  }
-
-  function render(results, fromCache){
-    var meta=document.getElementById('meta');
-    var res=document.getElementById('results');
-    if(meta){
-      meta.innerHTML='<span>'+results.length+' results for <strong style="color:#9a9bb8">"'+esc(Q)+'"</strong></span>'
-        +'<span class="dot"></span><span>via Serper API</span>'
-        +(fromCache
-          ?'<span class="dot"></span><span class="cache-tag cached">cached</span>'
-          :'<span class="dot"></span><span class="cache-tag live">live</span>');
-    }
-    if(res){
-      res.innerHTML=results.length
-        ?results.map(renderResult).join('')
-        :'<div class="no-results">No results found — try a different query.</div>';
-    }
-  }
-
-  var qNorm=normQ(Q);
-  var hit=findCache(qNorm);
-  if(hit){
-    render(hit.results,true);
-    return;
-  }
-
-    fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(data){
-      if(!data||!Array.isArray(data.results)){
-        location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
-        return;
-      }
-      saveCache(qNorm,data.results);
-      render(data.results,data.cached||false);
-    })
-    .catch(function(){
-      location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
-    });
-})();
-</script>
-</body>
-</html>`);
-});
-
-app.get(["/serpapi-results", "/s"], async (req, res) => {
-  let rawQ = (req.query.q || "").trim();
-  if (!rawQ) return res.redirect("/");
-
-  let q = rawQ;
-  try {
-    q = dec(rawQ);
-  } catch (e) {
-    // Plaintext query fallback
-  }
-
-  const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-  res.type("text/html; charset=utf-8").send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${safeQ} — SerpApi · Void</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
-a{text-decoration:none;color:inherit;}
-.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
-.topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
-.topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
-.topbar input{flex:1;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;color:#eef0f8;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;transition:border-color .2s;}
-.topbar input:focus{border-color:#7c6aff;}
-.topbar button{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#7c6aff,#ff5f8f);border:none;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;}
-.topbar .back{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#9a9bb8;font-size:.8rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;}
-.topbar .back:hover{background:rgba(255,255,255,.08);color:#eef0f8;}
-.main{max-width:700px;margin:0 auto;padding:24px 20px 60px;}
-.meta{font-size:.7rem;color:#464660;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.meta .dot{width:3px;height:3px;border-radius:50%;background:#464660;}
-.cache-tag{font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;text-transform:uppercase;}
-.cache-tag.live{background:rgba(52,211,153,.1);color:#34d399;}
-.cache-tag.cached{background:rgba(124,106,255,.1);color:#a78bfa;}
-.result{display:block;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.02);margin-bottom:10px;transition:background .15s,border-color .15s,transform .15s;}
-.result:hover{background:rgba(255,255,255,.04);border-color:rgba(124,106,255,.3);transform:translateY(-2px);}
-.result-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
-.fav{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
-.domain{font-size:.68rem;color:#646478;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.badge{font-size:.5rem;font-weight:800;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;background:rgba(255,180,0,.12);color:#f5c342;}
-.result-title{font-size:.95rem;font-weight:600;color:#c4c6e8;margin-bottom:5px;line-height:1.4;}
-.result:hover .result-title{color:#eef0f8;}
-.result-snippet{font-size:.78rem;color:#646478;line-height:1.6;}
-.no-results{text-align:center;padding:60px 20px;color:#464660;font-size:.85rem;}
-.spinner{display:flex;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:#464660;font-size:.8rem;}
-.spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(124,106,255,.2);border-top-color:#7c6aff;animation:sp .8s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg)}}
-</style>
-</head>
-<body>
-<div class="topbar">
-  <a class="logo" href="/">void</a>
-  <a class="back" href="javascript:history.back()">← Back</a>
-  <form id="sf" action="/serpapi-results" method="get">
-    <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
-    <button type="submit">Search</button>
-  </form>
-</div>
-<div class="main">
-  <div class="meta" id="meta"></div>
-  <div id="results"><div class="spinner"><div class="spin"></div>Searching…</div></div>
-</div>
-<script>
-(function(){
-  var Q = ${JSON.stringify(safeQ)};
-  var CACHE_TTL = 24 * 60 * 60 * 1000;
-  var CACHE_PREFIX = 'void_serpapi_';
+  var CACHE_PREFIX = 'void_search_';
 
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -2065,7 +1860,7 @@ a{text-decoration:none;color:inherit;}
     var domain='';try{domain=new URL(r.url).hostname;}catch(e){}
     var fav=domain?'<img class="fav" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32" alt="" onerror="this.style.display=\'none\'"/>':'';
     var badge=r.type==='kg'?'<span class="badge">Info</span>':'';
-    var snippet=r.snippet?'<div class="result-snippet">'+esc(r.snippet.slice(0,160))+'</div>':'';
+    var snippet=r.snippet?'<div class="result-snippet">'+esc(r.snippet.slice(0,180))+'</div>':'';
     var proxyUrl='/p/'+btoa(r.url).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');
     return '<a class="result" href="'+proxyUrl+'">'
       +'<div class="result-head">'+fav+'<span class="domain">'+esc(domain)+'</span>'+badge+'</div>'
@@ -2077,8 +1872,8 @@ a{text-decoration:none;color:inherit;}
     var meta=document.getElementById('meta');
     var res=document.getElementById('results');
     if(meta){
-      meta.innerHTML='<span>'+results.length+' results for <strong style="color:#9a9bb8">"'+esc(Q)+'"</strong></span>'
-        +'<span class="dot"></span><span>via SerpApi</span>'
+      meta.innerHTML='<span>'+results.length+' results for <strong style="color:#ffffff">"'+esc(Q)+'"</strong></span>'
+        +'<span class="dot"></span><span>via Mega Engine</span>'
         +(fromCache
           ?'<span class="dot"></span><span class="cache-tag cached">cached</span>'
           :'<span class="dot"></span><span class="cache-tag live">live</span>');
@@ -2097,7 +1892,7 @@ a{text-decoration:none;color:inherit;}
     return;
   }
 
-  fetch('/api/serpapi-search?q='+encodeURIComponent(Q)+'&num=10')
+  fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
     .then(function(r){return r.ok?r.json():null;})
     .then(function(data){
       if(!data||!Array.isArray(data.results)){
@@ -2239,4 +2034,4 @@ function gracefulShutdown(signal) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-export default app;
+module.exports = app;
