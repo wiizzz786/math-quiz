@@ -1651,17 +1651,17 @@ async function fetchDdgFallback(q, num = 8) {
 }
 
 async function fetchUnifiedAlternatingSearch(q, num = 8) {
-  searchCallCount++;
-  const preferSerper = searchCallCount % 2 === 1;
-  if (preferSerper) {
-    const res1 = await fetchSerperResults(q, num);
-    if (res1.results && res1.results.length > 0) return res1;
-    const res2 = await fetchSerpApiResults(q, num);
-    if (res2.results && res2.results.length > 0) return res2;
-  } else {
+  // Random choice preferring SerpApi (75% SerpApi, 25% Serper)
+  const preferSerpApi = Math.random() < 0.75;
+  if (preferSerpApi) {
     const res1 = await fetchSerpApiResults(q, num);
     if (res1.results && res1.results.length > 0) return res1;
     const res2 = await fetchSerperResults(q, num);
+    if (res2.results && res2.results.length > 0) return res2;
+  } else {
+    const res1 = await fetchSerperResults(q, num);
+    if (res1.results && res1.results.length > 0) return res1;
+    const res2 = await fetchSerpApiResults(q, num);
     if (res2.results && res2.results.length > 0) return res2;
   }
   return fetchDdgFallback(q, num);
@@ -2119,7 +2119,7 @@ a{text-decoration:none;color:inherit;}
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.json({ status: "ok", version: "4.4.0", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.5.0", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2135,7 +2135,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.4.0" }
+      headers: { "User-Agent": "Void-Proxy/4.5.0" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();

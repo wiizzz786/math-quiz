@@ -337,7 +337,7 @@
         </div>
         <div class="card">
           <div class="lbl">MODE</div>
-          <div class="val" style="color:#ffffff;">Mega Silly</div>
+          <div class="val" id="disp-mode" style="color:#ffffff;">Mega Silly</div>
         </div>
         <div class="card">
           <div class="lbl">UID</div>
@@ -345,7 +345,7 @@
         </div>
         <div class="card">
           <div class="lbl">VERSION</div>
-          <div class="val">v4.4.0</div>
+          <div class="val">v4.5.0</div>
         </div>
       </div>
 
@@ -358,17 +358,25 @@
         <div id="autocomplete-box" class="autocomplete-box"></div>
       </form>
 
-      <div class="sec-title">Search Engine</div>
-      <div class="group" id="engine-group">
-        <button type="button" class="t-btn active" data-v="web">Web (Alternating Serper &amp; SerpApi)</button>
-        <button type="button" class="t-btn" data-v="images">Google Images (SerpApi)</button>
-        <button type="button" class="t-btn" data-v="youtube">YouTube &amp; Transcripts (SerpApi)</button>
+      <div class="sec-title">Mode Selection</div>
+      <div class="group" id="mode-group">
+        <button type="button" class="t-btn active" data-v="megasilly">Mega Silly Mode (All APIs Unified)</button>
+        <button type="button" class="t-btn" data-v="google">Google Mode (No API)</button>
+      </div>
+
+      <div id="feature-section">
+        <div class="sec-title">Mega Silly Features</div>
+        <div class="group" id="feature-group">
+          <button type="button" class="t-btn active" data-v="web">Web Search (Prefer SerpApi + Serper)</button>
+          <button type="button" class="t-btn" data-v="images">Google Images</button>
+          <button type="button" class="t-btn" data-v="youtube">YouTube &amp; Transcripts</button>
+        </div>
       </div>
 
       <div id="media-container" class="media-container"></div>
 
       <div class="sec-title">Debug Console</div>
-      <div class="console" id="console-out">Initializing Void OS v4.4.0 [Mega Silly Engine]...</div>
+      <div class="console" id="console-out">Initializing Void OS v4.5.0 [2-Mode Engine Active]...</div>
       <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button type="button" class="t-btn" id="btn-open-settings">Settings (Press Q)</button>
         <button type="button" class="t-btn" id="btn-check-update">Check GitHub Update</button>
@@ -381,8 +389,8 @@
       <div>
         <div class="overlay-head">SETTINGS &amp; SYSTEM INFO</div>
         <p style="margin-bottom: 12px; font-size: 0.9rem;">User ID: <span id="set-uid" style="color:#ffffff;">...</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.4.0</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Mode: <span style="color:#ffffff;">Mega Silly (Serper + SerpApi Alternating)</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.5.0</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Current Mode: <span id="set-mode-lbl" style="color:#ffffff;">Mega Silly</span></p>
         <p style="margin-bottom: 20px; font-size: 0.85rem; color: #cccccc;" id="set-upd-status">Status: Standby. Check or apply manual update below.</p>
         <div style="margin-top: 15px;">
           <button type="button" class="overlay-btn" id="btn-manual-check">Check GitHub Update</button>
@@ -398,13 +406,16 @@
 
   <script>
     (function() {
-      var APP_VER = '4.4.0';
+      var APP_VER = '4.5.0';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
       var protoEl = document.getElementById('s-proto');
       var uidEl = document.getElementById('s-uid');
       var setUidEl = document.getElementById('set-uid');
+      var dispMode = document.getElementById('disp-mode');
+      var setModeLbl = document.getElementById('set-mode-lbl');
+      var featureSection = document.getElementById('feature-section');
       var consoleOut = document.getElementById('console-out');
       var form = document.getElementById('term-form');
       var input = document.getElementById('term-input');
@@ -416,7 +427,8 @@
       var manualApplyBtn = document.getElementById('btn-manual-apply');
       var directDownloadBtn = document.getElementById('btn-direct-download');
 
-      var engine = 'web';
+      var currentMode = 'megasilly'; // 'megasilly' or 'google'
+      var activeFeature = 'web';     // 'web', 'images', 'youtube'
 
       var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
@@ -612,8 +624,7 @@
 
       (function bootSequence() {
         log('User Authenticated: ' + uid);
-        log('Mounting Mega Silly Unified Proxy Engine...');
-        log('Alternating Search: Serper.dev + SerpApi Active');
+        log('Initializing Void 2-Mode Engine (Mega Silly & Google No API)...');
         setTimeout(checkGitHubUpdate, 400);
       })();
 
@@ -628,9 +639,18 @@
         });
       }
 
-      bindGroup('engine-group', function(val) {
-        engine = val;
-        log('Search tab set: ' + val);
+      bindGroup('mode-group', function(val) {
+        currentMode = val;
+        dispMode.textContent = val === 'megasilly' ? 'Mega Silly' : 'Google (No API)';
+        setModeLbl.textContent = val === 'megasilly' ? 'Mega Silly (API Engine)' : 'Google Mode (No API)';
+        featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
+        mediaContainer.style.display = 'none';
+        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega Silly (Unified API)' : 'Google Mode (No API)'));
+      });
+
+      bindGroup('feature-group', function(val) {
+        activeFeature = val;
+        log('Mega Silly feature tab: ' + val);
       });
 
       document.getElementById('btn-clear').addEventListener('click', function() {
@@ -656,15 +676,26 @@
         acBox.style.display = 'none';
 
         // Check if rawVal is direct URL or domain
-        if (/^https?:\/\//i.test(rawVal) || (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(rawVal) && !rawVal.includes(' '))) {
+        var isDirectUrl = /^https?:\/\//i.test(rawVal) || (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(rawVal) && !rawVal.includes(' '));
+        if (isDirectUrl) {
           var target = /^https?:\/\//i.test(rawVal) ? rawVal : ('https://' + rawVal);
-          log('Opening direct link via Mega Silly Proxy: ' + target);
+          log('Opening direct URL via Void Proxy: ' + target);
           var encryptedTarget = encryptUrl(target);
           window.location.href = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
           return;
         }
 
-        if (engine === 'images') {
+        // GOOGLE MODE (No API Key Required)
+        if (currentMode === 'google') {
+          log('Executing Google Mode Search (No API) for: "' + rawVal + '"...');
+          var googleSearchUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(rawVal);
+          var encryptedVal = encryptUrl(googleSearchUrl);
+          window.location.href = '/v?q=' + encodeURIComponent(encryptedVal) + '&mode=server';
+          return;
+        }
+
+        // MEGA SILLY MODE (Unified API Engine)
+        if (activeFeature === 'images') {
           log('Searching Google Images for: "' + rawVal + '"...');
           mediaContainer.style.display = 'block';
           mediaContainer.innerHTML = '<div style="color:#aaa;">Loading images...</div>';
@@ -686,7 +717,7 @@
           return;
         }
 
-        if (engine === 'youtube') {
+        if (activeFeature === 'youtube') {
           log('Searching YouTube & Transcripts for: "' + rawVal + '"...');
           mediaContainer.style.display = 'block';
           mediaContainer.innerHTML = '<div style="color:#aaa;">Loading YouTube videos &amp; transcripts...</div>';
@@ -711,8 +742,8 @@
           return;
         }
 
-        // Web Search (Alternating Serper & SerpApi)
-        log('Executing Mega Silly Web Search (Alternating Serper + SerpApi) for: "' + rawVal + '"...');
+        // Mega Silly Web Search (Randomized SerpApi + Serper)
+        log('Executing Mega Silly Web Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
         var encryptedVal = encryptUrl(rawVal);
         window.location.href = '/s?q=' + encodeURIComponent(encryptedVal);
       });
