@@ -178,7 +178,7 @@ function dec(encoded) {
       decChars.push(String.fromCharCode(code));
     }
     const multiDecoded = decChars.join("");
-    if (/^https?:\/\//i.test(multiDecoded) || (multiDecoded && !multiDecoded.includes("\0") && multiDecoded.length > 0)) {
+    if (/^https?:\/\//i.test(multiDecoded)) {
       return multiDecoded;
     }
 
@@ -190,12 +190,24 @@ function dec(encoded) {
 
     // 3. Try standard UTF-8 Base64 decode
     const decodedUtf8 = Buffer.from(padded, "base64").toString("utf8");
-    if (/^https?:\/\//i.test(decodedUtf8)) {
+    if (/^https?:\/\//i.test(decodedUtf8) || (decodedUtf8.includes(".") && !decodedUtf8.includes(" "))) {
       return decodedUtf8;
+    }
+
+    if (multiDecoded && (multiDecoded.includes(".") && !multiDecoded.includes(" "))) {
+      return multiDecoded;
+    }
+
+    // Fallback: return un-decoded string if it looks like a domain
+    if (str.includes(".") && !str.includes(" ")) {
+      return str;
     }
 
     throw new Error("Decoded value is not a valid http/https URL");
   } catch (e) {
+    if (encoded && typeof encoded === 'string' && encoded.includes('.') && !encoded.includes(' ')) {
+      return encoded;
+    }
     throw new Error(`URL decode failed: ${e.message}`);
   }
 }
@@ -2015,7 +2027,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.3.3", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.3.4", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2031,7 +2043,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.3.3" }
+      headers: { "User-Agent": "Void-Proxy/4.3.4" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
@@ -2052,14 +2064,16 @@ app.get(["/go", "/v"], (req, res) => {
   try {
     url = dec(rawInput);
   } catch (e) {
-    const engine = req.query.engine || "brave";
-    if (!/^https?:\/\//i.test(url)) {
-      if (url.includes(".") && !url.includes(" ")) {
-        url = "https://" + url;
-      } else {
-        const searchFn = SEARCH_ENGINES[engine] || SEARCH_ENGINES.ddg;
-        url = searchFn(url);
-      }
+    url = rawInput;
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    if (url.includes(".") && !url.includes(" ")) {
+      url = "https://" + url;
+    } else {
+      const engine = req.query.engine || "brave";
+      const searchFn = SEARCH_ENGINES[engine] || SEARCH_ENGINES.ddg;
+      url = searchFn(url);
     }
   }
 
