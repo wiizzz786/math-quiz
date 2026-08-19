@@ -403,6 +403,12 @@ function injectionScript(base) {
   document.writeln=function(){var a=[];for(var i=0;i<arguments.length;i++)a.push(typeof arguments[i]==='string'?_rwHtml(arguments[i]):arguments[i]);return _dwl.apply(document,a);};
   if(CSSStyleSheet.prototype.insertRule){var _csIR=CSSStyleSheet.prototype.insertRule;CSSStyleSheet.prototype.insertRule=function(r,i){if(typeof r==='string')r=r.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});return _csIR.call(this,r,i);};}
   if(window.Blob){var _Blb=window.Blob;window.Blob=function(p,o){if(o&&o.type&&/javascript|ecmascript/i.test(o.type)&&Array.isArray(p)){p=p.map(function(s){if(typeof s==='string')return s.replace(/importScripts\\s*\\(\\s*(["'])(https?:\\/\\/[^"'\\s]+)\\1/g,function(m,q,u){return 'importScripts('+q+E(u)+q;});return s;});}return new _Blb(p,o);};window.Blob.prototype=_Blb.prototype;}
+  try {
+    var st = document.createElement('style');
+    st.id = 'void-bw-filter';
+    st.textContent = 'html, body { filter: grayscale(100%) !important; -webkit-filter: grayscale(100%) !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch(e) {}
   obs.observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>`;
@@ -887,6 +893,7 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
     $("picture").remove();
   }
 
+  $("head").prepend('<style id="void-bw-filter">html, body { filter: grayscale(100%) !important; -webkit-filter: grayscale(100%) !important; }</style>');
   $("body").prepend(proxyBar(base));
   if (!opts.nojs) $("head").prepend(injectionScript(resolveBase));
   if (opts.eruda) {
@@ -1708,7 +1715,7 @@ app.get(["/serper-results", "/sr"], async (req, res) => {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;filter:grayscale(100%) !important;-webkit-filter:grayscale(100%) !important;}
 a{text-decoration:none;color:inherit;}
 .topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
 .topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
@@ -1872,7 +1879,7 @@ app.get(["/serpapi-results", "/s"], async (req, res) => {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+body{background:#06060b;color:#eef0f8;font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;filter:grayscale(100%) !important;-webkit-filter:grayscale(100%) !important;}
 a{text-decoration:none;color:inherit;}
 .topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(6,6,11,.95);border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
 .topbar .logo{font-size:1.3rem;font-weight:900;letter-spacing:-.05em;background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0;}
@@ -2015,7 +2022,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.3.0", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.3.1", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2031,7 +2038,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.3.0" }
+      headers: { "User-Agent": "Void-Proxy/4.3.1" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
