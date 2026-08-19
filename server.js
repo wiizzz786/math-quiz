@@ -169,13 +169,26 @@ function dec(encoded) {
     const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
     const rawBinary = Buffer.from(padded, "base64").toString("binary");
 
-    // 1. Try XOR 0x3F cipher decryption
+    // 1. Try salted multi-key cipher decryption
+    const key = "NoodalMathKey2026";
+    const decChars = [];
+    for (let i = 0; i < rawBinary.length; i++) {
+      const k = key.charCodeAt(i % key.length);
+      const code = rawBinary.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+      decChars.push(String.fromCharCode(code));
+    }
+    const multiDecoded = decChars.join("");
+    if (/^https?:\/\//i.test(multiDecoded) || (multiDecoded && !multiDecoded.includes("\0") && multiDecoded.length > 0)) {
+      return multiDecoded;
+    }
+
+    // 2. Try legacy XOR 0x3F cipher decryption
     const xorDecoded = rawBinary.split("").map(c => String.fromCharCode(c.charCodeAt(0) ^ 0x3f)).join("");
     if (/^https?:\/\//i.test(xorDecoded)) {
       return xorDecoded;
     }
 
-    // 2. Try standard UTF-8 Base64 decode
+    // 3. Try standard UTF-8 Base64 decode
     const decodedUtf8 = Buffer.from(padded, "base64").toString("utf8");
     if (/^https?:\/\//i.test(decodedUtf8)) {
       return decodedUtf8;
@@ -2002,7 +2015,7 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.1.9", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.2.0", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2018,7 +2031,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.1.9" }
+      headers: { "User-Agent": "Void-Proxy/4.2.0" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
