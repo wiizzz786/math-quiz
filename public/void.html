@@ -229,48 +229,6 @@
       max-height: 350px;
       overflow-y: auto;
     }
-    .img-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
-    }
-    .img-card {
-      border: 1px solid var(--muted);
-      border-radius: 6px;
-      overflow: hidden;
-      background: #000;
-      text-decoration: none;
-      color: #fff;
-    }
-    .img-card img {
-      width: 100%;
-      height: 90px;
-      object-fit: cover;
-      display: block;
-    }
-    .img-title {
-      font-size: 0.65rem;
-      padding: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .yt-card {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 8px 0;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .yt-card img {
-      width: 80px;
-      height: 48px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-    .yt-info { flex: 1; }
-    .yt-title { font-size: 0.82rem; font-weight: bold; color: #fff; text-decoration: none; }
-    .yt-meta { font-size: 0.68rem; color: #888; }
     .overlay {
       position: absolute;
       inset: 0;
@@ -337,7 +295,7 @@
         </div>
         <div class="card">
           <div class="lbl">MODE</div>
-          <div class="val" id="disp-mode" style="color:#ffffff;">Mega Silly</div>
+          <div class="val" id="disp-mode" style="color:#ffffff;">Mega</div>
         </div>
         <div class="card">
           <div class="lbl">UID</div>
@@ -358,25 +316,16 @@
         <div id="autocomplete-box" class="autocomplete-box"></div>
       </form>
 
-      <div class="sec-title">Mode Selection</div>
+      <div class="sec-title">Mode</div>
       <div class="group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="megasilly">Mega Silly Mode (All APIs Unified)</button>
-        <button type="button" class="t-btn" data-v="google">Google Mode (No API)</button>
-      </div>
-
-      <div id="feature-section">
-        <div class="sec-title">Mega Silly Features</div>
-        <div class="group" id="feature-group">
-          <button type="button" class="t-btn active" data-v="web">Web Search (Prefer SerpApi + Serper)</button>
-          <button type="button" class="t-btn" data-v="images">Google Images</button>
-          <button type="button" class="t-btn" data-v="youtube">YouTube &amp; Transcripts</button>
-        </div>
+        <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
+        <button type="button" class="t-btn" data-v="google">Google</button>
       </div>
 
       <div id="media-container" class="media-container"></div>
 
       <div class="sec-title">Debug Console</div>
-      <div class="console" id="console-out">Initializing Void OS v4.5.0 [2-Mode Engine Active]...</div>
+      <div class="console" id="console-out">Initializing Void OS v4.5.0 [Mega &amp; Google Engine Active]...</div>
       <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button type="button" class="t-btn" id="btn-open-settings">Settings (Press Q)</button>
         <button type="button" class="t-btn" id="btn-check-update">Check GitHub Update</button>
@@ -390,7 +339,7 @@
         <div class="overlay-head">SETTINGS &amp; SYSTEM INFO</div>
         <p style="margin-bottom: 12px; font-size: 0.9rem;">User ID: <span id="set-uid" style="color:#ffffff;">...</span></p>
         <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.5.0</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Current Mode: <span id="set-mode-lbl" style="color:#ffffff;">Mega Silly</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Current Mode: <span id="set-mode-lbl" style="color:#ffffff;">Mega</span></p>
         <p style="margin-bottom: 20px; font-size: 0.85rem; color: #cccccc;" id="set-upd-status">Status: Standby. Check or apply manual update below.</p>
         <div style="margin-top: 15px;">
           <button type="button" class="overlay-btn" id="btn-manual-check">Check GitHub Update</button>
@@ -415,12 +364,10 @@
       var setUidEl = document.getElementById('set-uid');
       var dispMode = document.getElementById('disp-mode');
       var setModeLbl = document.getElementById('set-mode-lbl');
-      var featureSection = document.getElementById('feature-section');
       var consoleOut = document.getElementById('console-out');
       var form = document.getElementById('term-form');
       var input = document.getElementById('term-input');
       var acBox = document.getElementById('autocomplete-box');
-      var mediaContainer = document.getElementById('media-container');
       var settingsOverlay = document.getElementById('settings-overlay');
       var updStatusEl = document.getElementById('set-upd-status');
       var manualCheckBtn = document.getElementById('btn-manual-check');
@@ -428,7 +375,6 @@
       var directDownloadBtn = document.getElementById('btn-direct-download');
 
       var currentMode = 'megasilly'; // 'megasilly' or 'google'
-      var activeFeature = 'web';     // 'web', 'images', 'youtube'
 
       var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
@@ -624,7 +570,7 @@
 
       (function bootSequence() {
         log('User Authenticated: ' + uid);
-        log('Initializing Void 2-Mode Engine (Mega Silly & Google No API)...');
+        log('Initializing Void Engine (Mega & Google Mode Active)...');
         setTimeout(checkGitHubUpdate, 400);
       })();
 
@@ -641,16 +587,9 @@
 
       bindGroup('mode-group', function(val) {
         currentMode = val;
-        dispMode.textContent = val === 'megasilly' ? 'Mega Silly' : 'Google (No API)';
-        setModeLbl.textContent = val === 'megasilly' ? 'Mega Silly (API Engine)' : 'Google Mode (No API)';
-        featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
-        mediaContainer.style.display = 'none';
-        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega Silly (Unified API)' : 'Google Mode (No API)'));
-      });
-
-      bindGroup('feature-group', function(val) {
-        activeFeature = val;
-        log('Mega Silly feature tab: ' + val);
+        dispMode.textContent = val === 'megasilly' ? 'Mega' : 'Google';
+        setModeLbl.textContent = val === 'megasilly' ? 'Mega' : 'Google';
+        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega' : 'Google'));
       });
 
       document.getElementById('btn-clear').addEventListener('click', function() {
@@ -694,56 +633,8 @@
           return;
         }
 
-        // MEGA SILLY MODE (Unified API Engine)
-        if (activeFeature === 'images') {
-          log('Searching Google Images for: "' + rawVal + '"...');
-          mediaContainer.style.display = 'block';
-          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading images...</div>';
-          fetch('/api/images?q=' + encodeURIComponent(rawVal))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              var imgs = data.images || [];
-              if (!imgs.length) {
-                mediaContainer.innerHTML = '<div style="color:#aaa;">No images found.</div>';
-                return;
-              }
-              mediaContainer.innerHTML = '<div class="img-grid">' + imgs.map(function(img) {
-                var encUrl = encryptUrl(img.original);
-                return '<a class="img-card" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' +
-                  '<img src="' + (img.thumbnail || img.original) + '" alt=""/>' +
-                  '<div class="img-title">' + (img.title || 'View Image') + '</div></a>';
-              }).join('') + '</div>';
-            });
-          return;
-        }
-
-        if (activeFeature === 'youtube') {
-          log('Searching YouTube & Transcripts for: "' + rawVal + '"...');
-          mediaContainer.style.display = 'block';
-          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading YouTube videos &amp; transcripts...</div>';
-          fetch('/api/youtube?q=' + encodeURIComponent(rawVal))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              var vids = data.videos || [];
-              if (!vids.length) {
-                mediaContainer.innerHTML = '<div style="color:#aaa;">No videos found.</div>';
-                return;
-              }
-              mediaContainer.innerHTML = vids.map(function(v) {
-                var watchUrl = v.link || ('https://www.youtube.com/watch?v=' + v.videoId);
-                var encUrl = encryptUrl(watchUrl);
-                return '<div class="yt-card">' +
-                  '<img src="' + (v.thumbnail || '') + '" alt=""/>' +
-                  '<div class="yt-info">' +
-                  '<a class="yt-title" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' + (v.title || 'Watch Video') + '</a>' +
-                  '<div class="yt-meta">' + (v.channel || 'YouTube') + ' &bull; ' + (v.views || '') + '</div></div></div>';
-              }).join('');
-            });
-          return;
-        }
-
-        // Mega Silly Web Search (Randomized SerpApi + Serper)
-        log('Executing Mega Silly Web Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
+        // MEGA MODE (Unified API Engine)
+        log('Executing Mega Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
         var encryptedVal = encryptUrl(rawVal);
         window.location.href = '/s?q=' + encodeURIComponent(encryptedVal);
       });

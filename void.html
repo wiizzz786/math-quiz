@@ -337,7 +337,7 @@
         </div>
         <div class="card">
           <div class="lbl">MODE</div>
-          <div class="val" id="disp-mode" style="color:#ffffff;">Mega Silly</div>
+          <div class="val" id="disp-mode" style="color:#ffffff;">Mega</div>
         </div>
         <div class="card">
           <div class="lbl">UID</div>
@@ -358,19 +358,10 @@
         <div id="autocomplete-box" class="autocomplete-box"></div>
       </form>
 
-      <div class="sec-title">Mode Selection</div>
+      <div class="sec-title">Mode</div>
       <div class="group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="megasilly">Mega Silly Mode (All APIs Unified)</button>
-        <button type="button" class="t-btn" data-v="google">Google Mode (No API)</button>
-      </div>
-
-      <div id="feature-section">
-        <div class="sec-title">Mega Silly Features</div>
-        <div class="group" id="feature-group">
-          <button type="button" class="t-btn active" data-v="web">Web Search (Prefer SerpApi + Serper)</button>
-          <button type="button" class="t-btn" data-v="images">Google Images</button>
-          <button type="button" class="t-btn" data-v="youtube">YouTube &amp; Transcripts</button>
-        </div>
+        <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
+        <button type="button" class="t-btn" data-v="google">Google</button>
       </div>
 
       <div id="media-container" class="media-container"></div>
@@ -641,11 +632,11 @@
 
       bindGroup('mode-group', function(val) {
         currentMode = val;
-        dispMode.textContent = val === 'megasilly' ? 'Mega Silly' : 'Google (No API)';
-        setModeLbl.textContent = val === 'megasilly' ? 'Mega Silly (API Engine)' : 'Google Mode (No API)';
+        dispMode.textContent = val === 'megasilly' ? 'Mega' : 'Google';
+        setModeLbl.textContent = val === 'megasilly' ? 'Mega' : 'Google';
         featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
         mediaContainer.style.display = 'none';
-        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega Silly (Unified API)' : 'Google Mode (No API)'));
+        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega' : 'Google'));
       });
 
       bindGroup('feature-group', function(val) {
@@ -694,56 +685,8 @@
           return;
         }
 
-        // MEGA SILLY MODE (Unified API Engine)
-        if (activeFeature === 'images') {
-          log('Searching Google Images for: "' + rawVal + '"...');
-          mediaContainer.style.display = 'block';
-          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading images...</div>';
-          fetch('/api/images?q=' + encodeURIComponent(rawVal))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              var imgs = data.images || [];
-              if (!imgs.length) {
-                mediaContainer.innerHTML = '<div style="color:#aaa;">No images found.</div>';
-                return;
-              }
-              mediaContainer.innerHTML = '<div class="img-grid">' + imgs.map(function(img) {
-                var encUrl = encryptUrl(img.original);
-                return '<a class="img-card" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' +
-                  '<img src="' + (img.thumbnail || img.original) + '" alt=""/>' +
-                  '<div class="img-title">' + (img.title || 'View Image') + '</div></a>';
-              }).join('') + '</div>';
-            });
-          return;
-        }
-
-        if (activeFeature === 'youtube') {
-          log('Searching YouTube & Transcripts for: "' + rawVal + '"...');
-          mediaContainer.style.display = 'block';
-          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading YouTube videos &amp; transcripts...</div>';
-          fetch('/api/youtube?q=' + encodeURIComponent(rawVal))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              var vids = data.videos || [];
-              if (!vids.length) {
-                mediaContainer.innerHTML = '<div style="color:#aaa;">No videos found.</div>';
-                return;
-              }
-              mediaContainer.innerHTML = vids.map(function(v) {
-                var watchUrl = v.link || ('https://www.youtube.com/watch?v=' + v.videoId);
-                var encUrl = encryptUrl(watchUrl);
-                return '<div class="yt-card">' +
-                  '<img src="' + (v.thumbnail || '') + '" alt=""/>' +
-                  '<div class="yt-info">' +
-                  '<a class="yt-title" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' + (v.title || 'Watch Video') + '</a>' +
-                  '<div class="yt-meta">' + (v.channel || 'YouTube') + ' &bull; ' + (v.views || '') + '</div></div></div>';
-              }).join('');
-            });
-          return;
-        }
-
-        // Mega Silly Web Search (Randomized SerpApi + Serper)
-        log('Executing Mega Silly Web Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
+        // MEGA MODE (Unified API Engine)
+        log('Executing Mega Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
         var encryptedVal = encryptUrl(rawVal);
         window.location.href = '/s?q=' + encodeURIComponent(encryptedVal);
       });
