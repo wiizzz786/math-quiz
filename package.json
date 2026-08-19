@@ -1,6 +1,6 @@
 {
   "name": "void-proxy",
-  "version": "4.3.4",
+  "version": "4.3.6",
   "type": "module",
   "scripts": {
     "start": "node server.js",
@@ -14,6 +14,7 @@
     "@mercuryworkshop/epoxy-transport": "^3.0.1",
     "@mercuryworkshop/scramjet": "^1.1.0",
     "@mercuryworkshop/wisp-js": "^0.4.1",
+    "axios": "^1.19.0",
     "cheerio": "^1.2.0",
     "express": "^5.2.1"
   }

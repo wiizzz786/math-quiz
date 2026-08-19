@@ -272,16 +272,15 @@
         </div>
         <div class="card">
           <div class="lbl">VERSION</div>
-          <div class="val">v4.3.4</div>
+          <div class="val">v4.3.6</div>
         </div>
       </div>
 
-      <div class="sec-title">Command Prompt</div>
+      <div class="sec-title">Search Bar</div>
       <form id="term-form">
         <div class="cmd-box">
-          <span class="prompt-lbl">void@proxy:~$</span>
-          <input type="text" id="term-input" class="cmd-input" placeholder="enter target URL or search query..." required autocomplete="off" spellcheck="false"/>
-          <button type="submit" class="cmd-btn">RUN</button>
+          <input type="text" id="term-input" class="cmd-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false"/>
+          <button type="submit" class="cmd-btn">SEARCH</button>
         </div>
       </form>
 
@@ -301,7 +300,7 @@
       </div>
 
       <div class="sec-title">Debug Console</div>
-      <div class="console" id="console-out">Initializing Void OS v4.3.2...</div>
+      <div class="console" id="console-out">Initializing Void OS v4.3.6...</div>
       <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button type="button" class="t-btn" id="btn-open-settings">Settings (Press Q)</button>
         <button type="button" class="t-btn" id="btn-check-update">Check GitHub Update</button>
@@ -314,7 +313,7 @@
       <div>
         <div class="overlay-head">SETTINGS &amp; SYSTEM INFO</div>
         <p style="margin-bottom: 12px; font-size: 0.9rem;">User ID: <span id="set-uid" style="color:#ffffff;">...</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.3.2</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.3.6</span></p>
         <p style="margin-bottom: 20px; font-size: 0.85rem; color: #cccccc;" id="set-upd-status">Status: Standby. Check or apply manual update below.</p>
         <div style="margin-top: 15px;">
           <button type="button" class="overlay-btn" id="btn-manual-check">Check GitHub Update</button>
@@ -330,7 +329,7 @@
 
   <script>
     (function() {
-      var APP_VER = '4.3.2';
+      var APP_VER = '4.3.6';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -411,9 +410,13 @@
       });
 
       function parseVer(v) {
-        return (v || '').replace(/^v/, '').split('.').map(function(n) { return parseInt(n, 10) || 0; });
+        return (v || '').replace(/^v/i, '').trim().split('.').map(function(n) { return parseInt(n, 10) || 0; });
       }
       function isNewerVer(remote, local) {
+        if (!remote || !local) return false;
+        var rStr = (remote || '').replace(/^v/i, '').trim();
+        var lStr = (local || '').replace(/^v/i, '').trim();
+        if (rStr === lStr) return false;
         var r = parseVer(remote);
         var l = parseVer(local);
         for (var i = 0; i < Math.max(r.length, l.length); i++) {
@@ -469,7 +472,7 @@
               document.close();
               log('[MANUAL UPDATE COMPLETE]: Client updated and reloaded with latest code!');
             } catch(e) {
-              window.location.reload(true);
+              window.location.href = window.location.pathname + '?v=' + Date.now();
             }
           })
           .catch(function(err) {

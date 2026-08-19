@@ -1,4 +1,5 @@
 import express from "express";
+import axios from "axios";
 import { createServer } from "node:http";
 import https from "node:https";
 import http from "node:http";
@@ -563,7 +564,6 @@ function buildHeaders(req, targetUrl) {
   h["accept-encoding"] = "gzip, deflate, br";
   return h;
 }
-
 /* ═══════════════════════════════════════════
    Proxy handler
    ═══════════════════════════════════════════ */
@@ -614,57 +614,23 @@ async function handleProxy(req, res) {
   try {
     const headers = buildHeaders(req, targetUrl);
 
-    const fetchOpts = {
-      method: req.method,
-      headers,
-      redirect: "manual",
-      signal: AbortSignal.timeout(25000),
-    };
-
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && req.body) {
-      const ct = req.headers["content-type"] || "";
-      if (Buffer.isBuffer(req.body)) {
-        fetchOpts.body = req.body;
-        if (ct) fetchOpts.headers["content-type"] = ct;
-      } else if (typeof req.body === "object" && ct.includes("json")) {
-        fetchOpts.body = JSON.stringify(req.body);
-        fetchOpts.headers["content-type"] = "application/json";
-      } else if (typeof req.body === "object") {
-        fetchOpts.body = new URLSearchParams(req.body).toString();
-        fetchOpts.headers["content-type"] = "application/x-www-form-urlencoded";
-      } else {
-        fetchOpts.body = req.body;
-        if (ct) fetchOpts.headers["content-type"] = ct;
-      }
+    let axiosRes;
+    try {
+      axiosRes = await axios({
+        url: targetUrl,
+        method: req.method,
+        headers,
+        data: ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) ? req.body : undefined,
+        responseType: "arraybuffer",
+        maxRedirects: 5,
+        validateStatus: () => true,
+        timeout: 25000,
+        decompress: true
+      });
+    } catch (axiosErr) {
+      console.error("[axios proxy error]:", axiosErr.message);
+      return res.status(502).send("Upstream Proxy Fetch Failed: " + axiosErr.message);
     }
-
-    if (req.method === "GET") {
-      const cached = await cacheGet("p:" + targetUrl);
-      if (cached) {
-        res.set("X-Void-Cache", "HIT");
-        if (cached.ct && cached.ct.includes("text/html")) {
-          // Re-rewrite cached HTML with current options
-          const rawHtml = cached.body.toString("utf8");
-          const patched = rewriteHtmlWithOpts(rawHtml, targetUrl, opts, optSuffix);
-          return res.type("text/html; charset=utf-8").send(patched);
-        }
-        res.set("content-type", cached.ct);
-        return res.send(cached.body);
-      }
-    }
-
-    const response = await fetch(targetUrl, fetchOpts);
-
-    // Handle redirects
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      const loc = response.headers.get("location");
-      if (loc) {
-        const abs = new URL(loc, targetUrl).href;
-        return res.redirect(response.status, enc(abs) + optSuffix);
-      }
-    }
-
-    const ct = response.headers.get("content-type") || "";
 
     const STRIP_RES = new Set([
       "content-security-policy", "content-security-policy-report-only",
@@ -674,13 +640,9 @@ async function handleProxy(req, res) {
       "cross-origin-resource-policy", "permissions-policy",
       "x-content-type-options", "report-to",
     ]);
-    for (const [k, v] of response.headers.entries()) {
+
+    for (const [k, v] of Object.entries(axiosRes.headers)) {
       if (STRIP_RES.has(k.toLowerCase())) continue;
-      try { res.set(k, v); } catch (e) { /* skip headers that Express rejects (e.g. invalid chars) */ }
-    }
-    const setCookies = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
-    for (const raw of setCookies) {
-      res.append("set-cookie", prefixSetCookie(raw, targetUrl));
     }
 
     // HTML → rewrite
@@ -1638,35 +1600,66 @@ async function fetchSerpApiResults(q, num) {
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPAPI_KEY;
-  if (!apiKey || apiKey === "your_serpapi_key_here") {
-    return { results: null, fromCache: false, error: "SERPAPI_KEY not configured" };
-  }
+  const apiKey = process.env.SERPAPI_KEY || "3c8892027885f9054a12f35c132045924601c88baee3342fb818c45d90bb4d13";
 
   try {
     const url = `https://serpapi.com/search.json?q=${encodeURIComponent(q)}&num=${num}&engine=google&api_key=${apiKey}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return { results: null, fromCache: false, error: `SerpApi error: ${text.slice(0, 200)}` };
-    }
-    const data = await res.json();
-    const results = [];
-    if (data.knowledge_graph?.website) {
-      const kg = data.knowledge_graph;
-      results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || "", type: "kg" });
-    }
-    if (Array.isArray(data.organic_results)) {
-      for (const item of data.organic_results) {
-        if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
-        if (results.length >= num) break;
+    if (res.ok) {
+      const data = await res.json();
+      const results = [];
+      if (data.knowledge_graph?.website) {
+        const kg = data.knowledge_graph;
+        results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || "", type: "kg" });
+      }
+      if (Array.isArray(data.organic_results)) {
+        for (const item of data.organic_results) {
+          if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
+          if (results.length >= num) break;
+        }
+      }
+      if (results.length > 0) {
+        serperCacheSet(q, results, suffix);
+        return { results, fromCache: false };
       }
     }
-    serperCacheSet(q, results, suffix);
-    return { results, fromCache: false };
   } catch (err) {
-    return { results: null, fromCache: false, error: err.message };
+    console.error("[serpapi] API fetch failed, trying DuckDuckGo fallback:", err.message);
   }
+
+  // Fallback: DDG HTML Search with Cheerio + Axios
+  try {
+    const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
+      timeout: 8000
+    });
+    const $ = cheerio.load(ddgRes.data);
+    const fallbackResults = [];
+    $(".result").each((_, el) => {
+      const a = $(el).find(".result__title a").first();
+      const snippet = $(el).find(".result__snippet").text().trim();
+      const title = a.text().trim();
+      let href = a.attr("href") || "";
+      if (href.includes("uddg=")) {
+        try {
+          const match = href.match(/uddg=([^&]+)/);
+          if (match) href = decodeURIComponent(match[1]);
+        } catch (e) {}
+      }
+      if (href && /^https?:\/\//i.test(href)) {
+        fallbackResults.push({ title: title || href, url: href, snippet, type: "web" });
+      }
+      if (fallbackResults.length >= num) return false;
+    });
+    if (fallbackResults.length > 0) {
+      serperCacheSet(q, fallbackResults, suffix);
+      return { results: fallbackResults, fromCache: false };
+    }
+  } catch (e) {
+    console.error("[serpapi] DDG fallback error:", e.message);
+  }
+
+  return { results: [], fromCache: false, error: "Search failed" };
 }
 
 app.get("/api/serpapi-search", async (req, res) => {
@@ -2027,7 +2020,8 @@ a{text-decoration:none;color:inherit;}
 
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.json({ status: "ok", version: "4.3.4", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.json({ status: "ok", version: "4.3.6", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2043,7 +2037,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.3.4" }
+      headers: { "User-Agent": "Void-Proxy/4.3.6" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
