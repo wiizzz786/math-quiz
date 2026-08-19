@@ -1549,32 +1549,24 @@ const SEARCH_ENGINES = {
 
 /* ═══════════════════════════════════════════
 /* -------------------------------------------
-   Shared Serper fetch � single call path for
+   Shared Serper fetch  single call path for
    both /api/search and /serper-results
    ------------------------------------------- */
 
-async function fetchSerperResults(q, num) {
-  const suffix = "|" + num;
+let searchCallCount = 0;
+
+async function fetchSerperResults(q, num = 8) {
+  const suffix = "|serper|" + num;
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPER_API_KEY;
-  if (!apiKey || apiKey === "your_serper_api_key_here") {
-    return { results: null, fromCache: false, error: "SERPER_API_KEY not configured" };
-  }
-
+  const apiKey = process.env.SERPER_API_KEY || "1729c383021935c483b8b324b106c3fbd6d09ff3";
   try {
-    const serperRes = await fetch("https://google.serper.dev/search", {
-      method: "POST",
+    const res = await axios.post("https://google.serper.dev/search", { q, num }, {
       headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ q, num }),
-      signal: AbortSignal.timeout(8000),
+      timeout: 8000
     });
-    if (!serperRes.ok) {
-      const text = await serperRes.text().catch(() => "");
-      return { results: null, fromCache: false, error: `Serper API error: ${text.slice(0, 200)}` };
-    }
-    const data = await serperRes.json();
+    const data = res.data;
     const results = [];
     if (data.knowledgeGraph?.website) {
       const kg = data.knowledgeGraph;
@@ -1586,48 +1578,48 @@ async function fetchSerperResults(q, num) {
         if (results.length >= num) break;
       }
     }
+    if (results.length > 0) {
+      serperCacheSet(q, results, suffix);
+      return { results, fromCache: false };
+    }
   } catch (err) {
-    return { results: null, fromCache: false, error: err.message };
+    console.error("[serper] fetch failed:", err.message);
   }
+  return { results: null, fromCache: false };
 }
 
-/* -------------------------------------------
-   SerpApi fetch & search API
-   ------------------------------------------- */
-
-async function fetchSerpApiResults(q, num) {
+async function fetchSerpApiResults(q, num = 8) {
   const suffix = "|serpapi|" + num;
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPAPI_KEY || "3c8892027885f9054a12f35c132045924601c88baee3342fb818c45d90bb4d13";
-
+  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
   try {
     const url = `https://serpapi.com/search.json?q=${encodeURIComponent(q)}&num=${num}&engine=google&api_key=${apiKey}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (res.ok) {
-      const data = await res.json();
-      const results = [];
-      if (data.knowledge_graph?.website) {
-        const kg = data.knowledge_graph;
-        results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || "", type: "kg" });
-      }
-      if (Array.isArray(data.organic_results)) {
-        for (const item of data.organic_results) {
-          if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
-          if (results.length >= num) break;
-        }
-      }
-      if (results.length > 0) {
-        serperCacheSet(q, results, suffix);
-        return { results, fromCache: false };
+    const res = await axios.get(url, { timeout: 10000 });
+    const data = res.data;
+    const results = [];
+    if (data.knowledge_graph?.website) {
+      const kg = data.knowledge_graph;
+      results.push({ title: kg.title || kg.website, url: kg.website, snippet: kg.description || "", type: "kg" });
+    }
+    if (Array.isArray(data.organic_results)) {
+      for (const item of data.organic_results) {
+        if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
+        if (results.length >= num) break;
       }
     }
+    if (results.length > 0) {
+      serperCacheSet(q, results, suffix);
+      return { results, fromCache: false };
+    }
   } catch (err) {
-    console.error("[serpapi] API fetch failed, trying DuckDuckGo fallback:", err.message);
+    console.error("[serpapi] fetch failed:", err.message);
   }
+  return { results: null, fromCache: false };
+}
 
-  // Fallback: DDG HTML Search with Cheerio + Axios
+async function fetchDdgFallback(q, num = 8) {
   try {
     const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
@@ -1651,24 +1643,130 @@ async function fetchSerpApiResults(q, num) {
       }
       if (fallbackResults.length >= num) return false;
     });
-    if (fallbackResults.length > 0) {
-      serperCacheSet(q, fallbackResults, suffix);
-      return { results: fallbackResults, fromCache: false };
-    }
+    return { results: fallbackResults, fromCache: false };
   } catch (e) {
     console.error("[serpapi] DDG fallback error:", e.message);
   }
-
   return { results: [], fromCache: false, error: "Search failed" };
+}
+
+async function fetchUnifiedAlternatingSearch(q, num = 8) {
+  searchCallCount++;
+  const preferSerper = searchCallCount % 2 === 1;
+  if (preferSerper) {
+    const res1 = await fetchSerperResults(q, num);
+    if (res1.results && res1.results.length > 0) return res1;
+    const res2 = await fetchSerpApiResults(q, num);
+    if (res2.results && res2.results.length > 0) return res2;
+  } else {
+    const res1 = await fetchSerpApiResults(q, num);
+    if (res1.results && res1.results.length > 0) return res1;
+    const res2 = await fetchSerperResults(q, num);
+    if (res2.results && res2.results.length > 0) return res2;
+  }
+  return fetchDdgFallback(q, num);
 }
 
 app.get("/api/serpapi-search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
   const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
-  const { results, fromCache, error } = await fetchSerpApiResults(q, num);
-  if (error && !results) return res.status(error.includes("not configured") ? 503 : 502).json({ error });
+  const { results, fromCache } = await fetchUnifiedAlternatingSearch(q, num);
   return res.json({ cached: fromCache, results: results || [] });
+});
+
+app.get("/api/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Missing query parameter q" });
+  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+  const { results, fromCache } = await fetchUnifiedAlternatingSearch(q, num);
+  return res.json({ cached: fromCache, results: results || [] });
+});
+
+app.get("/api/autocomplete", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.json({ suggestions: [] });
+
+  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+  try {
+    const url = `https://serpapi.com/search.json?engine=google_autocomplete&q=${encodeURIComponent(q)}&api_key=${apiKey}`;
+    const r = await axios.get(url, { timeout: 5000 });
+    const suggestions = (r.data.suggestions || []).map(s => s.value || s.suggestion || s).filter(Boolean);
+    if (suggestions.length > 0) {
+      return res.json({ suggestions });
+    }
+  } catch (e) {}
+
+  try {
+    const url = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(q)}`;
+    const r = await axios.get(url, { timeout: 4000 });
+    if (Array.isArray(r.data) && Array.isArray(r.data[1])) {
+      return res.json({ suggestions: r.data[1].slice(0, 8) });
+    }
+  } catch (e) {}
+
+  return res.json({ suggestions: [] });
+});
+
+app.get("/api/images", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.json({ images: [] });
+
+  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+  try {
+    const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${apiKey}`;
+    const r = await axios.get(url, { timeout: 10000 });
+    const images = (r.data.images_results || []).map(img => ({
+      title: img.title || "",
+      original: img.original || img.link,
+      thumbnail: img.thumbnail,
+      source: img.source || img.domain
+    })).slice(0, 20);
+    return res.json({ images });
+  } catch (e) {
+    return res.status(500).json({ error: e.message, images: [] });
+  }
+});
+
+app.get("/api/youtube", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const v = (req.query.v || "").trim();
+  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+
+  if (v) {
+    try {
+      const videoUrl = `https://serpapi.com/search.json?engine=youtube_video&v=${encodeURIComponent(v)}&api_key=${apiKey}`;
+      const transcriptUrl = `https://serpapi.com/search.json?engine=youtube_video_transcript&v=${encodeURIComponent(v)}&api_key=${apiKey}`;
+      const [vRes, tRes] = await Promise.allSettled([
+        axios.get(videoUrl, { timeout: 8000 }),
+        axios.get(transcriptUrl, { timeout: 8000 })
+      ]);
+      const video = vRes.status === "fulfilled" ? vRes.value.data : {};
+      const transcript = tRes.status === "fulfilled" ? tRes.value.data : {};
+      return res.json({ video, transcript });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  if (!q) return res.json({ videos: [] });
+
+  try {
+    const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${apiKey}`;
+    const r = await axios.get(url, { timeout: 10000 });
+    const videos = (r.data.video_results || []).map(vid => ({
+      title: vid.title,
+      link: vid.link,
+      videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
+      thumbnail: vid.thumbnail?.static || vid.thumbnail,
+      channel: vid.channel?.name,
+      views: vid.views,
+      published: vid.published_date
+    })).slice(0, 15);
+    return res.json({ videos });
+  } catch (e) {
+    return res.status(500).json({ error: e.message, videos: [] });
+  }
 });
 
 /* -------------------------------------------
@@ -2021,7 +2119,7 @@ a{text-decoration:none;color:inherit;}
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.json({ status: "ok", version: "4.3.6", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.4.0", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -2037,7 +2135,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.3.6" }
+      headers: { "User-Agent": "Void-Proxy/4.4.0" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();

@@ -127,11 +127,7 @@
       align-items: center;
       gap: 12px;
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.08);
-    }
-    .prompt-lbl {
-      color: var(--text);
-      font-weight: bold;
-      white-space: nowrap;
+      position: relative;
     }
     .cmd-input {
       flex: 1;
@@ -158,6 +154,31 @@
     }
     .cmd-btn:hover {
       background: #cccccc;
+    }
+    .autocomplete-box {
+      margin-top: 6px;
+      background: #000000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px;
+    }
+    .ac-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--muted);
+      color: var(--white);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ac-pill:hover {
+      background: #ffffff;
+      color: #000000;
+      font-weight: bold;
     }
     .group {
       display: flex;
@@ -198,6 +219,58 @@
       white-space: pre-wrap;
       word-break: break-all;
     }
+    .media-container {
+      margin-top: 15px;
+      display: none;
+      background: #020202;
+      border: 1px solid var(--muted);
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+    .img-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .img-card {
+      border: 1px solid var(--muted);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
+      text-decoration: none;
+      color: #fff;
+    }
+    .img-card img {
+      width: 100%;
+      height: 90px;
+      object-fit: cover;
+      display: block;
+    }
+    .img-title {
+      font-size: 0.65rem;
+      padding: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .yt-card {
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .yt-card img {
+      width: 80px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .yt-info { flex: 1; }
+    .yt-title { font-size: 0.82rem; font-weight: bold; color: #fff; text-decoration: none; }
+    .yt-meta { font-size: 0.68rem; color: #888; }
     .overlay {
       position: absolute;
       inset: 0;
@@ -263,8 +336,8 @@
           <div class="val" id="s-proto">...</div>
         </div>
         <div class="card">
-          <div class="lbl">SW</div>
-          <div class="val" id="s-sw">Checking...</div>
+          <div class="lbl">MODE</div>
+          <div class="val" style="color:#ffffff;">Mega Silly</div>
         </div>
         <div class="card">
           <div class="lbl">UID</div>
@@ -272,7 +345,7 @@
         </div>
         <div class="card">
           <div class="lbl">VERSION</div>
-          <div class="val">v4.3.6</div>
+          <div class="val">v4.4.0</div>
         </div>
       </div>
 
@@ -282,25 +355,20 @@
           <input type="text" id="term-input" class="cmd-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false"/>
           <button type="submit" class="cmd-btn">SEARCH</button>
         </div>
+        <div id="autocomplete-box" class="autocomplete-box"></div>
       </form>
-
-      <div class="sec-title">Proxy Mode</div>
-      <div class="group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="server">Server Side</button>
-        <button type="button" class="t-btn" data-v="scramjet">Scramjet (WISP)</button>
-      </div>
 
       <div class="sec-title">Search Engine</div>
       <div class="group" id="engine-group">
-        <button type="button" class="t-btn active" data-v="serpapi">SerpApi</button>
-        <button type="button" class="t-btn" data-v="serper">Serper</button>
-        <button type="button" class="t-btn" data-v="brave">Brave</button>
-        <button type="button" class="t-btn" data-v="google">Google</button>
-        <button type="button" class="t-btn" data-v="ddg">DuckDuckGo</button>
+        <button type="button" class="t-btn active" data-v="web">Web (Alternating Serper &amp; SerpApi)</button>
+        <button type="button" class="t-btn" data-v="images">Google Images (SerpApi)</button>
+        <button type="button" class="t-btn" data-v="youtube">YouTube &amp; Transcripts (SerpApi)</button>
       </div>
 
+      <div id="media-container" class="media-container"></div>
+
       <div class="sec-title">Debug Console</div>
-      <div class="console" id="console-out">Initializing Void OS v4.3.6...</div>
+      <div class="console" id="console-out">Initializing Void OS v4.4.0 [Mega Silly Engine]...</div>
       <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button type="button" class="t-btn" id="btn-open-settings">Settings (Press Q)</button>
         <button type="button" class="t-btn" id="btn-check-update">Check GitHub Update</button>
@@ -313,7 +381,8 @@
       <div>
         <div class="overlay-head">SETTINGS &amp; SYSTEM INFO</div>
         <p style="margin-bottom: 12px; font-size: 0.9rem;">User ID: <span id="set-uid" style="color:#ffffff;">...</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.3.6</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.4.0</span></p>
+        <p style="margin-bottom: 12px; font-size: 0.9rem;">Mode: <span style="color:#ffffff;">Mega Silly (Serper + SerpApi Alternating)</span></p>
         <p style="margin-bottom: 20px; font-size: 0.85rem; color: #cccccc;" id="set-upd-status">Status: Standby. Check or apply manual update below.</p>
         <div style="margin-top: 15px;">
           <button type="button" class="overlay-btn" id="btn-manual-check">Check GitHub Update</button>
@@ -329,25 +398,25 @@
 
   <script>
     (function() {
-      var APP_VER = '4.3.6';
+      var APP_VER = '4.4.0';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
       var protoEl = document.getElementById('s-proto');
-      var swEl = document.getElementById('s-sw');
       var uidEl = document.getElementById('s-uid');
       var setUidEl = document.getElementById('set-uid');
       var consoleOut = document.getElementById('console-out');
       var form = document.getElementById('term-form');
       var input = document.getElementById('term-input');
+      var acBox = document.getElementById('autocomplete-box');
+      var mediaContainer = document.getElementById('media-container');
       var settingsOverlay = document.getElementById('settings-overlay');
       var updStatusEl = document.getElementById('set-upd-status');
       var manualCheckBtn = document.getElementById('btn-manual-check');
       var manualApplyBtn = document.getElementById('btn-manual-apply');
       var directDownloadBtn = document.getElementById('btn-direct-download');
 
-      var mode = 'server';
-      var engine = 'serpapi';
+      var engine = 'web';
 
       var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
@@ -375,12 +444,6 @@
         var t = new Date().toISOString().split('T')[1].slice(0, 8);
         consoleOut.textContent += '\n[' + t + '] ' + msg;
         consoleOut.scrollTop = consoleOut.scrollHeight;
-      }
-
-      if ('serviceWorker' in navigator) {
-        swEl.textContent = 'ONLINE';
-      } else {
-        swEl.textContent = 'OFFLINE';
       }
 
       function toggleSettings() {
@@ -512,10 +575,45 @@
       if (directDownloadBtn) directDownloadBtn.addEventListener('click', directDownloadFile);
       document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
 
+      /* Autocomplete Handler */
+      var acTimer = null;
+      input.addEventListener('input', function() {
+        clearTimeout(acTimer);
+        var q = input.value.trim();
+        if (!q || q.length < 2 || /^https?:\/\//i.test(q)) {
+          acBox.style.display = 'none';
+          return;
+        }
+        acTimer = setTimeout(function() {
+          fetch('/api/autocomplete?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var list = data.suggestions || [];
+              if (!list.length) {
+                acBox.style.display = 'none';
+                return;
+              }
+              acBox.innerHTML = list.slice(0, 6).map(function(s) {
+                return '<span class="ac-pill" data-val="' + s.replace(/"/g, '&quot;') + '">' + s + '</span>';
+              }).join('');
+              acBox.style.display = 'flex';
+            })
+            .catch(function() { acBox.style.display = 'none'; });
+        }, 200);
+      });
+
+      acBox.addEventListener('click', function(e) {
+        var pill = e.target.closest('.ac-pill');
+        if (!pill) return;
+        input.value = pill.dataset.val;
+        acBox.style.display = 'none';
+        form.dispatchEvent(new Event('submit'));
+      });
+
       (function bootSequence() {
         log('User Authenticated: ' + uid);
-        log('Mounting VFS and Proxy Modules...');
-        log('SW Status: ONLINE | Mode: ' + mode + ' | Engine: ' + engine);
+        log('Mounting Mega Silly Unified Proxy Engine...');
+        log('Alternating Search: Serper.dev + SerpApi Active');
         setTimeout(checkGitHubUpdate, 400);
       })();
 
@@ -530,33 +628,14 @@
         });
       }
 
-      bindGroup('mode-group', function(val) {
-        mode = val;
-        log('Option set: --mode=' + val);
-      });
-
       bindGroup('engine-group', function(val) {
         engine = val;
-        log('Option set: --engine=' + val);
+        log('Search tab set: ' + val);
       });
 
       document.getElementById('btn-clear').addEventListener('click', function() {
         consoleOut.textContent = 'Console reset.';
       });
-
-      var DOMAIN_SHORTCUTS = {
-        'google': 'https://www.google.com',
-        'youtube': 'https://www.youtube.com',
-        'discord': 'https://discord.com',
-        'reddit': 'https://reddit.com',
-        'github': 'https://github.com',
-        'twitter': 'https://twitter.com',
-        'x': 'https://x.com',
-        'instagram': 'https://instagram.com',
-        'tiktok': 'https://tiktok.com',
-        'wikipedia': 'https://wikipedia.org',
-        'spotify': 'https://spotify.com'
-      };
 
       function encryptUrl(str) {
         if (!str) return '';
@@ -570,50 +649,72 @@
         return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
       }
 
-      var ENGINES = {
-        serpapi: function(q) { return '/s?q=' + encodeURIComponent(encryptUrl(q)); },
-        serper: function(q) { return '/sr?q=' + encodeURIComponent(encryptUrl(q)); },
-        brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
-        google: function(q) { return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
-        ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
-      };
-
-      function resolveQuery(raw) {
-        var val = raw.trim();
-        if (!val) return null;
-        if (/^https?:\/\//i.test(val)) return val;
-        var low = val.toLowerCase();
-        if (DOMAIN_SHORTCUTS[low]) return DOMAIN_SHORTCUTS[low];
-        if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(val) && !val.includes(' ')) return 'https://' + val;
-        var searchFn = ENGINES[engine] || ENGINES.google;
-        return searchFn(val);
-      }
-
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
         var rawVal = input.value.trim();
         if (!rawVal) return;
+        acBox.style.display = 'none';
 
-        var target = resolveQuery(rawVal);
-        if (!target) return;
-
-        if (target.startsWith('/s?q=') || target.startsWith('/sr?q=')) {
-          window.location.href = target;
+        // Check if rawVal is direct URL or domain
+        if (/^https?:\/\//i.test(rawVal) || (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(rawVal) && !rawVal.includes(' '))) {
+          var target = /^https?:\/\//i.test(rawVal) ? rawVal : ('https://' + rawVal);
+          log('Opening direct link via Mega Silly Proxy: ' + target);
+          var encryptedTarget = encryptUrl(target);
+          window.location.href = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
           return;
         }
 
-        if (mode === 'scramjet') {
-          if ('serviceWorker' in navigator) {
-            try {
-              await navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' });
-            } catch (err) {}
-          }
-          var encryptedTarget = encryptUrl(target);
-          window.location.href = '/scramjet/service/' + encryptedTarget;
-        } else {
-          var encryptedTarget = encryptUrl(target);
-          window.location.href = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
+        if (engine === 'images') {
+          log('Searching Google Images for: "' + rawVal + '"...');
+          mediaContainer.style.display = 'block';
+          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading images...</div>';
+          fetch('/api/images?q=' + encodeURIComponent(rawVal))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var imgs = data.images || [];
+              if (!imgs.length) {
+                mediaContainer.innerHTML = '<div style="color:#aaa;">No images found.</div>';
+                return;
+              }
+              mediaContainer.innerHTML = '<div class="img-grid">' + imgs.map(function(img) {
+                var encUrl = encryptUrl(img.original);
+                return '<a class="img-card" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' +
+                  '<img src="' + (img.thumbnail || img.original) + '" alt=""/>' +
+                  '<div class="img-title">' + (img.title || 'View Image') + '</div></a>';
+              }).join('') + '</div>';
+            });
+          return;
         }
+
+        if (engine === 'youtube') {
+          log('Searching YouTube & Transcripts for: "' + rawVal + '"...');
+          mediaContainer.style.display = 'block';
+          mediaContainer.innerHTML = '<div style="color:#aaa;">Loading YouTube videos &amp; transcripts...</div>';
+          fetch('/api/youtube?q=' + encodeURIComponent(rawVal))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var vids = data.videos || [];
+              if (!vids.length) {
+                mediaContainer.innerHTML = '<div style="color:#aaa;">No videos found.</div>';
+                return;
+              }
+              mediaContainer.innerHTML = vids.map(function(v) {
+                var watchUrl = v.link || ('https://www.youtube.com/watch?v=' + v.videoId);
+                var encUrl = encryptUrl(watchUrl);
+                return '<div class="yt-card">' +
+                  '<img src="' + (v.thumbnail || '') + '" alt=""/>' +
+                  '<div class="yt-info">' +
+                  '<a class="yt-title" href="/v?q=' + encodeURIComponent(encUrl) + '" target="_blank">' + (v.title || 'Watch Video') + '</a>' +
+                  '<div class="yt-meta">' + (v.channel || 'YouTube') + ' &bull; ' + (v.views || '') + '</div></div></div>';
+              }).join('');
+            });
+          return;
+        }
+
+        // Web Search (Alternating Serper & SerpApi)
+        log('Executing Mega Silly Web Search (Alternating Serper + SerpApi) for: "' + rawVal + '"...');
+        var encryptedVal = encryptUrl(rawVal);
+        window.location.href = '/s?q=' + encodeURIComponent(encryptedVal);
       });
     })();
   </script>
