@@ -1,131 +1,108 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>NoodalMath</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Ctext x='6' y='45' font-family='Arial Black, Impact, sans-serif' font-weight='900' font-size='36' letter-spacing='-2'%3E%3Ctspan fill='%2300a8ff'%3EN%3C/tspan%3E%3Ctspan fill='%237cc576'%3Em%3C/tspan%3E%3C/text%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
-    * { box-sizing: border-box; }
     body {
-      font-family: monospace, Courier, monospace;
-      margin: 20px;
-      background: #000;
-      color: #00ff66;
-      line-height: 1.4;
+      font-family: "Times New Roman", Times, serif;
+      background-color: #ffffff;
+      color: #000000;
+      margin: 15px;
+      padding: 0;
+      text-align: left;
     }
-    h1, h2 {
-      font-size: 1.1rem;
-      border-bottom: 1px solid #00ff66;
-      padding-bottom: 4px;
-      margin-top: 15px;
-    }
-    .box {
-      border: 1px solid #00ff66;
-      padding: 12px;
-      margin-bottom: 15px;
-      background: #080808;
-    }
-    label { display: block; margin-top: 10px; font-weight: bold; }
-    input[type="text"] {
-      width: 100%;
-      max-width: 650px;
-      padding: 8px;
-      margin-top: 4px;
-      background: #111;
-      color: #00ff66;
-      border: 1px solid #00ff66;
-      font-family: monospace;
-      outline: none;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      background: #00ff66;
-      color: #000;
-      border: none;
-      font-family: monospace;
+    button.active {
       font-weight: bold;
-      cursor: pointer;
+      text-decoration: underline;
     }
-    button:hover { background: #00cc52; }
-    pre {
-      background: #050505;
-      border: 1px solid #00ff66;
-      padding: 12px;
-      font-size: 0.8rem;
-      max-height: 420px;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: #33ff88;
-    }
-    .status-ok { color: #00ff66; }
-    .status-err { color: #ff3366; }
   </style>
 </head>
 <body>
 
-  <h1>VOID - PLAIN TEXT PROXY &amp; SERVICE WORKER CHECKER</h1>
+  <h1>VOID PROXY</h1>
+  <hr/>
 
-  <div class="box">
-    <div><strong>VERSION:</strong> v4.1.7</div>
-    <div><strong>SERVICE WORKER CONNECTION:</strong> <span id="sw-status">Checking...</span></div>
-    <div><strong>USER ID:</strong> <span id="user-id">...</span></div>
-    <div><strong>HOST ORIGIN:</strong> <span id="host-origin">...</span></div>
-  </div>
-
-  <form id="fetch-form">
-    <h2>FETCH &amp; INSPECT WEBSITE OUTPUT (NO NAVIGATION)</h2>
-    <label for="target-url">Target Website URL or Query:</label>
-    <input type="text" id="target-url" placeholder="https://example.com" required autocomplete="off"/>
-    <br/>
-    <button type="submit">FETCH WEBSITE OUTPUT</button>
+  <h2>Search Bar</h2>
+  <form id="term-form">
+    <input type="text" id="term-input" placeholder="enter target URL or search query..." required size="60" autocomplete="off" spellcheck="false"/>
+    <br/><br/>
+    <button type="submit">RUN</button>
   </form>
 
-  <h2>RETURNED OUTPUT</h2>
-  <pre id="output-box">No output fetched yet. Enter a website URL above and click Fetch.</pre>
+  <hr/>
+
+  <h2>Proxy Mode</h2>
+  <div id="mode-group">
+    <button type="button" class="t-btn active" data-v="server">Server Side</button>
+  </div>
+
+  <hr/>
+
+  <h2>Search Engine</h2>
+  <div id="engine-group">
+    <button type="button" class="t-btn active" data-v="serpapi">SerpApi</button>
+    <button type="button" class="t-btn" data-v="serper">Serper</button>
+    <button type="button" class="t-btn" data-v="brave">Brave</button>
+    <button type="button" class="t-btn" data-v="google">Google</button>
+    <button type="button" class="t-btn" data-v="ddg">DuckDuckGo</button>
+  </div>
 
   <script>
     (function() {
-      var swStatus = document.getElementById('sw-status');
-      var userIdEl = document.getElementById('user-id');
-      var hostOrigin = document.getElementById('host-origin');
-      var form = document.getElementById('fetch-form');
-      var urlInput = document.getElementById('target-url');
-      var outputBox = document.getElementById('output-box');
+      var form = document.getElementById('term-form');
+      var input = document.getElementById('term-input');
 
-      hostOrigin.textContent = window.location.origin;
+      var mode = 'server';
+      var engine = 'serpapi';
 
-      /* User ID Generator */
-      function getUID() {
-        var id = localStorage.getItem('void_uid');
-        if (!id) {
-          id = 'UID-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-          localStorage.setItem('void_uid', id);
-        }
-        return id;
-      }
-      userIdEl.textContent = getUID();
-
-      /* Service Worker Check */
-      if ('serviceWorker' in navigator) {
-        swStatus.textContent = 'SUPPORTED & CONNECTED';
-        swStatus.className = 'status-ok';
-        navigator.serviceWorker.register('/scramjet/scramjet.worker.js', { scope: '/scramjet/service/' })
-          .then(function(reg) {
-            swStatus.textContent = 'CONNECTED (Scope: ' + reg.scope + ')';
-          })
-          .catch(function(err) {
-            swStatus.textContent = 'SUPPORTED (Registration: ' + err.message + ')';
-          });
-      } else {
-        swStatus.textContent = 'NOT SUPPORTED';
-        swStatus.className = 'status-err';
+      function bindGroup(id, onSelect) {
+        var el = document.getElementById(id);
+        el.addEventListener('click', function(e) {
+          var btn = e.target.closest('.t-btn');
+          if (!btn) return;
+          el.querySelectorAll('.t-btn').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          onSelect(btn.dataset.v);
+        });
       }
 
-      function logOutput(msg) {
-        outputBox.textContent = msg;
+      bindGroup('mode-group', function(val) { mode = val; });
+      bindGroup('engine-group', function(val) { engine = val; });
+
+      var DOMAIN_SHORTCUTS = {
+        'google': 'https://www.google.com',
+        'youtube': 'https://www.youtube.com',
+        'discord': 'https://discord.com',
+        'reddit': 'https://reddit.com',
+        'github': 'https://github.com',
+        'twitter': 'https://twitter.com',
+        'x': 'https://x.com',
+        'instagram': 'https://instagram.com',
+        'tiktok': 'https://tiktok.com',
+        'wikipedia': 'https://wikipedia.org',
+        'spotify': 'https://spotify.com'
+      };
+
+      var ENGINES = {
+        serpapi: function(q) { return '/serpapi-results?q=' + encodeURIComponent(q); },
+        serper: function(q) { return '/serper-results?q=' + encodeURIComponent(q); },
+        brave: function(q) { return 'https://search.brave.com/search?q=' + encodeURIComponent(q); },
+        google: function(q) { return 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q); },
+        ddg: function(q) { return 'https://duckduckgo.com/?q=' + encodeURIComponent(q); }
+      };
+
+      function resolveQuery(raw) {
+        var val = raw.trim();
+        if (!val) return null;
+        if (/^https?:\/\//i.test(val)) return val;
+        var low = val.toLowerCase();
+        if (DOMAIN_SHORTCUTS[low]) return DOMAIN_SHORTCUTS[low];
+        if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(val) && !val.includes(' ')) return 'https://' + val;
+        var searchFn = ENGINES[engine] || ENGINES.google;
+        return searchFn(val);
       }
 
       function getOriginBase() {
@@ -135,38 +112,30 @@
         return 'https://math-quiz-alpha-gilt.vercel.app';
       }
 
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var rawUrl = urlInput.value.trim();
-        if (!rawUrl) return;
-
-        var targetUrl = rawUrl;
-        if (!/^https?:\/\//i.test(targetUrl)) {
-          if (targetUrl.includes('.') && !targetUrl.includes(' ')) {
-            targetUrl = 'https://' + targetUrl;
-          } else {
-            targetUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(targetUrl);
-          }
+      function encryptUrl(str) {
+        if (!str) return '';
+        var xored = [];
+        for (var i = 0; i < str.length; i++) {
+          xored.push(String.fromCharCode(str.charCodeAt(i) ^ 0x3f));
         }
+        var base64 = btoa(xored.join(''));
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
 
-        logOutput('[FETCHING OUTPUT FROM]: ' + targetUrl + '\nPlease wait...\n');
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var target = resolveQuery(input.value);
+        if (!target) return;
 
         var base = getOriginBase();
-        var endpoint = base + '/api/raw?url=' + encodeURIComponent(targetUrl);
-        fetch(endpoint)
-          .then(function(res) {
-            return res.text().then(function(text) {
-              return { status: res.status, ok: res.ok, text: text };
-            });
-          })
-          .then(function(data) {
-            var headerStr = '=== HTTP STATUS: ' + data.status + ' ===\n';
-            headerStr += '=== TARGET: ' + targetUrl + ' ===\n\n';
-            logOutput(headerStr + (data.text || '[Empty Response Body]'));
-          })
-          .catch(function(err) {
-            logOutput('[ERROR FETCHING OUTPUT]: ' + err.message + '\nMake sure the proxy server is running.');
-          });
+
+        if (target.startsWith('/serpapi-results') || target.startsWith('/serper-results')) {
+          window.location.href = base + target;
+          return;
+        }
+
+        var encryptedTarget = encryptUrl(target);
+        window.location.href = base + '/go?url=' + encodeURIComponent(encryptedTarget) + '&mode=server';
       });
     })();
   </script>
