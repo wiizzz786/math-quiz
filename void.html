@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>NoodalMath</title>
+  <title>NoodalMath Minimal</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Ctext x='6' y='45' font-family='Arial Black, Impact, sans-serif' font-weight='900' font-size='36' letter-spacing='-2'%3E%3Ctspan fill='%2300a8ff'%3EN%3C/tspan%3E%3Ctspan fill='%237cc576'%3Em%3C/tspan%3E%3C/text%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
     body {
@@ -117,13 +117,6 @@
         return searchFn(val);
       }
 
-      function getOriginBase() {
-        if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol)) {
-          return window.location.origin;
-        }
-        return 'https://noodalmath.onthewifi.com';
-      }
-
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
         var rawVal = input.value.trim();
@@ -132,15 +125,13 @@
         var target = resolveQuery(rawVal);
         if (!target) return;
 
-        var base = getOriginBase();
-
         if (target.startsWith('/s?q=') || target.startsWith('/sr?q=')) {
-          window.location.href = base + target;
+          window.location.href = target;
           return;
         }
 
         var encryptedTarget = encryptUrl(target);
-        window.location.href = base + '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
+        window.location.href = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
       });
     })();
   </script>
