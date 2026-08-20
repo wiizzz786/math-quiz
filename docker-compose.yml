@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  math-quiz:
+    build: .
+    container_name: math-quiz-app
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      - SERPAPI_KEY=cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85
+      - SERPER_KEY=1729c383021935c483b8b324b106c3fbd6d09ff3
