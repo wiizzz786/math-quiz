@@ -157,10 +157,10 @@ function enc(url) {
 function dec(encoded) {
   try {
     const str = String(encoded).trim();
-    if (!str) throw new Error("Empty URL parameter");
+    if (!str) return "";
 
-    // Check if str is already a plain URL
-    if (/^https?:\/\//i.test(str)) {
+    // Check if str is already a plain URL or plain text with spaces
+    if (/^https?:\/\//i.test(str) || str.includes(" ")) {
       return str;
     }
 
@@ -179,37 +179,25 @@ function dec(encoded) {
       decChars.push(String.fromCharCode(code));
     }
     const multiDecoded = decChars.join("");
-    if (/^https?:\/\//i.test(multiDecoded)) {
+    if (multiDecoded && /^[\x20-\x7E\s]+$/.test(multiDecoded)) {
       return multiDecoded;
     }
 
     // 2. Try legacy XOR 0x3F cipher decryption
     const xorDecoded = rawBinary.split("").map(c => String.fromCharCode(c.charCodeAt(0) ^ 0x3f)).join("");
-    if (/^https?:\/\//i.test(xorDecoded)) {
+    if (xorDecoded && /^[\x20-\x7E\s]+$/.test(xorDecoded)) {
       return xorDecoded;
     }
 
     // 3. Try standard UTF-8 Base64 decode
     const decodedUtf8 = Buffer.from(padded, "base64").toString("utf8");
-    if (/^https?:\/\//i.test(decodedUtf8) || (decodedUtf8.includes(".") && !decodedUtf8.includes(" "))) {
+    if (decodedUtf8 && /^[\x20-\x7E\s]+$/.test(decodedUtf8)) {
       return decodedUtf8;
     }
 
-    if (multiDecoded && (multiDecoded.includes(".") && !multiDecoded.includes(" "))) {
-      return multiDecoded;
-    }
-
-    // Fallback: return un-decoded string if it looks like a domain
-    if (str.includes(".") && !str.includes(" ")) {
-      return str;
-    }
-
-    throw new Error("Decoded value is not a valid http/https URL");
+    return str;
   } catch (e) {
-    if (encoded && typeof encoded === 'string' && encoded.includes('.') && !encoded.includes(' ')) {
-      return encoded;
-    }
-    throw new Error(`URL decode failed: ${e.message}`);
+    return String(encoded || "");
   }
 }
 
@@ -1895,15 +1883,15 @@ a{text-decoration:none;color:inherit;}
   fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
     .then(function(r){return r.ok?r.json():null;})
     .then(function(data){
-      if(!data||!Array.isArray(data.results)){
-        location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
+      if(!data||!Array.isArray(data.results)||!data.results.length){
+        render([], false);
         return;
       }
       saveCache(qNorm,data.results);
       render(data.results,data.cached||false);
     })
     .catch(function(){
-      location.replace('/go?url=' + encodeURIComponent('https://www.google.com/search?igu=1&q=' + encodeURIComponent(Q)));
+      render([], false);
     });
 })();
 </script>
@@ -1914,7 +1902,7 @@ a{text-decoration:none;color:inherit;}
 app.get("/api/health", (_req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.json({ status: "ok", version: "4.5.1", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
+  res.json({ status: "ok", version: "4.5.2", isVercel: !!process.env.VERCEL, uptime: Math.floor(process.uptime()) });
 });
 
 app.get("/api/raw", async (req, res) => {
@@ -1930,7 +1918,7 @@ app.get("/api/raw", async (req, res) => {
       return res.status(403).send("Forbidden host");
     }
     const r = await fetch(targetUrl, {
-      headers: { "User-Agent": "Void-Proxy/4.5.1" }
+      headers: { "User-Agent": "Void-Proxy/4.5.2" }
     });
     if (!r.ok) return res.status(r.status).send("Upstream HTTP " + r.status);
     const content = await r.text();
