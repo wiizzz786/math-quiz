@@ -4,396 +4,64 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>NoodalMath</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Ctext x='6' y='45' font-family='Arial Black, Impact, sans-serif' font-weight='900' font-size='36' letter-spacing='-2'%3E%3Ctspan fill='%2300a8ff'%3EN%3C/tspan%3E%3Ctspan fill='%237cc576'%3Em%3C/tspan%3E%3C/text%3E%3C/svg%3E" type="image/svg+xml"/>
   <style>
-    :root {
-      --bg: #000000;
-      --term-bg: #050508;
-      --white: #ffffff;
-      --white-dim: #cccccc;
-      --white-dark: #666666;
-      --text: #ffffff;
-      --muted: #888888;
-      --border: #ffffff;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      line-height: 1.45;
-      text-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
-    }
-    body::after {
-      content: " ";
-      display: block;
-      position: fixed; inset: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.02));
-      z-index: 999;
-      background-size: 100% 3px, 6px 100%;
-      pointer-events: none;
-    }
-    .term-window {
-      width: 100%;
-      max-width: 820px;
-      background: var(--term-bg);
-      border: 2px solid #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(255, 255, 255, 0.15), inset 0 0 15px rgba(255, 255, 255, 0.05);
-      overflow: hidden;
-      position: relative;
-    }
-    .term-bar {
-      background: #111111;
-      border-bottom: 2px solid #ffffff;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.82rem;
-      font-weight: bold;
-      color: #ffffff;
-      user-select: none;
-    }
-    .term-dots {
-      display: flex;
-      gap: 8px;
-    }
-    .dot {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .dot-red { background: #666666; }
-    .dot-yellow { background: #999999; }
-    .dot-green { background: #ffffff; }
-    .term-body {
-      padding: 24px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--muted);
-      border-radius: 6px;
-      padding: 10px 12px;
-    }
-    .lbl {
-      font-size: 0.68rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 4px;
-    }
-    .val {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--text);
-      word-break: break-all;
-    }
-    .sec-title {
-      font-size: 0.78rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin: 18px 0 10px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .sec-title::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--muted);
-      opacity: 0.4;
-    }
-    .cmd-box {
-      background: #000000;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.08);
-      position: relative;
-    }
-    .cmd-input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.95rem;
-      outline: none;
-    }
-    .cmd-input::placeholder {
-      color: rgba(255, 255, 255, 0.35);
-    }
-    .cmd-btn {
-      background: var(--text);
-      color: #000000;
-      border: none;
-      padding: 8px 18px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-weight: 900;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .cmd-btn:hover {
-      background: #cccccc;
-    }
-    .autocomplete-box {
-      margin-top: 6px;
-      background: #000000;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: none;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 8px;
-    }
-    .ac-pill {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--muted);
-      color: var(--white);
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .ac-pill:hover {
-      background: #ffffff;
-      color: #000000;
-      font-weight: bold;
-    }
-    .group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .t-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--muted);
-      color: var(--text);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 0.82rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .t-btn:hover {
-      border-color: var(--border);
-      background: rgba(255, 255, 255, 0.12);
-    }
-    .t-btn.active {
-      background: var(--text);
-      color: #000000;
-      font-weight: bold;
-      border-color: var(--border);
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-    }
-    .console {
-      background: #020202;
-      border: 1px solid var(--muted);
-      border-radius: 6px;
-      padding: 12px;
-      font-size: 0.76rem;
-      height: 140px;
-      overflow-y: auto;
-      color: var(--white-dim);
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    .media-container {
-      margin-top: 15px;
-      display: none;
-      background: #020202;
-      border: 1px solid var(--muted);
-      border-radius: 8px;
-      padding: 16px;
-      max-height: 350px;
-      overflow-y: auto;
-    }
-    .img-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
-    }
-    .img-card {
-      border: 1px solid var(--muted);
-      border-radius: 6px;
-      overflow: hidden;
-      background: #000;
-      text-decoration: none;
-      color: #fff;
-    }
-    .img-card img {
-      width: 100%;
-      height: 90px;
-      object-fit: cover;
-      display: block;
-    }
-    .img-title {
-      font-size: 0.65rem;
-      padding: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .yt-card {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 8px 0;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .yt-card img {
-      width: 80px;
-      height: 48px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-    .yt-info { flex: 1; }
-    .yt-title { font-size: 0.82rem; font-weight: bold; color: #fff; text-decoration: none; }
-    .yt-meta { font-size: 0.68rem; color: #888; }
-    .overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.95);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-      padding: 30px;
-      display: none;
-      flex-direction: column;
-      justify-content: space-between;
-      border-radius: 12px;
-      border: 2px solid #ffffff;
-    }
-    .overlay-head {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: var(--text);
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-    }
-    .overlay-btn {
-      background: transparent;
-      border: 1.5px solid var(--border);
-      color: var(--text);
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 0.88rem;
-      cursor: pointer;
-      font-weight: bold;
-      margin-right: 10px;
-      margin-bottom: 10px;
-      transition: all 0.15s;
-    }
-    .overlay-btn:hover {
-      background: var(--text);
-      color: #000000;
+      font-family: 'Times New Roman', Times, serif;
     }
   </style>
 </head>
 <body>
+  <h1>VOID</h1>
+  
+  <div style="display:none;">
+    <p>HOST: <span id="s-host">...</span></p>
+    <p>PROTO: <span id="s-proto">...</span></p>
+    <p>MODE: <span id="disp-mode">Mega</span></p>
+    <p>UID: <span id="s-uid">...</span></p>
+  </div>
 
-  <div class="term-window">
-    <div class="term-bar">
-      <div class="term-dots">
-        <span class="dot dot-red"></span>
-        <span class="dot dot-yellow"></span>
-        <span class="dot dot-green"></span>
-      </div>
-      <div>VOID TERMINAL &mdash; bash &mdash; 80x24</div>
-      <div>Press Q for Settings</div>
+  <h2>Search</h2>
+  <form id="term-form">
+    <input type="text" id="term-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false" size="50"/>
+    <button type="submit">SEARCH</button>
+    <div id="autocomplete-box" style="display:none;"></div>
+  </form>
+
+  <h2>Mode</h2>
+  <div id="mode-group">
+    <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
+    <button type="button" class="t-btn" data-v="google">Google</button>
+  </div>
+
+  <div id="media-container" style="display:none;"></div>
+
+  <div>
+    <h2>Console</h2>
+    <pre id="console-out" style="border:1px solid #000; padding:10px; height:100px; overflow:auto;">Starting...</pre>
+    
+    <button type="button" id="btn-check-update">Check GitHub Update</button>
+    
+    <div id="update-actions" style="display:none; margin-top:10px;">
+      <button type="button" id="btn-manual-apply">Apply Instant Update</button>
+      <button type="button" id="btn-direct-download">Download new version</button>
     </div>
-
-    <div class="term-body">
-      <div class="grid">
-        <div class="card">
-          <div class="lbl">HOST</div>
-          <div class="val" id="s-host">...</div>
-        </div>
-        <div class="card">
-          <div class="lbl">PROTO</div>
-          <div class="val" id="s-proto">...</div>
-        </div>
-        <div class="card">
-          <div class="lbl">MODE</div>
-          <div class="val" id="disp-mode" style="color:#ffffff;">Mega</div>
-        </div>
-        <div class="card">
-          <div class="lbl">UID</div>
-          <div class="val" id="s-uid">...</div>
-        </div>
-        <div class="card">
-          <div class="lbl">VERSION</div>
-          <div class="val">v4.5.2</div>
-        </div>
-      </div>
-
-      <div class="sec-title">Search Bar</div>
-      <form id="term-form">
-        <div class="cmd-box">
-          <input type="text" id="term-input" class="cmd-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false"/>
-          <button type="submit" class="cmd-btn">SEARCH</button>
-        </div>
-        <div id="autocomplete-box" class="autocomplete-box"></div>
-      </form>
-
-      <div class="sec-title">Mode</div>
-      <div class="group" id="mode-group">
-        <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
-        <button type="button" class="t-btn" data-v="google">Google</button>
-      </div>
-
-      <div id="media-container" class="media-container"></div>
-
-      <div class="sec-title">Debug Console</div>
-      <div class="console" id="console-out">Initializing Void OS v4.5.2 [2-Mode Engine Active]...</div>
-      <div style="margin-top: 10px; display: flex; gap: 10px;">
-        <button type="button" class="t-btn" id="btn-open-settings">Settings (Press Q)</button>
-        <button type="button" class="t-btn" id="btn-check-update">Check GitHub Update</button>
-        <button type="button" class="t-btn" id="btn-clear">Clear Console</button>
-      </div>
-    </div>
-
-    <!-- Settings Overlay (Press Q or ESC) -->
-    <div class="overlay" id="settings-overlay">
-      <div>
-        <div class="overlay-head">SETTINGS &amp; SYSTEM INFO</div>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">User ID: <span id="set-uid" style="color:#ffffff;">...</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Version: <span style="color:#ffffff;">v4.5.2</span></p>
-        <p style="margin-bottom: 12px; font-size: 0.9rem;">Current Mode: <span id="set-mode-lbl" style="color:#ffffff;">Mega</span></p>
-        <p style="margin-bottom: 20px; font-size: 0.85rem; color: #cccccc;" id="set-upd-status">Status: Standby. Check or apply manual update below.</p>
-        <div style="margin-top: 15px;">
-          <button type="button" class="overlay-btn" id="btn-manual-check">Check GitHub Update</button>
-          <button type="button" class="overlay-btn" id="btn-manual-apply">Apply Instant Update</button>
-          <button type="button" class="overlay-btn" id="btn-direct-download">Direct Download void.html</button>
-        </div>
-      </div>
-      <div style="text-align: right;">
-        <button type="button" class="overlay-btn" id="btn-close-settings">Close (ESC)</button>
-      </div>
+    
+    <div style="display:none;">
+      <button type="button" id="btn-open-settings">Settings</button>
+      <button type="button" id="btn-clear">Clear Console</button>
     </div>
   </div>
+
+  <div id="settings-overlay" style="display:none; border:1px solid #000; padding:10px; margin-top:10px;">
+    <h2>Settings & System Info</h2>
+    <p>User ID: <span id="set-uid">...</span></p>
+    <p>Current Mode: <span id="set-mode-lbl">Mega</span></p>
+    <p id="set-upd-status">Status: Standby.</p>
+    <button type="button" id="btn-manual-check">Check GitHub Update</button>
+    <button type="button" id="btn-close-settings">Close</button>
+  </div>
+
+  <div id="feature-section" style="display:none;"></div>
 
   <script>
     (function() {
@@ -418,14 +86,13 @@
       var manualApplyBtn = document.getElementById('btn-manual-apply');
       var directDownloadBtn = document.getElementById('btn-direct-download');
 
-      var currentMode = 'megasilly'; // 'megasilly' or 'google'
-      var activeFeature = 'web';     // 'web', 'images', 'youtube'
+      var currentMode = 'megasilly'; 
+      var activeFeature = 'web';     
 
       var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
       protoEl.textContent = window.location.protocol.replace(':', '').toUpperCase();
 
-      /* User ID Generator & Storage */
       function getUID() {
         var id = localStorage.getItem('void_uid');
         if (!id) {
@@ -445,15 +112,15 @@
 
       function log(msg) {
         var t = new Date().toISOString().split('T')[1].slice(0, 8);
-        consoleOut.textContent += '\n[' + t + '] ' + msg;
+        consoleOut.textContent += '\\n[' + t + '] ' + msg;
         consoleOut.scrollTop = consoleOut.scrollHeight;
       }
 
       function toggleSettings() {
-        var isShown = (settingsOverlay.style.display === 'flex');
-        settingsOverlay.style.display = isShown ? 'none' : 'flex';
+        var isShown = (settingsOverlay.style.display === 'block');
+        settingsOverlay.style.display = isShown ? 'none' : 'block';
         if (!isShown) {
-          log('Opened Settings menu (Q).');
+          log('Opened Settings menu.');
           checkGitHubUpdate();
         }
       }
@@ -461,18 +128,6 @@
       document.getElementById('btn-open-settings').addEventListener('click', toggleSettings);
       document.getElementById('btn-close-settings').addEventListener('click', function() {
         settingsOverlay.style.display = 'none';
-      });
-
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'q' || e.key === 'Q') {
-          var ae = document.activeElement;
-          if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
-          e.preventDefault();
-          toggleSettings();
-        }
-        if (e.key === 'Escape' && settingsOverlay.style.display === 'flex') {
-          settingsOverlay.style.display = 'none';
-        }
       });
 
       function parseVer(v) {
@@ -576,9 +231,12 @@
       if (manualCheckBtn) manualCheckBtn.addEventListener('click', checkGitHubUpdate);
       if (manualApplyBtn) manualApplyBtn.addEventListener('click', applyManualUpdate);
       if (directDownloadBtn) directDownloadBtn.addEventListener('click', directDownloadFile);
-      document.getElementById('btn-check-update').addEventListener('click', checkGitHubUpdate);
+      document.getElementById('btn-check-update').addEventListener('click', function() {
+        checkGitHubUpdate();
+        var ua = document.getElementById('update-actions');
+        if (ua) ua.style.display = 'block';
+      });
 
-      /* Autocomplete Handler */
       var acTimer = null;
       input.addEventListener('input', function() {
         clearTimeout(acTimer);
@@ -597,9 +255,9 @@
                 return;
               }
               acBox.innerHTML = list.slice(0, 6).map(function(s) {
-                return '<span class="ac-pill" data-val="' + s.replace(/"/g, '&quot;') + '">' + s + '</span>';
+                return '<span class="ac-pill" data-val="' + s.replace(/"/g, '&quot;') + '" style="cursor:pointer; margin-right:5px; border:1px solid #ccc; padding:2px;">' + s + '</span>';
               }).join('');
-              acBox.style.display = 'flex';
+              acBox.style.display = 'block';
             })
             .catch(function() { acBox.style.display = 'none'; });
         }, 200);
@@ -634,14 +292,9 @@
         currentMode = val;
         dispMode.textContent = val === 'megasilly' ? 'Mega' : 'Google';
         setModeLbl.textContent = val === 'megasilly' ? 'Mega' : 'Google';
-        featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
+        if (featureSection) featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
         mediaContainer.style.display = 'none';
         log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega' : 'Google'));
-      });
-
-      bindGroup('feature-group', function(val) {
-        activeFeature = val;
-        log('Mega Silly feature tab: ' + val);
       });
 
       document.getElementById('btn-clear').addEventListener('click', function() {
@@ -657,7 +310,7 @@
           var code = str.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
           out.push(String.fromCharCode(code));
         }
-        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + '.securly.com';
       }
 
       form.addEventListener('submit', async function(e) {
@@ -666,29 +319,40 @@
         if (!rawVal) return;
         acBox.style.display = 'none';
 
-        // Check if rawVal is direct URL or domain
+        var targetUrl = '';
         var isDirectUrl = /^https?:\/\//i.test(rawVal) || (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(rawVal) && !rawVal.includes(' '));
         if (isDirectUrl) {
           var target = /^https?:\/\//i.test(rawVal) ? rawVal : ('https://' + rawVal);
           log('Opening direct URL via Void Proxy: ' + target);
           var encryptedTarget = encryptUrl(target);
-          window.location.href = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
-          return;
-        }
-
-        // GOOGLE MODE (No API Key Required)
-        if (currentMode === 'google') {
+          targetUrl = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
+        } else if (currentMode === 'google') {
           log('Executing Google Mode Search (No API) for: "' + rawVal + '"...');
           var googleSearchUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(rawVal);
           var encryptedVal = encryptUrl(googleSearchUrl);
-          window.location.href = '/v?q=' + encodeURIComponent(encryptedVal) + '&mode=server';
-          return;
+          targetUrl = '/v?q=' + encodeURIComponent(encryptedVal) + '&mode=server';
+        } else {
+          log('Executing Mega Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
+          var encryptedVal = encryptUrl(rawVal);
+          targetUrl = '/s?q=' + encodeURIComponent(encryptedVal);
         }
 
-        // MEGA MODE (Unified API Engine)
-        log('Executing Mega Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
-        var encryptedVal = encryptUrl(rawVal);
-        window.location.href = '/s?q=' + encodeURIComponent(encryptedVal);
+        var win = window.open('about:blank', '_blank');
+        if (win) {
+          win.document.title = 'Classes';
+          win.document.body.style.margin = '0';
+          win.document.body.style.height = '100vh';
+          win.document.body.style.overflow = 'hidden';
+          var iframe = win.document.createElement('iframe');
+          iframe.style.border = 'none';
+          iframe.style.width = '100vw';
+          iframe.style.height = '100vh';
+          iframe.style.margin = '0';
+          iframe.src = window.location.origin + targetUrl;
+          win.document.body.appendChild(iframe);
+        } else {
+          window.location.href = targetUrl;
+        }
       });
     })();
   </script>

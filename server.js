@@ -151,13 +151,17 @@ app.use("/epoxy/", express.static(join(__dirname, "node_modules", "@mercuryworks
    ═══════════════════════════════════════════ */
 
 function enc(url) {
-  return "/p/" + Buffer.from(url).toString("base64url");
+  return "/p/" + Buffer.from(url).toString("base64url") + ".securly.com";
 }
 
 function dec(encoded) {
   try {
-    const str = String(encoded).trim();
+    let str = String(encoded).trim();
     if (!str) return "";
+
+    if (str.endsWith(".securly.com")) {
+      str = str.slice(0, -12);
+    }
 
     // Check if str is already a plain URL or plain text with spaces
     if (/^https?:\/\//i.test(str) || str.includes(" ")) {
@@ -292,7 +296,7 @@ function injectionScript(base) {
       if(u.startsWith('/p/'))return u;
       if(SKIP.test(u))return u;
       var a=new URL(u,B).href;
-      if(a.startsWith('http'))return'/p/'+btoa(a).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'');
+      if(a.startsWith('http'))return'/p/'+btoa(a).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'')+'.securly.com';
       return u;
     }catch(e){return u;}
   }
@@ -2022,4 +2026,4 @@ function gracefulShutdown(signal) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-module.exports = app;
+export default app;
