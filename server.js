@@ -1760,36 +1760,35 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], async (req, res) =
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${safeQ} — Void Search</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#000000;color:#ffffff;font-family:'JetBrains Mono',monospace;min-height:100vh;-webkit-font-smoothing:antialiased;}
+body{background:#ffffff;color:#000000;font-family:'Times New Roman',Times,serif;min-height:100vh;}
 a{text-decoration:none;color:inherit;}
-.topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#050508;border-bottom:2px solid #ffffff;position:sticky;top:0;z-index:100;}
-.topbar .logo{font-size:1.2rem;font-weight:900;letter-spacing:-.05em;color:#ffffff;flex-shrink:0;text-transform:uppercase;}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#ffffff;border-bottom:1px solid #000000;position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.2rem;font-weight:bold;color:#000000;text-transform:uppercase;}
 .topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
-.topbar input{flex:1;background:#000000;border:1.5px solid #ffffff;border-radius:6px;color:#ffffff;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:8px 14px;outline:none;}
-.topbar input:focus{border-color:#ffffff;box-shadow:0 0 10px rgba(255,255,255,0.3);}
-.topbar button{padding:8px 18px;border-radius:6px;background:#ffffff;border:none;color:#000000;font-weight:900;font-size:.82rem;cursor:pointer;white-space:nowrap;}
-.topbar .back{padding:8px 14px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid #ffffff;color:#ffffff;font-size:.8rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;}
-.topbar .back:hover{background:#ffffff;color:#000000;}
+.topbar input{flex:1;background:#ffffff;border:1px solid #000000;border-radius:0;color:#000000;font-family:'Times New Roman',Times,serif;font-size:1rem;padding:6px 10px;outline:none;}
+.topbar input:focus{border-color:#000000;}
+.topbar button{padding:6px 14px;border-radius:0;background:#eeeeee;border:1px solid #000000;color:#000000;font-weight:bold;font-size:.9rem;cursor:pointer;white-space:nowrap;}
+.topbar .back{padding:6px 12px;border-radius:0;background:#eeeeee;border:1px solid #000000;color:#000000;font-size:.9rem;text-decoration:none;display:inline-flex;}
+.topbar .back:hover{background:#dddddd;}
 .main{max-width:760px;margin:0 auto;padding:24px 20px 60px;}
-.meta{font-size:.72rem;color:#888888;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.meta .dot{width:4px;height:4px;border-radius:50%;background:#ffffff;}
-.cache-tag{font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px;text-transform:uppercase;}
+.meta{font-size:.9rem;color:#555555;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.meta .dot{width:4px;height:4px;border-radius:50%;background:#000000;}
+.cache-tag{font-size:.7rem;padding:2px 5px;border:1px solid #000000;text-transform:uppercase;}
 .cache-tag.live{background:#ffffff;color:#000000;}
-.cache-tag.cached{background:rgba(255,255,255,0.2);color:#ffffff;}
-.result{display:block;padding:16px;border-radius:8px;border:1px solid #888888;background:#050508;margin-bottom:12px;transition:all .15s;}
-.result:hover{background:rgba(255,255,255,.05);border-color:#ffffff;}
-.result-head{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
-.fav{width:14px;height:14px;border-radius:2px;flex-shrink:0;}
-.domain{font-size:.7rem;color:#888888;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.badge{font-size:.55rem;font-weight:900;letter-spacing:.07em;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-left:4px;background:#ffffff;color:#000000;}
-.result-title{font-size:.95rem;font-weight:700;color:#ffffff;margin-bottom:6px;line-height:1.4;}
-.result:hover .result-title{color:#ffffff;text-decoration:underline;}
-.result-snippet{font-size:.78rem;color:#cccccc;line-height:1.6;}
-.no-results{text-align:center;padding:60px 20px;color:#888888;font-size:.85rem;}
-.spinner{display:flex;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:#ffffff;font-size:.85rem;font-weight:bold;}
-.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#ffffff;animation:sp .8s linear infinite;}
+.cache-tag.cached{background:#eeeeee;color:#000000;}
+.result{display:block;padding:16px 0;border-bottom:1px solid #dddddd;margin-bottom:12px;}
+.result:hover{background:#f9f9f9;}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.fav{width:14px;height:14px;}
+.domain{font-size:.8rem;color:#555555;font-family:'Times New Roman',Times,serif;}
+.badge{font-size:.6rem;padding:1px 4px;border:1px solid #000;margin-left:4px;background:#fff;color:#000;}
+.result-title{font-size:1.1rem;font-weight:bold;color:#0000cc;margin-bottom:4px;}
+.result:hover .result-title{text-decoration:underline;}
+.result-snippet{font-size:.9rem;color:#333333;line-height:1.4;}
+.no-results{text-align:center;padding:60px;color:#555555;font-size:1rem;}
+.spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:#000;font-size:1rem;}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid #000;border-top-color:transparent;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -1864,7 +1863,7 @@ a{text-decoration:none;color:inherit;}
     var meta=document.getElementById('meta');
     var res=document.getElementById('results');
     if(meta){
-      meta.innerHTML='<span>'+results.length+' results for <strong style="color:#ffffff">"'+esc(Q)+'"</strong></span>'
+      meta.innerHTML='<span>'+results.length+' results for <strong>"'+esc(Q)+'"</strong></span>'
         +'<span class="dot"></span><span>via Mega Engine</span>'
         +(fromCache
           ?'<span class="dot"></span><span class="cache-tag cached">cached</span>'
