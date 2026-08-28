@@ -425,15 +425,15 @@ function proxyBar(displayUrl) {
   const faviconHtml = favicon
     ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'" alt=""/>`
     : "";
-  return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:rgba(6,6,11,.94);backdrop-filter:blur(16px) saturate(1.2);border-bottom:1px solid rgba(255,255,255,.06);font-family:-apple-system,system-ui,sans-serif;font-size:12px;color:#9a9bb8;box-shadow:0 4px 24px rgba(0,0,0,.3);">
-<a href="/" target="_top" style="background:linear-gradient(135deg,#7c6aff,#ff5f8f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;text-decoration:none;letter-spacing:-.04em;font-size:16px;">void</a><span style="color:rgba(255,255,255,.4);font-size:12px;font-weight:500;margin-left:2px;">Go Anywhere</span>
-<span style="width:1px;height:18px;background:rgba(255,255,255,.08);flex-shrink:0;"></span>
-<button onclick="history.back()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Back">&#8592;</button>
-<button onclick="history.forward()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Forward">&#8594;</button>
-<button onclick="location.reload()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#9a9bb8;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Reload">&#8635;</button>
-<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.35);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.05);font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:11px;color:#646478;display:flex;align-items:center;gap:6px;">${faviconHtml}${safe}</span>
-<a href="/" target="_top" style="padding:5px 14px;border-radius:8px;background:rgba(255,255,255,.05);color:#ccc;text-decoration:none;font-weight:600;font-size:11px;border:1px solid rgba(255,255,255,.06);transition:background .15s;">Home</a>
-<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';" style="padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.04);color:#ff5f8f;border:1px solid rgba(255,255,255,.06);cursor:pointer;font-weight:700;font-size:13px;" aria-label="Close toolbar">&#x2715;</button>
+  return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#ffffff;border-bottom:1px solid #000000;font-family:'Times New Roman',Times,serif;font-size:14px;color:#000000;">
+<a href="/" target="_top" style="color:#000000;font-weight:bold;text-decoration:none;font-size:18px;text-transform:uppercase;">void</a>
+<span style="color:#555555;font-size:14px;margin-left:4px;">Go Anywhere</span>
+<button onclick="history.back()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Back">&larr;</button>
+<button onclick="history.forward()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Forward">&rarr;</button>
+<button onclick="location.reload()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Reload">&#8635;</button>
+<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#ffffff;padding:2px 8px;border:1px solid #000000;font-family:'Times New Roman',Times,serif;font-size:13px;color:#000000;display:flex;align-items:center;gap:6px;">${faviconHtml}${safe}</span>
+<a href="/" target="_top" style="padding:2px 10px;background:#eeeeee;color:#000000;text-decoration:none;border:1px solid #000000;">Home</a>
+<button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';" style="padding:2px 8px;background:#eeeeee;color:#000000;border:1px solid #000000;cursor:pointer;font-family:'Times New Roman',Times,serif;" aria-label="Close toolbar">&#x2715;</button>
 </div>
 <div id="__vsp" style="height:42px;"></div>`;
 }
