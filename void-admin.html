@@ -1,1770 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
-  <!-- Shipped versions (bump when you release). Used by Check for Update. -->
-  <meta name="void-version" content="4.0.4"/>
-  <meta name="void-admin-version" content="4.0.4"/>
-  <!-- Canonical raw files on GitHub (same repo as void.html). -->
-  <meta name="void-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html"/>
-  <meta name="void-admin-update-url" content="https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html"/>
-  <!-- Optional: full URL to embed in Run Void (blank = void.html next to this file). -->
-  <meta name="void-embed-url" content=""/>
-  <title>Void Admin</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ff5f8f'/%3E%3Cstop offset='100%25' stop-color='%237c6aff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M32 4L8 52h12L32 24l12 28h12L32 4z'/%3E%3C/svg%3E" type="image/svg+xml"/>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Network Latency Tester</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
-    :root {
-      --bg: #06060b; --surface: rgba(255,255,255,.022); --surface2: rgba(255,255,255,.04);
-      --border: rgba(255,255,255,.055); --border2: rgba(255,255,255,.1);
-      --accent: #7c6aff; --accent2: #ff5f8f; --green: #34d399; --yellow: #f0c040;
-      --text: #eef0f8; --sub: #9a9bb8; --muted: #464660; --dim: #2a2a3d;
-      --rad: 16px; --rad-sm: 10px;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@300;400&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
-    body { display: flex; flex-direction: column; overflow: hidden; position: relative; }
-    button, a, input, textarea, select, .nav-item, .uid-row, .req-row, .btn, .uid-label, .uid-delete, .btn-msg { touch-action: manipulation; }
 
-    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-    .bg .wavy-grad {
-      position: absolute; inset: -20%;
-      background:
-        linear-gradient(120deg, transparent 0%, rgba(124,106,255,.18) 40%, transparent 70%),
-        linear-gradient(260deg, transparent 0%, rgba(255,95,143,.12) 35%, transparent 70%),
-        linear-gradient(380deg, transparent 0%, rgba(52,211,153,.08) 40%, transparent 75%);
-      background-size: 150% 150%;
-      animation: wavy-drift 30s linear infinite;
-      filter: blur(50px);
-      opacity: 0.9;
-    }
-    @keyframes wavy-drift { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
-    @media (prefers-reduced-motion: reduce) { .bg .wavy-grad { animation: none; } }
-    .bg .grid {
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
-      background-size: 48px 48px;
-    }
-    .bg .noise-grad {
-      position: absolute; inset: -15%;
-      background:
-        radial-gradient(ellipse 70% 50% at 25% 35%, rgba(124,106,255,.1) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 70% at 75% 65%, rgba(255,95,143,.08) 0%, transparent 50%);
-      opacity: 0.9;
+    body {
+      background-color: #0f1115;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
     }
 
     .header {
-      display: flex; align-items: center; gap: 12px; padding: 12px 20px;
-      border-bottom: 1px solid var(--border); background: rgba(6,6,11,.97); flex-shrink: 0;
-      position: relative; z-index: 1;
+      width: 100%;
+      padding: 1.5rem;
+      background: #15181e;
+      border-bottom: 1px solid #1e222a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .header-logo {
-      font-size: 1.2rem; font-weight: 900; letter-spacing: -.04em;
-      background: linear-gradient(135deg, #ff5f8f, #7c6aff);
-      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .header-tag {
-      padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700;
-      letter-spacing: .08em; background: rgba(255,95,143,.15); color: var(--accent2);
-    }
-    .header-fb { padding: 2px 8px; border-radius: 5px; font-size: .55rem; font-weight: 700; letter-spacing: .06em; }
-    .header-fb.on { background: rgba(52,211,153,.15); color: var(--green); }
-    .header-fb.off { background: rgba(255,95,143,.1); color: var(--accent2); }
-    .header-ver { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted); margin-left: auto; }
 
-    .main { flex: 1; display: flex; overflow: hidden; position: relative; z-index: 1; }
-    .sidebar {
-      width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
-      background: rgba(255,255,255,.01); display: flex; flex-direction: column; overflow-y: auto;
+    .header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #94a3b8;
     }
-    .nav-item {
-      display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-      font-size: .78rem; font-weight: 600; color: var(--sub); cursor: pointer;
-      border-left: 3px solid transparent; transition: all .15s;
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 900px;
+      padding: 2rem;
+      flex: 1;
     }
-    .nav-item:hover { background: var(--surface); color: var(--text); }
-    .nav-item.active { background: var(--surface2); color: #fff; border-left-color: var(--accent); }
-    .nav-item .nav-ico { font-size: 1rem; width: 20px; text-align: center; }
-    .nav-item .nav-count {
-      margin-left: auto; font-size: .58rem; font-weight: 700; padding: 1px 6px;
-      border-radius: 8px; background: rgba(124,106,255,.15); color: var(--accent);
+
+    .input-group {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 2rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #1e222a;
+      border: 1px solid #2d3340;
+      padding: 1.2rem 1.5rem;
+      border-radius: 8px;
+      color: #f8fafc;
+      font-size: 1.1rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0 2.5rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    .timer-display {
       font-family: 'JetBrains Mono', monospace;
-    }
-    .nav-sep { height: 1px; background: var(--border); margin: 6px 12px; }
-
-    .content { flex: 1; overflow-y: auto; padding: 24px; }
-    .panel { display: none; }
-    .panel.active { display: block; }
-
-    .card {
-      background: linear-gradient(170deg, rgba(255,255,255,.028) 0%, rgba(255,255,255,.008) 100%);
-      border: 1px solid var(--border); border-radius: var(--rad); padding: 1.5rem;
-      margin-bottom: 16px;
-    }
-    .card-title {
-      font-size: .6rem; font-weight: 700; letter-spacing: .2em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+      font-size: 6rem;
+      font-weight: 300;
+      color: #f8fafc;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+      display: flex;
+      align-items: baseline;
+      transition: color 0.3s;
     }
 
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat { padding: 16px; border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border); }
-    .stat-label { font-size: .6rem; font-weight: 600; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
-    .stat-value { font-size: 1.3rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
-    .stat-value.green { color: var(--green); }
-    .stat-value.pink { color: var(--accent2); }
-    .stat-value.purple { color: var(--accent); }
-    .stat-value.yellow { color: var(--yellow); }
+    .timer-ms {
+      font-size: 2.5rem;
+      color: #64748b;
+    }
 
-    .uid-list { display: flex; flex-direction: column; gap: 6px; }
-    .uid-row {
-      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-      border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border);
-      font-size: .75rem; color: var(--text); transition: border-color .2s;
+    .preview-container {
+      width: 100%;
+      flex: 1;
+      border: 1px solid #2d3340;
+      border-radius: 8px;
+      background: #000;
+      overflow: hidden;
+      display: none;
+      position: relative;
     }
-    .uid-row:hover { border-color: var(--border2); }
-    .uid-row.banned { border-color: rgba(255,95,143,.3); background: rgba(255,95,143,.04); }
-    .uid-row .uid-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .uid-row .uid-dot.active { background: var(--green); }
-    .uid-row .uid-dot.banned { background: var(--accent2); }
-    .uid-id { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 130px; flex-shrink: 0; }
-    .uid-label {
-      font-size: .72rem; font-weight: 600; color: var(--accent);
-      cursor: pointer; min-width: 60px; padding: 2px 6px; border-radius: 4px;
-      border: 1px solid transparent; transition: all .15s; flex-shrink: 0;
+    
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
     }
-    .uid-label:hover { border-color: var(--border2); background: var(--surface2); }
-    .uid-label.empty { color: var(--muted); font-style: italic; font-weight: 400; }
-    .uid-label-input {
-      font-size: .72rem; font-weight: 600; color: var(--accent); background: var(--dim);
-      border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px;
-      outline: none; font-family: inherit; width: 120px;
-    }
-    .uid-meta { font-size: .62rem; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .uid-tag { font-size: .52rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; font-family: 'Inter', sans-serif; letter-spacing: .05em; flex-shrink: 0; }
-    .uid-tag.owner-tag { background: rgba(52,211,153,.15); color: var(--green); }
-    .uid-tag.banned-tag { background: rgba(255,95,143,.15); color: var(--accent2); }
-    .uid-actions { display: flex; gap: 4px; flex-shrink: 0; }
-    .uid-delete {
-      width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,95,143,.15);
-      background: transparent; color: var(--muted); font-size: .7rem;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all .15s; flex-shrink: 0;
-    }
-    .uid-delete:hover { background: rgba(255,95,143,.15); color: var(--accent2); border-color: rgba(255,95,143,.3); }
-    .req-row {
-      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-      border-radius: var(--rad-sm); background: var(--surface); border: 1px solid rgba(255,95,143,.2);
-      font-size: .75rem; color: var(--text); transition: border-color .2s;
-    }
-    .req-row .req-uid { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 130px; }
-    .req-row .req-meta { font-size: .62rem; color: var(--muted); flex: 1; }
-    .req-row .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
-
-    .uid-online { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,.3); }
-    .uid-online.online { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,.5); }
-    .uid-online.offline { background: var(--muted); opacity: .4; }
-    .uid-online.banned { background: var(--accent2); }
-
-    .btn-msg {
-      padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(124,106,255,.2);
-      background: rgba(124,106,255,.08); color: var(--accent); font-size: .58rem;
-      font-weight: 700; cursor: pointer; transition: all .15s; flex-shrink: 0;
-    }
-    .btn-msg:hover { background: rgba(124,106,255,.2); }
-
-    .msg-modal-overlay {
-      position: fixed; inset: 0; z-index: 10000;
-      background: rgba(6,6,11,.7); backdrop-filter: blur(8px);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity .25s; pointer-events: none;
-    }
-    .msg-modal-overlay.show { opacity: 1; pointer-events: auto; }
-    .msg-modal {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 14px; padding: 1.5rem 2rem; max-width: 440px; width: 90%;
-      box-shadow: 0 16px 60px rgba(0,0,0,.5);
-      transform: scale(.92); transition: transform .25s;
-    }
-    .msg-modal-overlay.show .msg-modal { transform: scale(1); }
-    .msg-modal-title {
-      font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: .8rem;
-    }
-    .msg-modal-to {
-      font-size: .72rem; color: var(--text); margin-bottom: .8rem;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .msg-modal textarea {
-      width: 100%; min-height: 90px; padding: 10px 14px; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--surface);
-      color: var(--text); font-family: inherit; font-size: .8rem;
-      resize: vertical; box-sizing: border-box;
-    }
-    .msg-modal textarea:focus { outline: none; border-color: var(--accent); }
-    .msg-modal-actions { display: flex; gap: 8px; margin-top: .8rem; justify-content: flex-end; }
-
-    .history-list { display: flex; flex-direction: column; gap: 4px; }
-    .history-row {
-      display: flex; align-items: center; gap: 10px; padding: 8px 14px;
-      border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border);
-      font-size: .72rem; transition: border-color .15s;
-    }
-    .history-row:hover { border-color: var(--border2); }
-    .h-time { font-family: 'JetBrains Mono', monospace; font-size: .6rem; color: var(--muted); min-width: 70px; flex-shrink: 0; }
-    .h-user { font-weight: 700; color: var(--accent); min-width: 80px; flex-shrink: 0; font-size: .68rem; }
-    .h-url { color: var(--sub); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: .65rem; }
-    .h-query { color: var(--muted); font-size: .6rem; font-style: italic; flex-shrink: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history-filters { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
-    .history-filters select {
-      padding: 6px 10px; border-radius: 6px; background: var(--dim); border: 1px solid var(--border);
-      color: var(--text); font-family: inherit; font-size: .72rem; outline: none; cursor: pointer;
-    }
-    .history-filters select:focus { border-color: var(--accent); }
-
-    .debug-console {
-      background: #0a0a12; border: 1px solid var(--border); border-radius: var(--rad-sm);
-      height: 400px; overflow-y: auto; padding: 10px 14px;
-      font-family: 'JetBrains Mono', monospace; font-size: .68rem; line-height: 1.7; color: var(--muted);
-    }
-    .debug-console .d-line { white-space: pre-wrap; word-break: break-all; }
-    .debug-console .d-fetch { color: var(--accent); }
-    .debug-console .d-resp { color: var(--green); }
-    .debug-console .d-err { color: var(--accent2); }
-    .debug-console .d-nav { color: #f0c040; }
-    .debug-console .d-info { color: var(--sub); }
-
-    .debug-bar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
-    .debug-url {
-      flex: 1; padding: 8px 12px; border-radius: 8px;
-      background: var(--dim); border: 1px solid var(--border);
-      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .78rem; outline: none;
-    }
-    .debug-url:focus { border-color: var(--accent); }
-
-    .preview-frame {
-      width: 100%; height: 500px; border: 1px solid var(--border); border-radius: var(--rad-sm);
-      background: #fff; margin-top: 10px;
-    }
-    .preview-bar {
-      display: flex; align-items: center; gap: 6px; padding: 6px 10px;
-      background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: var(--rad-sm) var(--rad-sm) 0 0;
-      font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted);
-    }
-    .preview-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    .tool-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: stretch; }
-    .tool-textarea {
-      flex: 1; padding: 10px 14px; border-radius: 8px; resize: vertical;
-      background: var(--dim); border: 1px solid var(--border);
-      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
-      outline: none; min-height: 80px;
-    }
-    .tool-textarea:focus { border-color: var(--accent); }
-    .tool-arrow {
-      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
-      color: var(--muted); padding: 0 6px; flex-shrink: 0;
-    }
-    .tool-output {
-      flex: 1; padding: 10px 14px; border-radius: 8px;
-      background: #0a0a12; border: 1px solid var(--border);
-      color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: .75rem;
-      min-height: 80px; white-space: pre-wrap; word-break: break-all; overflow-y: auto;
-      user-select: all; cursor: text;
-    }
-    .ping-results { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
-    .ping-stat { padding: 10px 16px; border-radius: var(--rad-sm); background: var(--surface); border: 1px solid var(--border); text-align: center; }
-    .ping-stat .ps-label { font-size: .55rem; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
-    .ping-stat .ps-value { font-size: 1.1rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
-    .headers-table { width: 100%; border-collapse: collapse; font-size: .7rem; }
-    .headers-table th { text-align: left; padding: 6px 10px; color: var(--muted); font-weight: 600; font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-    .headers-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,.02); font-family: 'JetBrains Mono', monospace; font-size: .68rem; }
-    .headers-table td:first-child { color: var(--accent); font-weight: 600; white-space: nowrap; }
-    .headers-table td:last-child { color: var(--sub); word-break: break-all; }
-
-    .btn { padding: 8px 18px; border-radius: 8px; border: none; font-family: inherit; font-weight: 700; font-size: .78rem; cursor: pointer; transition: all .15s; }
-    .btn-sm { padding: 4px 10px; font-size: .65rem; border-radius: 6px; }
-    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 2px 12px rgba(124,106,255,.25); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,106,255,.4); }
-    .btn-primary:active { transform: scale(.97); }
-    .btn-danger { background: rgba(255,95,143,.12); color: var(--accent2); border: 1px solid rgba(255,95,143,.2); }
-    .btn-danger:hover { background: rgba(255,95,143,.25); }
-    .btn-success { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
-    .btn-success:hover { background: rgba(52,211,153,.25); }
-    .btn-ghost { background: var(--surface); color: var(--sub); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
-    .btn:disabled { opacity: .5; cursor: default; transform: none; }
-
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .empty-state { text-align: center; padding: 2rem; color: var(--muted); font-size: .85rem; }
-    .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse-live 2s ease infinite; }
-    @keyframes pulse-live { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-
-    @media (max-width: 700px) {
-      .sidebar { width: 52px; }
-      .nav-item span:not(.nav-ico) { display: none; }
-      .nav-item .nav-count { display: none; }
-      .nav-item { justify-content: center; padding: 12px 8px; }
-      .content { padding: 16px; }
-      .uid-meta, .uid-label, .h-query { display: none; }
-      .tool-row { flex-direction: column; }
-      .tool-arrow { transform: rotate(90deg); }
-    }
-    /* ── Touch / iPad optimizations ── */
-    @supports (padding: env(safe-area-inset-top)) {
-      .header { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
-      .sidebar { padding-bottom: env(safe-area-inset-bottom); }
-      .content { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
-    }
-    @media (pointer: coarse) {
-      .nav-item { padding: 14px 16px; min-height: 48px; font-size: .82rem; }
-      .btn { padding: 12px 20px; font-size: .82rem; min-height: 44px; }
-      .btn-sm { padding: 8px 14px; font-size: .7rem; min-height: 36px; }
-      .btn-msg { padding: 8px 12px; font-size: .64rem; min-height: 36px; }
-      .uid-row { padding: 14px 16px; gap: 12px; }
-      .uid-delete { width: 32px; height: 32px; font-size: .85rem; }
-      .uid-label { padding: 6px 10px; min-height: 36px; display: inline-flex; align-items: center; }
-      .req-row { padding: 14px 16px; }
-      .history-row { padding: 12px 14px; }
-      .history-filters select { padding: 10px 14px; font-size: .78rem; min-height: 44px; }
-      .stat { padding: 18px; }
-      .debug-url { padding: 12px 14px; font-size: .82rem; }
-      .tool-textarea { padding: 14px; font-size: .8rem; min-height: 100px; }
-      .msg-modal textarea { padding: 14px; font-size: .85rem; min-height: 110px; }
-      input, textarea, select { font-size: 16px; }
-      .header { padding: 14px 20px; }
-    }
-    @media (max-width: 700px) and (pointer: coarse) {
-      .sidebar { width: 58px; }
-      .nav-item { padding: 16px 10px; }
-      .content { padding: 14px; }
+    
+    .status {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #64748b;
+      font-size: 1.2rem;
     }
   </style>
 </head>
 <body>
 
-<div class="bg">
-  <div class="wavy-grad"></div>
-  <div class="noise-grad"></div>
-  <div class="grid"></div>
-</div>
-
-<div class="header">
-  <span class="header-logo">void</span>
-  <span class="header-tag">ADMIN</span>
-  <span class="header-fb" id="h-fb">FIREBASE</span>
-  <span class="header-ver" id="h-ver"></span>
-</div>
-
-<div class="main">
-  <div class="sidebar">
-    <div class="nav-item active" data-panel="dashboard"><span class="nav-ico">&#9632;</span><span>Dashboard</span></div>
-    <div class="nav-item" data-panel="users"><span class="nav-ico">&#9786;</span><span>Users</span><span class="nav-count" id="nav-user-count">0</span></div>
-    <div class="nav-item" data-panel="requests"><span class="nav-ico">&#9993;</span><span>Requests</span><span class="nav-count" id="nav-req-count" style="background:rgba(255,95,143,.2);color:var(--accent2);">0</span></div>
-    <div class="nav-item" data-panel="history"><span class="nav-ico">&#9201;</span><span>History</span><span class="nav-count" id="nav-history-count">0</span></div>
-    <div class="nav-item" data-panel="messages"><span class="nav-ico">&#9993;</span><span>Messages</span><span class="nav-count" id="nav-msg-count">0</span></div>
-    <div class="nav-item" data-panel="activity"><span class="nav-ico">&#9776;</span><span>Activity</span></div>
-    <div class="nav-sep"></div>
-    <div class="nav-item" data-panel="proxy"><span class="nav-ico">&#9658;</span><span>Test Proxy</span></div>
-    <div class="nav-item" data-panel="modes"><span class="nav-ico">&#9636;</span><span>Proxy Modes</span></div>
-    <div class="nav-item" data-panel="debug"><span class="nav-ico">&#9881;</span><span>Debug</span></div>
-    <div class="nav-item" data-panel="devtools"><span class="nav-ico">&#10095;</span><span>Dev Tools</span></div>
-    <div class="nav-sep"></div>
-    <div class="nav-item" data-panel="tools"><span class="nav-ico">&#9874;</span><span>Settings</span></div>
-    <div class="nav-sep"></div>
-    <div class="nav-item" data-panel="void" style="color:var(--green);"><span class="nav-ico">&#9654;</span><span>Run Void</span></div>
+  <div class="header">
+    <h1>Network Latency Tester</h1>
   </div>
 
-  <div class="content">
-
-    <!-- Dashboard -->
-    <div class="panel active" id="p-dashboard">
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-label">Version</div><div class="stat-value purple" id="d-version">&mdash;</div></div>
-        <div class="stat"><div class="stat-label">Owner ID</div><div class="stat-value green" id="d-owner">&mdash;</div></div>
-        <div class="stat"><div class="stat-label">Firestore Users</div><div class="stat-value yellow" id="d-fb-total">&mdash;</div></div>
-        <div class="stat"><div class="stat-label">Online Now</div><div class="stat-value green" id="d-fb-online">0</div></div>
-        <div class="stat"><div class="stat-label">Banned</div><div class="stat-value pink" id="d-fb-banned">0</div></div>
-        <div class="stat"><div class="stat-label">Pending Requests</div><div class="stat-value yellow" id="d-fb-requests">0</div></div>
-        <div class="stat"><div class="stat-label">Total Searches</div><div class="stat-value purple" id="d-fb-searches">&mdash;</div></div>
-        <div class="stat"><div class="stat-label">Local UIDs</div><div class="stat-value" id="d-total">0</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Proxy Mode Distribution</div>
-        <div id="d-mode-dist" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Quick Actions</div>
-        <div class="actions">
-          <button class="btn btn-primary" id="btn-check-update">Check for Update</button>
-          <button class="btn btn-ghost" id="btn-open-void">Open void.html</button>
-          <button class="btn btn-danger" id="btn-clear-data">Clear All Local Data</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Update Status</div>
-        <p id="update-status" style="font-size:.82rem;color:var(--sub);line-height:1.5;">Checks <code>void.html</code> and <code>void-admin.html</code> on GitHub (see <code>&lt;meta name=&quot;void-update-url&quot;&gt;</code>).</p>
-      </div>
+  <div class="container">
+    <div class="input-group">
+      <input type="text" id="target-url" placeholder="Enter target domain (e.g. bing.com)" autocomplete="off" spellcheck="false"/>
+      <button id="btn-load">Load & Time</button>
     </div>
 
-    <!-- Users -->
-    <div class="panel" id="p-users">
-      <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="users-live-dot"></span>Firestore Users</span><span id="users-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-users" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-          <input type="text" class="debug-url" id="user-search" placeholder="Search by label name, UID, banned, owner\u2026" style="flex:1;font-size:.7rem;"/>
-          <button class="btn btn-ghost btn-sm" id="btn-broadcast" title="Message all users">Broadcast</button>
-          <button class="btn btn-ghost btn-sm" id="btn-export-users" title="Export users to JSON">Export</button>
-        </div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Click a label to rename a user.</p>
-        <div class="uid-list" id="fb-uid-list"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Ban by UID</div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" class="debug-url" id="manual-ban-uid" placeholder="XXXX-XXXX-XXXX" style="max-width:240px"/>
-          <button class="btn btn-danger btn-sm" id="btn-manual-ban">Ban</button>
-          <button class="btn btn-success btn-sm" id="btn-manual-unban">Unban</button>
-        </div>
-      </div>
+    <div class="timer-display" id="timer">0.00<span class="timer-ms">s</span></div>
+
+    <div class="preview-container" id="preview-box">
+      <div class="status" id="preview-status">Awaiting request...</div>
+      <iframe id="proxy-frame" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"></iframe>
     </div>
-
-    <!-- History -->
-    <div class="panel" id="p-history">
-      <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="history-live-dot"></span>Search History</span><span id="history-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-history" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
-        <div class="history-filters">
-          <select id="history-filter-user"><option value="">All Users</option></select>
-          <button class="btn btn-ghost btn-sm" id="btn-history-export">Export</button>
-          <button class="btn btn-danger btn-sm" id="btn-history-clear">Clear All</button>
-        </div>
-        <div class="history-list" id="history-list"></div>
-      </div>
-    </div>
-
-    <!-- Requests -->
-    <div class="panel" id="p-requests">
-      <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span><span class="live-dot" id="req-live-dot"></span>Access Requests</span><span id="req-status" style="font-size:.55rem;font-weight:600;letter-spacing:.05em;color:var(--green);text-transform:none;"></span><button class="btn btn-ghost btn-sm" id="btn-refresh-requests" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Banned users can request access. Accept to unban them, deny to reject.</p>
-        <div class="uid-list" id="req-list"></div>
-      </div>
-    </div>
-
-    <!-- Test Proxy (live preview) -->
-    <div class="panel" id="p-proxy">
-      <div class="card">
-        <div class="card-title">Live Proxy Tester</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Load any URL through the CORS proxy and see the rendered page. Works just like void.html's browser.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="proxy-test-url" placeholder="https://example.com" autocomplete="off"/>
-          <button class="btn btn-primary" id="btn-proxy-load">Load</button>
-          <button class="btn btn-ghost" id="btn-proxy-clear">Clear</button>
-        </div>
-        <div class="preview-bar" id="proxy-preview-bar" style="display:none;">
-          <span id="proxy-preview-status">Loading&hellip;</span>
-        </div>
-        <iframe id="proxy-preview-frame" class="preview-frame" style="display:none;" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
-      </div>
-      <div class="card">
-        <div class="card-title">Response Headers</div>
-        <div id="proxy-headers" style="overflow-x:auto;"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Proxy Latency Test</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Ping the CORS proxy 5 times and measure response time.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="ping-url" placeholder="https://example.com" value="https://example.com" autocomplete="off" style="max-width:300px"/>
-          <button class="btn btn-primary" id="btn-ping">Run Ping Test</button>
-        </div>
-        <div class="ping-results" id="ping-results"></div>
-      </div>
-    </div>
-
-    <!-- Proxy Modes -->
-    <div class="panel" id="p-modes">
-      <div class="card">
-        <div class="card-title">Active Proxy Configuration</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:12px;">Read from <code>void.html</code> meta tags. These are the values users see.</p>
-        <table class="headers-table" id="modes-config-table">
-          <tr><th>Setting</th><th>Value</th></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Mode Descriptions</div>
-        <div style="display:flex;flex-direction:column;gap:8px;" id="modes-desc-list">
-          <div class="uid-row"><span class="uid-tag" style="background:rgba(124,106,255,.15);color:var(--accent);min-width:90px;text-align:center;">client</span><span class="uid-meta" style="flex:1;">CORS proxy via Cloudflare Worker. No server needed. Default mode.</span></div>
-          <div class="uid-row"><span class="uid-tag" style="background:rgba(52,211,153,.15);color:var(--green);min-width:90px;text-align:center;">server</span><span class="uid-meta" style="flex:1;">Server-side proxy. Requires a custom backend URL (e.g. http://localhost:8080).</span></div>
-          <div class="uid-row"><span class="uid-tag" style="background:rgba(255,95,143,.15);color:var(--accent2);min-width:90px;text-align:center;">experimental</span><span class="uid-meta" style="flex:1;">Bare-metal Node.js proxy engine. No UV/Scramjet. Best stealth headers.</span></div>
-          <div class="uid-row"><span class="uid-tag" style="background:rgba(240,192,64,.15);color:var(--yellow);min-width:90px;text-align:center;">scramjet</span><span class="uid-meta" style="flex:1;">Scramjet service worker proxy. Requires scramjet host (void-scramjet-base).</span></div>
-          <div class="uid-row"><span class="uid-tag" style="background:rgba(255,255,255,.08);color:var(--sub);min-width:90px;text-align:center;">uv</span><span class="uid-meta" style="flex:1;">Ultraviolet service worker proxy. Requires UV host on port 8443 (void-uv-base).</span></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Test Each Mode</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Verify the CORS proxy is reachable and returning valid responses.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="mode-test-url" placeholder="https://example.com" value="https://example.com" autocomplete="off"/>
-          <button class="btn btn-primary" id="btn-mode-test">Test CORS Proxy</button>
-        </div>
-        <div id="mode-test-result" style="margin-top:10px;font-size:.72rem;color:var(--sub);"></div>
-      </div>
-    </div>
-
-    <!-- Debug Console -->
-    <div class="panel" id="p-debug">
-      <div class="card">
-        <div class="card-title">Proxy Fetch Debug</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Raw fetch through the CORS proxy with full logging.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="debug-url" placeholder="https://example.com" autocomplete="off"/>
-          <button class="btn btn-primary" id="btn-debug-go">Fetch</button>
-          <button class="btn btn-ghost" id="btn-debug-clear">Clear</button>
-        </div>
-        <div class="debug-console" id="debug-console"></div>
-      </div>
-    </div>
-
-    <!-- Dev Tools -->
-    <div class="panel" id="p-devtools">
-      <div class="card">
-        <div class="card-title">Proxy URL Builder</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Paste a URL to get the full proxied URL. Click output to copy.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="dt-proxy-input" placeholder="https://example.com" autocomplete="off"/>
-          <button class="btn btn-ghost btn-sm" id="btn-dt-proxy-build">Build</button>
-        </div>
-        <div class="tool-output" id="dt-proxy-output" style="min-height:40px;margin-top:6px;" title="Click to copy"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">URL Encode / Decode</div>
-        <div class="tool-row">
-          <textarea class="tool-textarea" id="dt-url-input" placeholder="Paste text to encode/decode..."></textarea>
-          <div class="tool-arrow">&rarr;</div>
-          <div class="tool-output" id="dt-url-output"></div>
-        </div>
-        <div class="actions" style="margin-top:4px;">
-          <button class="btn btn-ghost btn-sm" id="btn-url-encode">Encode</button>
-          <button class="btn btn-ghost btn-sm" id="btn-url-decode">Decode</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Base64 Encode / Decode</div>
-        <div class="tool-row">
-          <textarea class="tool-textarea" id="dt-b64-input" placeholder="Paste text..."></textarea>
-          <div class="tool-arrow">&rarr;</div>
-          <div class="tool-output" id="dt-b64-output"></div>
-        </div>
-        <div class="actions" style="margin-top:4px;">
-          <button class="btn btn-ghost btn-sm" id="btn-b64-encode">Encode</button>
-          <button class="btn btn-ghost btn-sm" id="btn-b64-decode">Decode</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">JSON Formatter</div>
-        <div class="tool-row">
-          <textarea class="tool-textarea" id="dt-json-input" placeholder='{"key":"value"}' style="min-height:120px;"></textarea>
-          <div class="tool-arrow">&rarr;</div>
-          <div class="tool-output" id="dt-json-output" style="min-height:120px;"></div>
-        </div>
-        <div class="actions" style="margin-top:4px;">
-          <button class="btn btn-ghost btn-sm" id="btn-json-format">Format</button>
-          <button class="btn btn-ghost btn-sm" id="btn-json-minify">Minify</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">HTTP Header Inspector</div>
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:10px;">Fetch a URL through the proxy and display all response headers.</p>
-        <div class="debug-bar">
-          <input type="text" class="debug-url" id="dt-headers-url" placeholder="https://example.com" autocomplete="off"/>
-          <button class="btn btn-primary btn-sm" id="btn-dt-headers">Inspect</button>
-        </div>
-        <div id="dt-headers-result" style="margin-top:10px;overflow-x:auto;"></div>
-      </div>
-    </div>
-
-    <!-- Settings/Tools -->
-    <div class="panel" id="p-tools">
-      <div class="card">
-        <div class="card-title">CORS Proxy Config</div>
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <input type="text" class="debug-url" id="tool-cors-url" autocomplete="off"/>
-          <button class="btn btn-ghost" id="btn-save-cors">Save</button>
-        </div>
-        <p style="font-size:.65rem;color:var(--muted);">Changes the CORS proxy URL in localStorage for void.html.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">localStorage Viewer</div>
-        <div class="debug-console" id="ls-viewer" style="height:250px;"></div>
-        <div class="actions"><button class="btn btn-ghost" id="btn-refresh-ls">Refresh</button></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Danger Zone</div>
-        <div class="actions">
-          <button class="btn btn-danger" id="btn-reset-owner">Reset Owner ID</button>
-          <button class="btn btn-danger" id="btn-nuke">Factory Reset (clear everything)</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Messages -->
-    <div class="panel" id="p-messages">
-      <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span>Sent Messages</span><button class="btn btn-ghost btn-sm" id="btn-refresh-msgs" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Refresh</button></div>
-        <div class="uid-list" id="msg-list"></div>
-      </div>
-    </div>
-
-    <!-- Activity Log -->
-    <div class="panel" id="p-activity">
-      <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:10px;"><span>Activity Log</span><button class="btn btn-ghost btn-sm" id="btn-clear-activity" style="margin-left:auto;padding:3px 10px;font-size:.58rem;">Clear</button></div>
-        <p style="font-size:.65rem;color:var(--muted);margin-bottom:10px;">Admin actions are logged here.</p>
-        <div class="debug-console" id="activity-log" style="height:400px;"></div>
-      </div>
-    </div>
-
-    <!-- Run Void — live void.html preview (same experience users see) -->
-    <div class="panel" id="p-void">
-      <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">Void preview</div>
-        <p style="font-size:.72rem;color:var(--muted);line-height:1.45;">Embedded <code>void.html</code> from this host so you see the same UI as users. Override with <code>&lt;meta name=&quot;void-embed-url&quot; content=&quot;https://&hellip;/void.html&quot;&gt;</code> if needed.</p>
-      </div>
-      <div class="card" style="padding:0;overflow:hidden;border-radius:12px;height:calc(100vh - 220px);min-height:320px;">
-        <iframe id="void-iframe" title="Void (user view)" style="width:100%;height:100%;border:none;background:#06060b;" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-popups-to-escape-sandbox"></iframe>
-      </div>
-    </div>
-
   </div>
-</div>
 
-<script>
-(function(){
-'use strict';
+  <script>
+    const urlInput = document.getElementById('target-url');
+    const loadBtn = document.getElementById('btn-load');
+    const timerEl = document.getElementById('timer');
+    const previewBox = document.getElementById('preview-box');
+    const previewStatus = document.getElementById('preview-status');
+    const iframe = document.getElementById('proxy-frame');
 
-var $ = function(id){ return document.getElementById(id); };
+    let startTime = 0;
+    let timerInterval = null;
 
-// Read CORS proxy from meta tag (same source as void.html uses)
-function _meta(name, fallback){
-  var el = document.querySelector('meta[name="' + name + '"]');
-  var c = el && el.getAttribute('content');
-  return (c != null && String(c).trim() !== '') ? String(c).trim() : (fallback || '');
-}
-
-var CORS_PROXY_BASE = _meta('void-cors-proxy-base', 'https://void-proxy.aadizzz786.workers.dev/?url=');
-// Also allow localStorage override (set by void.html settings)
-try {
-  var _lsPrefs = JSON.parse(localStorage.getItem('void_prefs') || '{}');
-  if(_lsPrefs.corsProxy) CORS_PROXY_BASE = _lsPrefs.corsProxy;
-} catch(e){}
-
-// Legacy compat: CORS_PROXY without ?url= suffix for display
-var CORS_PROXY = CORS_PROXY_BASE.replace(/[?&]url=$/, '').replace(/\/+$/, '');
-
-function _meta(name, fallback){
-  var el = document.querySelector('meta[name="' + name + '"]');
-  var c = el && el.getAttribute('content');
-  return (c != null && String(c).trim() !== '') ? String(c).trim() : fallback;
-}
-var VER = _meta('void-admin-version', '2.1.1');
-var VOID_VER = _meta('void-version', '2.1.1');
-
-function parseVersion(v){
-  var parts = (v || '0.0.0').replace(/^v/i, '').split('.');
-  return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0];
-}
-function isNewer(remote, local){
-  var r = parseVersion(remote), l = parseVersion(local);
-  return r[0] > l[0] || (r[0] === l[0] && r[1] > l[1]) || (r[0] === l[0] && r[1] === l[1] && r[2] > l[2]);
-}
-function extractMetaContentFromHtml(html, metaName){
-  if(!html || !metaName) return null;
-  if(typeof html === 'string' && html.charCodeAt(0) === 0xfeff) html = html.slice(1);
-  try {
-    var doc = new DOMParser().parseFromString(html, 'text/html');
-    var meta = doc.querySelector('meta[name="' + String(metaName).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
-    if(meta){
-      var c = meta.getAttribute('content');
-      if(c != null && String(c).trim() !== '') return String(c).trim();
+    function enc(u) {
+      if (!/^https?:\/\//i.test(u)) {
+        u = 'https://' + u;
+      }
+      var salt = Math.random().toString(36).substring(2,6).padEnd(4,'x');
+      u = salt + '||' + u;
+      var key = 'Void2026';
+      var chars = [];
+      for(var i=0; i<u.length; i++){
+        var code = u.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        chars.push(String.fromCharCode(code));
+      }
+      return window.location.origin + '/p/' + btoa(chars.join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'') + '.www.securly.com';
     }
-  } catch(e1){}
-  try {
-    var esc = String(metaName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    var re1 = new RegExp('<meta\\s+[^>]*name\\s*=\\s*["\']' + esc + '["\'][^>]*content\\s*=\\s*["\']([^"\']*)["\']', 'i');
-    var re2 = new RegExp('<meta\\s+[^>]*content\\s*=\\s*["\']([^"\']*)["\'][^>]*name\\s*=\\s*["\']' + esc + '["\']', 'i');
-    var m = html.match(re1) || html.match(re2);
-    if(m && m[1] != null && String(m[1]).trim() !== '') return String(m[1]).trim();
-  } catch(e2){}
-  return null;
-}
-function resolveVoidUpdateUrl(){
-  return _meta('void-update-url', 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void.html');
-}
-function resolveVoidAdminUpdateUrl(){
-  return _meta('void-admin-update-url', 'https://raw.githubusercontent.com/wiizzz786/math-quiz/main/void-admin.html');
-}
-function resolveVoidEmbedUrl(){
-  var custom = _meta('void-embed-url', '');
-  if(custom) return custom;
-  try { return new URL('void.html', location.href).href; } catch(e){ return 'void.html'; }
-}
 
-var _db = null, _fbOk = false, _allUsers = [], _allSearches = [], _userLabels = {};
+    function formatTime(ms) {
+      const seconds = Math.floor(ms / 1000);
+      const frac = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+      return `${seconds}.${frac}<span class="timer-ms">s</span>`;
+    }
 
-try { var p = localStorage.getItem('void_prefs'); if(p){ var pp = JSON.parse(p); if(pp.corsProxy) CORS_PROXY = pp.corsProxy; } } catch(e){}
+    loadBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
 
-try {
-  firebase.initializeApp({
-    apiKey: "AIzaSyBmZLCV_KSP-lDroPDkqOMtdi4re_GKtdw",
-    authDomain: "void-93d14.firebaseapp.com",
-    projectId: "void-93d14",
-    storageBucket: "void-93d14.firebasestorage.app",
-    messagingSenderId: "745528020435",
-    appId: "1:745528020435:web:10c66751991c7c766bb326"
-  });
-  _db = firebase.firestore();
-  _fbOk = true;
-} catch(e){}
+      clearInterval(timerInterval);
+      previewBox.style.display = 'block';
+      iframe.style.display = 'none';
+      previewStatus.style.display = 'block';
+      previewStatus.textContent = 'Connecting to edge network...';
+      timerEl.innerHTML = `0.00<span class="timer-ms">s</span>`;
+      timerEl.style.color = '#f8fafc';
 
-var fbBadge = $('h-fb');
-if(_fbOk){ fbBadge.textContent = 'FIRESTORE \u2713'; fbBadge.className = 'header-fb on'; }
-else { fbBadge.textContent = 'OFFLINE'; fbBadge.className = 'header-fb off'; }
-$('h-ver').textContent = 'v' + VER;
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        timerEl.innerHTML = formatTime(Date.now() - startTime);
+      }, 10);
 
-function getOwner(){ return localStorage.getItem('void_owner') || '\u2014'; }
-function getUid(){ return localStorage.getItem('void_uid') || '\u2014'; }
-function getUidLog(){ try { return JSON.parse(localStorage.getItem('void_uid_log') || '[]'); } catch(e){ return []; } }
-function getUserLabel(uid){ return _userLabels[uid] || ''; }
-function getUserDisplay(uid){ var l = getUserLabel(uid); return l || uid; }
+      iframe.src = enc(url);
+    });
+    
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadBtn.click();
+    });
 
-function makeProxyUrl(target){
-  if(CORS_PROXY_BASE.includes('?')) return CORS_PROXY_BASE + encodeURIComponent(target);
-  return CORS_PROXY_BASE + '?url=' + encodeURIComponent(target);
-}
+    iframe.addEventListener('load', () => {
+      if (!iframe.src || iframe.src === 'about:blank') return;
+      
+      clearInterval(timerInterval);
+      timerEl.innerHTML = formatTime(Date.now() - startTime);
+      timerEl.style.color = '#34d399';
+      
+      previewStatus.style.display = 'none';
+      iframe.style.display = 'block';
+    });
 
-function timeAgo(ts){
-  if(!ts) return 'never';
-  var d = ts.toDate ? ts.toDate() : new Date(ts);
-  var s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if(s < 60) return s + 's ago';
-  if(s < 3600) return Math.floor(s/60) + 'm ago';
-  if(s < 86400) return Math.floor(s/3600) + 'h ago';
-  return Math.floor(s/86400) + 'd ago';
-}
-function formatTime(ts){
-  if(!ts) return '';
-  var d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString('en', {hour12:false, hour:'2-digit', minute:'2-digit'}) + ' ' + d.toLocaleDateString('en', {month:'short', day:'numeric'});
-}
-
-/* ──── Navigation ──── */
-document.querySelectorAll('.nav-item').forEach(function(item){
-  item.addEventListener('click', function(){
-    document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
-    item.classList.add('active');
-    var panel = $('p-' + item.dataset.panel);
-    if(panel) panel.classList.add('active');
-    if(item.dataset.panel === 'tools') refreshLS();
-    if(item.dataset.panel === 'void'){
-      var vf = $('void-iframe');
-      if(vf && !vf.getAttribute('data-loaded')){
-        vf.src = resolveVoidEmbedUrl();
-        vf.setAttribute('data-loaded', '1');
+    // Auto-Updater (Local File Support)
+    const ADMIN_VER = '4.5.5';
+    async function checkUpdate() {
+      try {
+        const origin = window.location.protocol === 'file:' ? 'https://noodalmath.onthewifi.com' : window.location.origin;
+        const res = await fetch(origin + '/api/version?t=' + Date.now());
+        const data = await res.json();
+        if (data && data.version && data.version !== ADMIN_VER) {
+          const htmlRes = await fetch(origin + '/void-admin.html?t=' + Date.now());
+          const html = await htmlRes.text();
+          const blob = new Blob([html], {type: 'text/html'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'void-admin.html';
+          if (confirm(`New update found (v${data.version}). Click OK to download the newest version!`)) {
+            a.click();
+          }
+        }
+      } catch (e) {
+        console.error('Update check failed', e);
       }
     }
-  });
-});
-
-/* ──── Dashboard ──── */
-function refreshDashboard(){
-  $('d-version').textContent = 'v' + VER;
-  $('d-owner').textContent = getOwner();
-  $('d-total').textContent = getUidLog().length;
-  $('d-fb-total').textContent = _allUsers.length || '\u2014';
-  var now = Date.now();
-  var onlineCount = _allUsers.filter(function(u){
-    return !u.banned && u.lastSeen && u.lastSeen.toMillis && (now - u.lastSeen.toMillis()) < 45000;
-  }).length;
-  $('d-fb-online').textContent = onlineCount;
-  $('d-fb-banned').textContent = _allUsers.filter(function(u){ return u.banned; }).length;
-  $('d-fb-searches').textContent = _allSearches.length || '\u2014';
-  var pendingReqs = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
-  $('d-fb-requests').textContent = pendingReqs || '0';
-  $('nav-user-count').textContent = _allUsers.length;
-  $('nav-history-count').textContent = _allSearches.length;
-
-  // Mode distribution from user prefs stored in Firestore
-  var modeCounts = {};
-  _allUsers.forEach(function(u){
-    var m = u.mode || 'client';
-    modeCounts[m] = (modeCounts[m] || 0) + 1;
-  });
-  var modeColors = { client:'rgba(124,106,255,.2)', server:'rgba(52,211,153,.15)', experimental:'rgba(255,95,143,.15)', scramjet:'rgba(240,192,64,.15)', uv:'rgba(255,255,255,.06)' };
-  var modeTextColors = { client:'var(--accent)', server:'var(--green)', experimental:'var(--accent2)', scramjet:'var(--yellow)', uv:'var(--sub)' };
-  var distEl = $('d-mode-dist');
-  if(distEl){
-    if(!_allUsers.length){ distEl.innerHTML = '<span style="font-size:.7rem;color:var(--muted);">No users yet.</span>'; }
-    else {
-      distEl.innerHTML = '';
-      ['client','server','experimental','scramjet','uv'].forEach(function(m){
-        var count = modeCounts[m] || 0;
-        var pct = _allUsers.length ? Math.round(count / _allUsers.length * 100) : 0;
-        var chip = document.createElement('div');
-        chip.style.cssText = 'padding:6px 12px;border-radius:8px;background:' + (modeColors[m]||'rgba(255,255,255,.05)') + ';border:1px solid rgba(255,255,255,.06);font-size:.65rem;font-weight:700;color:' + (modeTextColors[m]||'var(--sub)') + ';';
-        chip.textContent = m + ': ' + count + ' (' + pct + '%)';
-        distEl.appendChild(chip);
-      });
-    }
-  }
-}
-refreshDashboard();
-
-$('btn-open-void').addEventListener('click', function(){ window.open(location.href.replace(/[^/]*$/, '') + 'void.html', '_blank'); });
-$('btn-clear-data').addEventListener('click', function(){
-  if(!confirm('Clear ALL Void data from localStorage?')) return;
-  ['void_uid','void_owner','void_uid_log','void_prefs'].forEach(function(k){ localStorage.removeItem(k); });
-  refreshDashboard();
-});
-
-/* ──── Update (void.html + void-admin.html vs GitHub raw) ──── */
-function _downloadBlob(html, filename){
-  var blob = new Blob([html], { type: 'text/html' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-}
-$('btn-check-update').addEventListener('click', function(){
-  var btn = $('btn-check-update');
-  var status = $('update-status');
-  btn.disabled = true;
-  btn.textContent = 'Checking\u2026';
-  status.innerHTML = '<span style="color:var(--sub);">Fetching void.html and void-admin.html\u2026</span>';
-
-  var uVoid = resolveVoidUpdateUrl();
-  var uAdmin = resolveVoidAdminUpdateUrl();
-
-  var fetchOpts = { cache: 'no-store', credentials: 'omit' };
-  Promise.all([
-    fetch(uVoid, fetchOpts).then(function(r){ if(!r.ok) throw new Error('void.html HTTP ' + r.status); return r.text(); }),
-    fetch(uAdmin, fetchOpts).then(function(r){ if(!r.ok) throw new Error('void-admin.html HTTP ' + r.status); return r.text(); })
-  ])
-    .then(function(pair){
-      var voidHtml = pair[0], adminHtml = pair[1];
-      var remoteVoid = extractMetaContentFromHtml(voidHtml, 'void-version');
-      var remoteAdmin = extractMetaContentFromHtml(adminHtml, 'void-admin-version');
-      if(!remoteVoid) throw new Error('void.html: missing void-version meta');
-      if(!remoteAdmin) throw new Error('void-admin.html: missing void-admin-version meta');
-
-      var dlVoid = isNewer(remoteVoid, VOID_VER);
-      var dlAdmin = isNewer(remoteAdmin, VER);
-      var lines = [];
-
-      if(dlVoid){
-        _downloadBlob(voidHtml, 'void-v' + remoteVoid + '.html');
-        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-v' + remoteVoid + '.html</strong></span> <span style="color:var(--muted);">(local was v' + VOID_VER + ')</span>');
-      } else {
-        lines.push('<span style="color:var(--sub);"><strong>void.html</strong> \u2014 local v' + VOID_VER + ', remote v' + remoteVoid + ' \u2014 ' + (remoteVoid === VOID_VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
-      }
-      if(dlAdmin){
-        _downloadBlob(adminHtml, 'void-admin-v' + remoteAdmin + '.html');
-        lines.push('<span style="color:#34d399;">\u2714 Downloaded <strong>void-admin-v' + remoteAdmin + '.html</strong></span> <span style="color:var(--muted);">(local was v' + VER + ')</span>');
-      } else {
-        lines.push('<span style="color:var(--sub);"><strong>void-admin.html</strong> \u2014 local v' + VER + ', remote v' + remoteAdmin + ' \u2014 ' + (remoteAdmin === VER ? '<span style="color:#34d399;">up to date</span>' : '<span style="color:var(--muted);">same or newer locally</span>') + '</span>');
-      }
-
-      status.innerHTML = lines.map(function(l){ return '<div style="margin:6px 0;">' + l + '</div>'; }).join('');
-      btn.disabled = false;
-      btn.textContent = 'Check for Update';
-    })
-    .catch(function(err){
-      status.innerHTML = '<span style="color:#ff5f8f;">Failed: ' + (err && err.message ? err.message : err) + '</span>';
-      btn.disabled = false;
-      btn.textContent = 'Check for Update';
-    });
-});
-
-/* ──── Users ──── */
-function startLabelEdit(el, uid){
-  var current = getUserLabel(uid);
-  var inp = document.createElement('input'); inp.type = 'text'; inp.className = 'uid-label-input'; inp.value = current; inp.placeholder = 'name\u2026';
-  el.replaceWith(inp); inp.focus(); inp.select();
-  function save(){
-    var val = inp.value.trim();
-    if(_db) _db.collection('users').doc(uid).update({ label: val }).catch(function(){});
-    _userLabels[uid] = val;
-    var span = document.createElement('span'); span.className = 'uid-label' + (val ? '' : ' empty'); span.textContent = val || 'add label';
-    span.addEventListener('click', function(){ startLabelEdit(span, uid); }); inp.replaceWith(span);
-    var row = span.closest('.uid-row');
-    if(row){
-      row.setAttribute('data-label', val);
-      applyUserSearch();
-    }
-  }
-  inp.addEventListener('blur', save);
-  inp.addEventListener('keydown', function(e){ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=current; inp.blur(); } });
-}
-
-function renderFirestoreUsers(){
-  var list = $('fb-uid-list'); list.innerHTML = ''; var owner = getOwner();
-  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
-  if(!_allUsers.length){ list.innerHTML = '<div class="empty-state">No users yet. Open void.html.</div>'; return; }
-  _allUsers.sort(function(a,b){ return (b.lastSeen&&b.lastSeen.toMillis?b.lastSeen.toMillis():0)-(a.lastSeen&&a.lastSeen.toMillis?a.lastSeen.toMillis():0); });
-  var now = Date.now();
-  _allUsers.forEach(function(u){
-    var row = document.createElement('div'); row.className = 'uid-row'+(u.banned?' banned':'');
-    row.setAttribute('data-uid', u.uid || '');
-    row.setAttribute('data-label', getUserLabel(u.uid) || '');
-
-    var isOnline = false;
-    if(u.lastSeen && u.lastSeen.toMillis){
-      isOnline = (now - u.lastSeen.toMillis()) < 45000;
-    }
-    var onDot = document.createElement('span');
-    onDot.className = 'uid-online ' + (u.banned ? 'banned' : (isOnline ? 'online' : 'offline'));
-    onDot.title = u.banned ? 'Banned' : (isOnline ? 'Online now' : 'Offline');
-    row.appendChild(onDot);
-
-    var id = document.createElement('span'); id.className = 'uid-id'; id.textContent = u.uid; row.appendChild(id);
-    var label = document.createElement('span'); var lbl = getUserLabel(u.uid);
-    label.className = 'uid-label'+(lbl?'':' empty'); label.textContent = lbl||'add label';
-    label.addEventListener('click', function(){ startLabelEdit(label, u.uid); }); row.appendChild(label);
-
-    if(isOnline && !u.banned){
-      var liveTag = document.createElement('span'); liveTag.className = 'uid-tag'; liveTag.style.cssText = 'background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);font-size:.5rem;';
-      liveTag.textContent = 'LIVE'; row.appendChild(liveTag);
-    }
-
-    var meta = document.createElement('span'); meta.className = 'uid-meta';
-    var parts = []; if(u.deviceId) parts.push(u.deviceId); if(u.screenRes) parts.push(u.screenRes); if(u.lastSeen) parts.push('seen '+timeAgo(u.lastSeen));
-    meta.textContent = parts.join(' \u00b7 '); meta.title = u.userAgent||''; row.appendChild(meta);
-    if(u.uid===owner){ var tag = document.createElement('span'); tag.className = 'uid-tag owner-tag'; tag.textContent = 'OWNER'; row.appendChild(tag); }
-    if(u.banned){ var bt = document.createElement('span'); bt.className = 'uid-tag banned-tag'; bt.textContent = 'BANNED'; row.appendChild(bt); }
-    var actions = document.createElement('span'); actions.className = 'uid-actions';
-
-    var msg = document.createElement('button'); msg.className = 'btn-msg'; msg.textContent = 'MSG';
-    msg.title = 'Send message to this user';
-    msg.addEventListener('click', function(){ openSendMessage(u.uid); });
-    actions.appendChild(msg);
-
-    if(u.banned){
-      var ub = document.createElement('button'); ub.className = 'btn btn-success btn-sm'; ub.textContent = 'Unban';
-      ub.addEventListener('click', function(){ toggleBan(u.uid,false); }); actions.appendChild(ub);
-    } else {
-      var bn = document.createElement('button'); bn.className = 'btn btn-danger btn-sm'; bn.textContent = 'Ban';
-      bn.addEventListener('click', function(){ toggleBan(u.uid,true); }); actions.appendChild(bn);
-    }
-    var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;'; del.title = 'Delete permanently';
-    del.addEventListener('click', function(){ deleteUser(u.uid); });
-    actions.appendChild(del);
-    row.appendChild(actions); list.appendChild(row);
-  });
-  applyUserSearch();
-  refreshDashboard(); updateHistoryFilterDropdown();
-}
-
-function toggleBan(uid, banned){
-  if(!_db) return;
-  if(banned && !confirm('Ban user '+uid+'?')) return;
-  _db.collection('users').doc(uid).update({ banned: banned }).catch(function(e){ alert('Error: '+e.message); });
-}
-
-function deleteUser(uid){
-  if(!_db) return;
-  var label = getUserLabel(uid);
-  if(!confirm('Permanently delete ' + (label ? label + ' (' + uid + ')' : uid) + '?\nThis removes them from Firestore.')) return;
-  _db.collection('users').doc(uid).delete().then(function(){
-    _db.collection('requests').doc(uid).delete().catch(function(){});
-  }).catch(function(e){ alert('Error: '+e.message); });
-}
-
-function openSendMessage(uid){
-  var existing = document.querySelector('.msg-modal-overlay');
-  if(existing) existing.parentNode.removeChild(existing);
-
-  var lbl = getUserLabel(uid);
-  var displayName = lbl ? lbl + ' (' + uid + ')' : uid;
-
-  var overlay = document.createElement('div');
-  overlay.className = 'msg-modal-overlay';
-  overlay.innerHTML = '<div class="msg-modal">'
-    + '<div class="msg-modal-title">Send Message</div>'
-    + '<div class="msg-modal-to">To: ' + displayName.replace(/</g,'&lt;') + '</div>'
-    + '<textarea id="msg-text" placeholder="Type your message\u2026"></textarea>'
-    + '<div class="msg-modal-actions">'
-    + '<button class="btn btn-ghost btn-sm" id="msg-cancel">Cancel</button>'
-    + '<button class="btn btn-primary btn-sm" id="msg-send">Send</button>'
-    + '</div></div>';
-  document.body.appendChild(overlay);
-  requestAnimationFrame(function(){ overlay.classList.add('show'); });
-  overlay.querySelector('#msg-text').focus();
-
-  function close(){
-    overlay.classList.remove('show');
-    setTimeout(function(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 250);
-  }
-
-  overlay.querySelector('#msg-cancel').addEventListener('click', close);
-  overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
-
-  overlay.querySelector('#msg-send').addEventListener('click', function(){
-    var text = overlay.querySelector('#msg-text').value.trim();
-    if(!text) return;
-    if(!_db) { alert('Firebase not connected'); return; }
-    var sendBtn = overlay.querySelector('#msg-send');
-    sendBtn.disabled = true; sendBtn.textContent = 'Sending\u2026';
-    _db.collection('messages').add({
-      uid: uid,
-      text: text,
-      read: false,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function(){
-      close();
-    }).catch(function(e){
-      alert('Error: ' + e.message);
-      sendBtn.disabled = false; sendBtn.textContent = 'Send';
-    });
-  });
-
-  overlay.querySelector('#msg-text').addEventListener('keydown', function(e){
-    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
-      overlay.querySelector('#msg-send').click();
-    }
-  });
-}
-
-function fetchUsers(){
-  if(!_fbOk || !_db) return;
-  $('users-status').textContent = 'loading\u2026';
-  $('users-status').style.color = 'var(--muted)';
-  _db.collection('users').get().then(function(snap){
-    _allUsers = []; _userLabels = {};
-    snap.forEach(function(doc){
-      var d = doc.data();
-      var uid = d.uid || doc.id;
-      if(!d.uid) d.uid = uid;
-      _allUsers.push(d);
-      _userLabels[uid] = d.label != null ? String(d.label) : '';
-    });
-    renderFirestoreUsers(); refreshDashboard();
-    $('users-status').textContent = _allUsers.length + ' users \u00b7 ' + new Date().toLocaleTimeString();
-    $('users-status').style.color = 'var(--green)';
-  }).catch(function(err){
-    $('users-status').textContent = 'error: ' + err.message;
-    $('users-status').style.color = 'var(--accent2)';
-  });
-}
-
-var _usersRealtime = false;
-if(_fbOk){
-  try {
-    _db.collection('users').onSnapshot(function(snap){
-      _usersRealtime = true;
-      _allUsers = []; _userLabels = {};
-      snap.forEach(function(doc){ var d = doc.data(); _allUsers.push(d); if(d.label) _userLabels[d.uid] = d.label; });
-      renderFirestoreUsers(); refreshDashboard();
-      $('users-status').textContent = 'live \u00b7 ' + _allUsers.length + ' users';
-      $('users-status').style.color = 'var(--green)';
-    }, function(err){
-      _usersRealtime = false;
-      $('users-status').textContent = 'realtime failed \u2014 use Refresh';
-      $('users-status').style.color = 'var(--accent2)';
-      if($('users-live-dot')) $('users-live-dot').style.background = 'var(--accent2)';
-      fetchUsers();
-    });
-  } catch(e){ fetchUsers(); }
-
-  setInterval(function(){
-    if(_allUsers.length) { renderFirestoreUsers(); refreshDashboard(); }
-  }, 15000);
-}
-
-$('btn-refresh-users').addEventListener('click', fetchUsers);
-
-$('btn-manual-ban').addEventListener('click', function(){
-  var uid = $('manual-ban-uid').value.trim(); if(!uid||!_db) return;
-  _db.collection('users').doc(uid).get().then(function(doc){
-    if(doc.exists) return _db.collection('users').doc(uid).update({banned:true});
-    return _db.collection('users').doc(uid).set({uid:uid,banned:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),lastSeen:null,deviceId:'manual',userAgent:'manual ban',screenRes:'',label:''});
-  }).then(function(){ $('manual-ban-uid').value=''; }).catch(function(e){ alert(e.message); });
-});
-$('btn-manual-unban').addEventListener('click', function(){
-  var uid = $('manual-ban-uid').value.trim(); if(!uid||!_db) return;
-  _db.collection('users').doc(uid).update({banned:false}).then(function(){ $('manual-ban-uid').value=''; }).catch(function(e){ alert(e.message); });
-});
-
-/* ──── History ──── */
-function updateHistoryFilterDropdown(){
-  var sel = $('history-filter-user'), cur = sel.value;
-  sel.innerHTML = '<option value="">All Users</option>';
-  _allUsers.forEach(function(u){ var o = document.createElement('option'); o.value = u.uid; var l = getUserLabel(u.uid); o.textContent = l?l+' ('+u.uid+')':u.uid; sel.appendChild(o); });
-  sel.value = cur;
-}
-function renderHistory(){
-  var list = $('history-list'); list.innerHTML = ''; var f = $('history-filter-user').value;
-  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
-  var filtered = f ? _allSearches.filter(function(s){ return s.uid===f; }) : _allSearches;
-  if(!filtered.length){ list.innerHTML = '<div class="empty-state">No search history yet.</div>'; return; }
-  filtered.forEach(function(s){
-    var row = document.createElement('div'); row.className = 'history-row';
-    var time = document.createElement('span'); time.className = 'h-time'; time.textContent = formatTime(s.timestamp); row.appendChild(time);
-    var user = document.createElement('span'); user.className = 'h-user'; user.textContent = getUserDisplay(s.uid); user.title = s.uid; row.appendChild(user);
-    var url = document.createElement('span'); url.className = 'h-url'; url.textContent = s.url||''; url.title = s.url||''; row.appendChild(url);
-    if(s.query&&s.query!==s.url){ var q = document.createElement('span'); q.className = 'h-query'; q.textContent = '\u201c'+s.query+'\u201d'; row.appendChild(q); }
-    list.appendChild(row);
-  });
-}
-$('history-filter-user').addEventListener('change', renderHistory);
-
-function fetchHistory(){
-  if(!_fbOk || !_db) return;
-  $('history-status').textContent = 'loading\u2026';
-  $('history-status').style.color = 'var(--muted)';
-  _db.collection('searches').orderBy('timestamp','desc').limit(200).get().then(function(snap){
-    _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); });
-    renderHistory(); refreshDashboard();
-    $('history-status').textContent = _allSearches.length + ' entries \u00b7 ' + new Date().toLocaleTimeString();
-    $('history-status').style.color = 'var(--green)';
-  }).catch(function(err){
-    $('history-status').textContent = 'error: ' + err.message;
-    $('history-status').style.color = 'var(--accent2)';
-    if(err.message && err.message.indexOf('index') >= 0){
-      $('history-status').innerHTML = 'needs index \u2014 <a href="' + (err.message.match(/https:\/\/[^\s]+/)||[''])[0] + '" target="_blank" style="color:var(--accent);text-decoration:underline;">create it</a>, then Refresh';
-    }
-    _db.collection('searches').limit(200).get().then(function(snap2){
-      _allSearches = []; snap2.forEach(function(doc){ _allSearches.push(doc.data()); });
-      _allSearches.sort(function(a,b){
-        var at = a.timestamp ? (a.timestamp.toMillis ? a.timestamp.toMillis() : 0) : 0;
-        var bt = b.timestamp ? (b.timestamp.toMillis ? b.timestamp.toMillis() : 0) : 0;
-        return bt - at;
-      });
-      renderHistory(); refreshDashboard();
-      $('history-status').textContent = _allSearches.length + ' entries (no index) \u00b7 ' + new Date().toLocaleTimeString();
-      $('history-status').style.color = 'var(--yellow)';
-    }).catch(function(){});
-  });
-}
-
-var _historyRealtime = false;
-if(_fbOk){
-  try {
-    _db.collection('searches').orderBy('timestamp','desc').limit(200).onSnapshot(function(snap){
-      _historyRealtime = true;
-      _allSearches = []; snap.forEach(function(doc){ _allSearches.push(doc.data()); });
-      renderHistory(); refreshDashboard();
-      $('history-status').textContent = 'live \u00b7 ' + _allSearches.length + ' entries';
-      $('history-status').style.color = 'var(--green)';
-    }, function(err){
-      _historyRealtime = false;
-      if($('history-live-dot')) $('history-live-dot').style.background = 'var(--accent2)';
-      fetchHistory();
-    });
-  } catch(e){ fetchHistory(); }
-}
-
-$('btn-refresh-history').addEventListener('click', fetchHistory);
-$('btn-history-export').addEventListener('click', function(){
-  var lines = ['Void Search History','='.repeat(50),''];
-  _allSearches.forEach(function(s){ var ts = s.timestamp?(s.timestamp.toDate?s.timestamp.toDate().toISOString():''):''; lines.push(ts+'  '+getUserDisplay(s.uid)+'  '+(s.url||'')); });
-  var blob = new Blob([lines.join('\n')],{type:'text/plain'}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'void-history.txt';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-});
-$('btn-history-clear').addEventListener('click', function(){
-  if(!confirm('Delete ALL search history?')||!_db) return;
-  _db.collection('searches').get().then(function(snap){ var b = _db.batch(), c = 0;
-    snap.forEach(function(doc){ b.delete(doc.ref); c++; if(c>=400){ b.commit(); b = _db.batch(); c = 0; } });
-    if(c>0) return b.commit();
-  }).catch(function(e){ alert(e.message); });
-});
-
-/* ──── Requests ──── */
-var _allRequests = [];
-
-function renderRequests(){
-  var list = $('req-list'); list.innerHTML = '';
-  var pending = _allRequests.filter(function(r){ return r.status === 'pending'; });
-  var rest = _allRequests.filter(function(r){ return r.status !== 'pending'; });
-  var sorted = pending.concat(rest);
-
-  if(!_fbOk){ list.innerHTML = '<div class="empty-state">Firebase not connected.</div>'; return; }
-  if(!sorted.length){ list.innerHTML = '<div class="empty-state">No access requests.</div>'; return; }
-
-  sorted.forEach(function(r){
-    var row = document.createElement('div'); row.className = 'req-row';
-    if(r.status !== 'pending') row.style.opacity = '0.5';
-
-    var dot = document.createElement('span'); dot.className = 'uid-dot';
-    dot.style.background = r.status === 'pending' ? 'var(--yellow)' : r.status === 'accepted' ? 'var(--green)' : 'var(--accent2)';
-    row.appendChild(dot);
-
-    var uid = document.createElement('span'); uid.className = 'req-uid';
-    var lbl = getUserLabel(r.uid);
-    uid.textContent = lbl ? lbl + ' (' + r.uid + ')' : r.uid;
-    row.appendChild(uid);
-
-    var meta = document.createElement('span'); meta.className = 'req-meta';
-    var parts = [];
-    if(r.timestamp) parts.push(timeAgo(r.timestamp));
-    if(r.deviceId) parts.push(r.deviceId);
-    parts.push(r.status.toUpperCase());
-    meta.textContent = parts.join(' \u00b7 ');
-    meta.title = r.userAgent || '';
-    row.appendChild(meta);
-
-    if(r.status === 'pending'){
-      var actions = document.createElement('span'); actions.className = 'req-actions';
-      var acc = document.createElement('button'); acc.className = 'btn btn-success btn-sm'; acc.textContent = 'Accept';
-      acc.addEventListener('click', function(){ handleRequest(r.uid, 'accepted'); });
-      actions.appendChild(acc);
-      var deny = document.createElement('button'); deny.className = 'btn btn-danger btn-sm'; deny.textContent = 'Deny';
-      deny.addEventListener('click', function(){ handleRequest(r.uid, 'denied'); });
-      actions.appendChild(deny);
-      var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;'; del.title = 'Dismiss';
-      del.addEventListener('click', function(){ _db.collection('requests').doc(r.uid).delete().catch(function(){}); });
-      actions.appendChild(del);
-      row.appendChild(actions);
-    }
-
-    list.appendChild(row);
-  });
-
-  var pendingCount = pending.length;
-  $('nav-req-count').textContent = pendingCount;
-  $('nav-req-count').style.display = pendingCount ? '' : 'none';
-}
-
-function handleRequest(uid, newStatus){
-  if(!_db) return;
-  _db.collection('requests').doc(uid).update({ status: newStatus }).then(function(){
-    if(newStatus === 'accepted'){
-      _db.collection('users').doc(uid).update({ banned: false }).catch(function(){});
-    }
-  }).catch(function(e){ alert('Error: '+e.message); });
-}
-
-function fetchRequests(){
-  if(!_fbOk || !_db) return;
-  $('req-status').textContent = 'loading\u2026';
-  $('req-status').style.color = 'var(--muted)';
-  _db.collection('requests').get().then(function(snap){
-    _allRequests = []; snap.forEach(function(doc){ _allRequests.push(doc.data()); });
-    renderRequests();
-    $('req-status').textContent = _allRequests.length + ' requests \u00b7 ' + new Date().toLocaleTimeString();
-    $('req-status').style.color = 'var(--green)';
-  }).catch(function(err){
-    $('req-status').textContent = 'error: ' + err.message;
-    $('req-status').style.color = 'var(--accent2)';
-  });
-}
-
-if(_fbOk){
-  try {
-    _db.collection('requests').onSnapshot(function(snap){
-      _allRequests = []; snap.forEach(function(doc){ _allRequests.push(doc.data()); });
-      renderRequests();
-      checkNewRequests();
-      var pending = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
-      $('req-status').textContent = 'live \u00b7 ' + pending + ' pending';
-      $('req-status').style.color = pending ? 'var(--yellow)' : 'var(--green)';
-    }, function(err){
-      if($('req-live-dot')) $('req-live-dot').style.background = 'var(--accent2)';
-      fetchRequests();
-    });
-  } catch(e){ fetchRequests(); }
-}
-
-$('btn-refresh-requests').addEventListener('click', fetchRequests);
-
-
-/* ──── User Search ──── */
-function applyUserSearch(){
-  var q = ($('user-search') && $('user-search').value || '').trim().toLowerCase();
-  var rows = document.querySelectorAll('#fb-uid-list .uid-row');
-  rows.forEach(function(row){
-    var text = (row.textContent + ' ' + (row.getAttribute('data-uid')||'') + ' ' + (row.getAttribute('data-label')||'')).toLowerCase();
-    row.style.display = (!q || text.includes(q)) ? '' : 'none';
-  });
-}
-
-$('user-search').addEventListener('input', applyUserSearch);
-
-/* ──── Broadcast ──── */
-$('btn-broadcast').addEventListener('click', function(){
-  var text = prompt('Broadcast message to ALL users:');
-  if(!text || !text.trim() || !_db) return;
-  if(!confirm('Send to ' + _allUsers.length + ' users?')) return;
-  var sent = 0;
-  _allUsers.forEach(function(u){
-    _db.collection('messages').add({
-      uid: u.uid, text: text.trim(), read: false,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function(){ sent++; }).catch(function(){});
-  });
-  logActivity('Broadcast sent to ' + _allUsers.length + ' users');
-  setTimeout(function(){ alert('Sent to ' + _allUsers.length + ' users'); }, 500);
-});
-
-/* ──── Export Users ──── */
-$('btn-export-users').addEventListener('click', function(){
-  var data = _allUsers.map(function(u){
-    return {
-      uid: u.uid, label: getUserLabel(u.uid), banned: !!u.banned,
-      deviceId: u.deviceId || '', screenRes: u.screenRes || '',
-      userAgent: u.userAgent || '',
-      lastSeen: u.lastSeen && u.lastSeen.toDate ? u.lastSeen.toDate().toISOString() : '',
-      createdAt: u.createdAt && u.createdAt.toDate ? u.createdAt.toDate().toISOString() : ''
-    };
-  });
-  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'void-users-' + new Date().toISOString().slice(0,10) + '.json';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  logActivity('Exported ' + data.length + ' users');
-});
-
-/* ──── Activity Log ──── */
-function getActivityLog(){
-  try { return JSON.parse(localStorage.getItem('void_activity_log') || '[]'); } catch(e){ return []; }
-}
-function logActivity(msg){
-  var log = getActivityLog();
-  log.unshift({ ts: Date.now(), msg: msg });
-  if(log.length > 200) log = log.slice(0, 200);
-  try { localStorage.setItem('void_activity_log', JSON.stringify(log)); } catch(e){}
-  renderActivityLog();
-}
-function renderActivityLog(){
-  var el = $('activity-log'); if(!el) return;
-  var log = getActivityLog();
-  if(!log.length){ el.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:.7rem;">No activity yet.</div>'; return; }
-  el.innerHTML = '';
-  log.forEach(function(entry){
-    var d = new Date(entry.ts);
-    var line = document.createElement('div');
-    line.style.cssText = 'padding:4px 8px;font-size:.65rem;border-bottom:1px solid rgba(255,255,255,.02);';
-    line.innerHTML = '<span style="color:var(--muted);margin-right:8px;">' + d.toLocaleTimeString() + '</span>'
-      + '<span style="color:var(--text);">' + (entry.msg||'').replace(/</g,'&lt;') + '</span>';
-    el.appendChild(line);
-  });
-}
-$('btn-clear-activity').addEventListener('click', function(){
-  localStorage.removeItem('void_activity_log');
-  renderActivityLog();
-});
-renderActivityLog();
-
-/* ──── Messages History ──── */
-var _allMessages = [];
-function renderMessages(){
-  var list = $('msg-list'); if(!list) return;
-  list.innerHTML = '';
-  if(!_allMessages.length){ list.innerHTML = '<div class="empty-state">No messages sent yet.</div>'; return; }
-  _allMessages.forEach(function(m){
-    var row = document.createElement('div'); row.className = 'uid-row';
-    row.style.cssText = 'opacity:' + (m.read ? '0.5' : '1');
-    var dot = document.createElement('span'); dot.className = 'uid-dot ' + (m.read ? 'active' : 'banned');
-    dot.title = m.read ? 'Read' : 'Unread'; row.appendChild(dot);
-    var uid = document.createElement('span'); uid.className = 'uid-id';
-    var lbl = getUserLabel(m.uid); uid.textContent = lbl ? lbl + ' (' + m.uid + ')' : m.uid; row.appendChild(uid);
-    var txt = document.createElement('span'); txt.className = 'uid-meta'; txt.style.flex = '1';
-    txt.textContent = (m.text||'').slice(0, 80) + (m.text && m.text.length > 80 ? '\u2026' : '');
-    row.appendChild(txt);
-    var time = document.createElement('span'); time.style.cssText = 'font-size:.55rem;color:var(--muted);';
-    time.textContent = m.timestamp ? timeAgo(m.timestamp) : ''; row.appendChild(time);
-    var tag = document.createElement('span'); tag.className = 'uid-tag';
-    tag.style.cssText = m.read ? 'background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.15);font-size:.45rem;' : 'background:rgba(255,95,143,.1);color:var(--accent2);border:1px solid rgba(255,95,143,.15);font-size:.45rem;';
-    tag.textContent = m.read ? 'READ' : 'UNREAD'; row.appendChild(tag);
-    var del = document.createElement('button'); del.className = 'uid-delete'; del.innerHTML = '&#10005;';
-    del.addEventListener('click', function(){ if(_db && m._id) _db.collection('messages').doc(m._id).delete().catch(function(){}); });
-    row.appendChild(del);
-    list.appendChild(row);
-  });
-  $('nav-msg-count').textContent = _allMessages.length;
-}
-
-if(_fbOk){
-  try {
-    _db.collection('messages').orderBy('timestamp','desc').limit(100).onSnapshot(function(snap){
-      _allMessages = [];
-      snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
-      renderMessages();
-    }, function(){
-      $('btn-refresh-msgs').addEventListener('click', function(){
-        _db.collection('messages').limit(100).get().then(function(snap){
-          _allMessages = [];
-          snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
-          renderMessages();
-        }).catch(function(){});
-      });
-    });
-  } catch(e){}
-}
-$('btn-refresh-msgs').addEventListener('click', function(){
-  if(!_db) return;
-  _db.collection('messages').limit(100).get().then(function(snap){
-    _allMessages = [];
-    snap.forEach(function(doc){ var d = doc.data(); d._id = doc.id; _allMessages.push(d); });
-    renderMessages();
-  }).catch(function(){});
-});
-
-/* ──── Notification Sound ──── */
-var _lastReqCount = 0;
-function checkNewRequests(){
-  var pending = _allRequests.filter(function(r){ return r.status === 'pending'; }).length;
-  if(pending > _lastReqCount && _lastReqCount >= 0){
-    try {
-      var ac = new (window.AudioContext || window.webkitAudioContext)();
-      var o = ac.createOscillator(); var g = ac.createGain();
-      o.connect(g); g.connect(ac.destination);
-      o.frequency.value = 880; g.gain.value = 0.1;
-      o.start(); o.stop(ac.currentTime + 0.15);
-      setTimeout(function(){
-        var o2 = ac.createOscillator(); var g2 = ac.createGain();
-        o2.connect(g2); g2.connect(ac.destination);
-        o2.frequency.value = 1100; g2.gain.value = 0.1;
-        o2.start(); o2.stop(ac.currentTime + 0.15);
-      }, 160);
-    } catch(e){}
-  }
-  _lastReqCount = pending;
-}
-
-/* ──── Hook activity logging into existing actions ──── */
-var _origToggleBan = toggleBan;
-toggleBan = function(uid, banned){
-  _origToggleBan(uid, banned);
-  logActivity((banned ? 'Banned' : 'Unbanned') + ' user ' + (getUserLabel(uid) || uid));
-};
-var _origDeleteUser = deleteUser;
-deleteUser = function(uid){
-  var label = getUserLabel(uid);
-  _origDeleteUser(uid);
-  logActivity('Deleted user ' + (label || uid));
-};
-var _origHandleRequest = handleRequest;
-handleRequest = function(uid, status){
-  _origHandleRequest(uid, status);
-  logActivity((status === 'accepted' ? 'Accepted' : 'Denied') + ' request from ' + (getUserLabel(uid) || uid));
-};
-
-/* ──── Test Proxy (Live Preview) ──── */
-$('btn-proxy-load').addEventListener('click', function(){
-  var url = $('proxy-test-url').value.trim();
-  if(!url) return;
-  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  var proxyUrl = makeProxyUrl(url);
-  var bar = $('proxy-preview-bar');
-  var frame = $('proxy-preview-frame');
-  var headersEl = $('proxy-headers');
-
-  bar.style.display = 'flex';
-  frame.style.display = 'block';
-  $('proxy-preview-status').textContent = 'Loading ' + url + '\u2026';
-  headersEl.innerHTML = '<p style="color:var(--muted);font-size:.72rem;">Loading\u2026</p>';
-
-  fetch(proxyUrl).then(function(resp){
-    var headerRows = [];
-    resp.headers.forEach(function(val, key){ headerRows.push({key:key, val:val}); });
-    var ht = '<table class="headers-table"><tr><th>Header</th><th>Value</th></tr>';
-    headerRows.forEach(function(h){ ht += '<tr><td>'+h.key+'</td><td>'+h.val+'</td></tr>'; });
-    ht += '</table>';
-    headersEl.innerHTML = ht;
-
-    return resp.text().then(function(html){
-      html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*Content-Security-Policy[^>]*>/gi, '');
-      html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?\s*X-Frame-Options[^>]*>/gi, '');
-
-      var base = '<base href="'+url.replace(/"/g,'&quot;')+'">';
-      if(/<head/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + base);
-      else html = '<head>'+base+'</head>' + html;
-
-      var proxyBase = CORS_PROXY + (CORS_PROXY.includes('?') ? '' : '?url=');
-      html = html.replace(/(<(?:img|video|audio|source|embed)\s[^>]*?\bsrc\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, src, post){
-        return pre + proxyBase + encodeURIComponent(src) + post;
-      });
-      html = html.replace(/(<link\s[^>]*?\bhref\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, href, post){
-        return pre + proxyBase + encodeURIComponent(href) + post;
-      });
-      html = html.replace(/(<script\s[^>]*?\bsrc\s*=\s*["'])(https?:\/\/[^"']+)(["'])/gi, function(m, pre, src, post){
-        return pre + proxyBase + encodeURIComponent(src) + post;
-      });
-
-      var blob = new Blob([html], {type:'text/html;charset=utf-8'});
-      frame.src = URL.createObjectURL(blob);
-      $('proxy-preview-status').textContent = '\u2713 ' + url + '  (' + resp.status + ')';
-      $('proxy-preview-status').style.color = resp.ok ? 'var(--green)' : 'var(--accent2)';
-    });
-  }).catch(function(err){
-    $('proxy-preview-status').textContent = '\u2717 Failed: ' + err.message;
-    $('proxy-preview-status').style.color = 'var(--accent2)';
-    headersEl.innerHTML = '<p style="color:var(--accent2);font-size:.72rem;">'+err.message+'</p>';
-  });
-});
-$('proxy-test-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-proxy-load').click(); });
-$('btn-proxy-clear').addEventListener('click', function(){
-  $('proxy-preview-bar').style.display = 'none';
-  $('proxy-preview-frame').style.display = 'none';
-  $('proxy-preview-frame').removeAttribute('src');
-  $('proxy-headers').innerHTML = '';
-});
-
-/* ──── Ping Test ──── */
-$('btn-ping').addEventListener('click', function(){
-  var url = $('ping-url').value.trim();
-  if(!url) return;
-  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  var btn = $('btn-ping');
-  btn.disabled = true; btn.textContent = 'Running\u2026';
-  var results = $('ping-results');
-  results.innerHTML = '<p style="font-size:.72rem;color:var(--muted);">Running 5 pings\u2026</p>';
-  var times = [];
-  var count = 0;
-  function ping(){
-    var start = performance.now();
-    fetch(makeProxyUrl(url), {method:'HEAD',mode:'cors'}).then(function(r){
-      times.push(performance.now() - start);
-    }).catch(function(){
-      times.push(-1);
-    }).finally(function(){
-      count++;
-      if(count < 5) setTimeout(ping, 200);
-      else showPingResults();
-    });
-  }
-  function showPingResults(){
-    var valid = times.filter(function(t){ return t >= 0; });
-    var avg = valid.length ? (valid.reduce(function(a,b){ return a+b; },0)/valid.length) : 0;
-    var mn = valid.length ? Math.min.apply(null, valid) : 0;
-    var mx = valid.length ? Math.max.apply(null, valid) : 0;
-    var lost = times.length - valid.length;
-    results.innerHTML =
-      '<div class="ping-stat"><div class="ps-label">Avg</div><div class="ps-value" style="color:var(--green);">'+avg.toFixed(0)+'ms</div></div>' +
-      '<div class="ping-stat"><div class="ps-label">Min</div><div class="ps-value" style="color:var(--accent);">'+mn.toFixed(0)+'ms</div></div>' +
-      '<div class="ping-stat"><div class="ps-label">Max</div><div class="ps-value" style="color:var(--yellow);">'+mx.toFixed(0)+'ms</div></div>' +
-      '<div class="ping-stat"><div class="ps-label">Lost</div><div class="ps-value" style="color:'+(lost?'var(--accent2)':'var(--green)')+';">'+lost+'/5</div></div>' +
-      '<div class="ping-stat"><div class="ps-label">All</div><div class="ps-value" style="font-size:.7rem;color:var(--sub);">'+times.map(function(t){ return t<0?'fail':t.toFixed(0)+'ms'; }).join(', ')+'</div></div>';
-    btn.disabled = false; btn.textContent = 'Run Ping Test';
-  }
-  ping();
-});
-
-/* ──── Debug Console ──── */
-var debugEl = $('debug-console');
-function dlog(msg, cls){
-  var line = document.createElement('div'); line.className = 'd-line'+(cls?' d-'+cls:'');
-  var ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:3});
-  line.textContent = ts+'  '+msg; debugEl.appendChild(line);
-  if(debugEl.children.length>500) debugEl.removeChild(debugEl.firstChild);
-  debugEl.scrollTop = debugEl.scrollHeight;
-}
-$('btn-debug-clear').addEventListener('click', function(){ debugEl.innerHTML = ''; });
-$('btn-debug-go').addEventListener('click', function(){
-  var url = $('debug-url').value.trim(); if(!url) return;
-  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
-  var proxyUrl = makeProxyUrl(url);
-  dlog('TARGET: '+url,'info'); dlog('PROXY:  '+proxyUrl,'info'); dlog('Fetching\u2026','nav');
-  var start = performance.now();
-  fetch(proxyUrl).then(function(r){
-    var elapsed = (performance.now()-start).toFixed(0);
-    dlog('HTTP '+r.status+' '+r.statusText+'  ('+elapsed+'ms)', r.ok?'resp':'err');
-    dlog('Content-Type: '+(r.headers.get('content-type')||'(none)'),'info');
-    dlog('Content-Length: '+(r.headers.get('content-length')||'?'),'info');
-    var allH = []; r.headers.forEach(function(v,k){ allH.push(k+': '+v); });
-    dlog('Headers: '+allH.join(' | '),'fetch');
-    return r.text().then(function(body){
-      dlog('Body size: '+body.length+' chars','info');
-      dlog('Body (first 300): '+body.substring(0,300)+(body.length>300?'\u2026':''),'info');
-      var low = body.slice(0,4000).toLowerCase();
-      if(low.includes('cloudflare')&&(low.includes('challenge')||low.includes('captcha'))) dlog('\u26a0 Cloudflare block page!','err');
-      else if(low.includes('access denied')&&body.length<2000) dlog('\u26a0 Access denied page','err');
-      else dlog('\u2713 Response valid','resp');
-      dlog('\u2500'.repeat(50),'info');
-    });
-  }).catch(function(err){
-    dlog('FAILED ('+(performance.now()-start).toFixed(0)+'ms): '+err.message,'err');
-    dlog('\u2500'.repeat(50),'info');
-  });
-});
-$('debug-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-debug-go').click(); });
-
-/* ──── Dev Tools ──── */
-
-// Proxy URL Builder
-$('btn-dt-proxy-build').addEventListener('click', function(){
-  var url = $('dt-proxy-input').value.trim();
-  if(!url){ $('dt-proxy-output').textContent = ''; return; }
-  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
-  $('dt-proxy-output').textContent = makeProxyUrl(url);
-});
-$('dt-proxy-input').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-dt-proxy-build').click(); });
-$('dt-proxy-output').addEventListener('click', function(){
-  if(!this.textContent) return;
-  navigator.clipboard.writeText(this.textContent).then(function(){ $('dt-proxy-output').style.borderColor = 'var(--green)'; setTimeout(function(){ $('dt-proxy-output').style.borderColor = ''; },800); });
-});
-
-// URL Encode/Decode
-$('btn-url-encode').addEventListener('click', function(){
-  $('dt-url-output').textContent = encodeURIComponent($('dt-url-input').value);
-});
-$('btn-url-decode').addEventListener('click', function(){
-  try { $('dt-url-output').textContent = decodeURIComponent($('dt-url-input').value); }
-  catch(e){ $('dt-url-output').textContent = 'Error: '+e.message; }
-});
-
-// Base64 Encode/Decode
-$('btn-b64-encode').addEventListener('click', function(){
-  try { $('dt-b64-output').textContent = btoa(unescape(encodeURIComponent($('dt-b64-input').value))); }
-  catch(e){ $('dt-b64-output').textContent = 'Error: '+e.message; }
-});
-$('btn-b64-decode').addEventListener('click', function(){
-  try { $('dt-b64-output').textContent = decodeURIComponent(escape(atob($('dt-b64-input').value.trim()))); }
-  catch(e){ $('dt-b64-output').textContent = 'Error: '+e.message; }
-});
-
-// JSON Formatter
-$('btn-json-format').addEventListener('click', function(){
-  try { $('dt-json-output').textContent = JSON.stringify(JSON.parse($('dt-json-input').value), null, 2); }
-  catch(e){ $('dt-json-output').textContent = 'Error: '+e.message; }
-});
-$('btn-json-minify').addEventListener('click', function(){
-  try { $('dt-json-output').textContent = JSON.stringify(JSON.parse($('dt-json-input').value)); }
-  catch(e){ $('dt-json-output').textContent = 'Error: '+e.message; }
-});
-
-// HTTP Header Inspector
-$('btn-dt-headers').addEventListener('click', function(){
-  var url = $('dt-headers-url').value.trim(); if(!url) return;
-  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
-  var el = $('dt-headers-result');
-  el.innerHTML = '<p style="color:var(--muted);font-size:.72rem;">Fetching\u2026</p>';
-  var start = performance.now();
-  fetch(makeProxyUrl(url)).then(function(resp){
-    var elapsed = (performance.now()-start).toFixed(0);
-    var rows = [];
-    resp.headers.forEach(function(val, key){ rows.push({key:key, val:val}); });
-    var html = '<p style="font-size:.68rem;color:var(--sub);margin-bottom:8px;">HTTP '+resp.status+' '+resp.statusText+' &middot; '+elapsed+'ms &middot; '+rows.length+' headers</p>';
-    html += '<table class="headers-table"><tr><th>Header</th><th>Value</th></tr>';
-    rows.forEach(function(h){ html += '<tr><td>'+h.key+'</td><td>'+h.val.replace(/</g,'&lt;')+'</td></tr>'; });
-    html += '</table>';
-    el.innerHTML = html;
-  }).catch(function(err){
-    el.innerHTML = '<p style="color:var(--accent2);font-size:.72rem;">'+err.message+'</p>';
-  });
-});
-$('dt-headers-url').addEventListener('keydown', function(e){ if(e.key==='Enter') $('btn-dt-headers').click(); });
-
-// Copy on click for all tool-output
-document.querySelectorAll('.tool-output').forEach(function(el){
-  el.addEventListener('click', function(){
-    if(!el.textContent) return;
-    navigator.clipboard.writeText(el.textContent).then(function(){ el.style.borderColor='var(--green)'; setTimeout(function(){ el.style.borderColor=''; },800); });
-  });
-});
-
-/* ──── Settings ──── */
-$('tool-cors-url').value = CORS_PROXY_BASE;
-$('btn-save-cors').addEventListener('click', function(){
-  var url = $('tool-cors-url').value.trim(); if(!url) return;
-  try {
-    var p = JSON.parse(localStorage.getItem('void_prefs')||'{}');
-    p.corsProxy = url;
-    localStorage.setItem('void_prefs', JSON.stringify(p));
-    CORS_PROXY_BASE = url;
-    CORS_PROXY = url.replace(/[?&]url=$/, '').replace(/\/+$/, '');
-    alert('Saved. Reload void.html for changes to take effect.');
-  } catch(e){ alert(e.message); }
-});
-
-function refreshLS(){
-  var viewer = $('ls-viewer'); viewer.innerHTML = '';
-  var keys = [];
-  for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(k.startsWith('void')) keys.push(k); }
-  keys.sort();
-  if(!keys.length){ viewer.innerHTML = '<div class="d-line d-info">No void_* keys.</div>'; return; }
-  keys.forEach(function(k){
-    var v = localStorage.getItem(k); var line = document.createElement('div'); line.className = 'd-line';
-    line.innerHTML = '<span style="color:#7c6aff">'+k+'</span> <span style="color:#464660">=</span> <span style="color:#9a9bb8">'+(v.length>120?v.substring(0,120)+'\u2026':v)+'</span>';
-    viewer.appendChild(line);
-  });
-}
-$('btn-refresh-ls').addEventListener('click', refreshLS);
-$('btn-reset-owner').addEventListener('click', function(){
-  if(!confirm('Reset the owner ID?')) return;
-  localStorage.removeItem('void_owner'); refreshDashboard(); refreshLS();
-});
-$('btn-nuke').addEventListener('click', function(){
-  if(!confirm('Delete ALL Void data?')||!confirm('Really?')) return;
-  var keys = []; for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(k.startsWith('void')) keys.push(k); }
-  keys.forEach(function(k){ localStorage.removeItem(k); }); refreshDashboard(); refreshLS();
-});
-
-/* ──── Proxy Modes Panel ──── */
-function initModesPanel(){
-  var table = $('modes-config-table');
-  if(!table) return;
-  var rows = [
-    ['CORS Proxy Base', _meta('void-cors-proxy-base', CORS_PROXY_BASE)],
-    ['Default Mode', _meta('void-default-mode', 'client')],
-    ['Scramjet Base', _meta('void-scramjet-base', '(not set)')],
-    ['Scramjet Path', _meta('void-scramjet-path', '/scramjet.html')],
-    ['UV Base', _meta('void-uv-base', '(not set)')],
-    ['UV Path', _meta('void-uv-path', '/uv.html')],
-    ['void.html Version', _meta('void-version', VER)],
-    ['void-admin.html Version', _meta('void-admin-version', VER)],
-    ['Update URL (void)', _meta('void-update-url', '(not set)')],
-    ['Update URL (admin)', _meta('void-admin-update-url', '(not set)')],
-  ];
-  var html = '<tr><th>Setting</th><th>Value</th></tr>';
-  rows.forEach(function(r){
-    html += '<tr><td>' + r[0].replace(/</g,'&lt;') + '</td><td style="word-break:break-all;">' + r[1].replace(/</g,'&lt;') + '</td></tr>';
-  });
-  table.innerHTML = html;
-}
-initModesPanel();
-
-$('btn-mode-test').addEventListener('click', function(){
-  var url = $('mode-test-url').value.trim();
-  if(!url) return;
-  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  var result = $('mode-test-result');
-  var btn = $('btn-mode-test');
-  btn.disabled = true; btn.textContent = 'Testing\u2026';
-  result.innerHTML = '<span style="color:var(--muted);">Fetching via CORS proxy\u2026</span>';
-  var proxyUrl = makeProxyUrl(url);
-  var start = performance.now();
-  fetch(proxyUrl, { cache: 'no-store' }).then(function(r){
-    var ms = Math.round(performance.now() - start);
-    var ct = r.headers.get('content-type') || '(none)';
-    var finalUrl = r.headers.get('x-void-final-url') || url;
-    result.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:6px;">'
-      + '<div><span style="color:' + (r.ok ? 'var(--green)' : 'var(--accent2)') + ';font-weight:700;">' + (r.ok ? '\u2713' : '\u2717') + ' HTTP ' + r.status + '</span> &nbsp; <span style="color:var(--muted);">' + ms + 'ms</span></div>'
-      + '<div style="color:var(--sub);">Content-Type: <code>' + ct.replace(/</g,'&lt;') + '</code></div>'
-      + '<div style="color:var(--sub);">Final URL: <code style="word-break:break-all;">' + finalUrl.replace(/</g,'&lt;') + '</code></div>'
-      + '<div style="color:var(--sub);">Proxy URL: <code style="word-break:break-all;">' + proxyUrl.replace(/</g,'&lt;') + '</code></div>'
-      + '</div>';
-    btn.disabled = false; btn.textContent = 'Test CORS Proxy';
-  }).catch(function(err){
-    result.innerHTML = '<span style="color:var(--accent2);">\u2717 Failed: ' + err.message.replace(/</g,'&lt;') + '</span>';
-    btn.disabled = false; btn.textContent = 'Test CORS Proxy';
-  });
-});
-$('mode-test-url').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('btn-mode-test').click(); });
-
-})();
-</script>
+    setTimeout(checkUpdate, 1000);
+  </script>
 </body>
 </html>
