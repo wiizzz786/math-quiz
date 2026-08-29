@@ -67,7 +67,7 @@
 
   <script>
     (function() {
-      var APP_VER = '4.5.6';
+      var APP_VER = '4.5.7';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -453,9 +453,9 @@
               }
             }
 
-            btnNewTab.onclick = () => createTab(window.location.origin + '/');
+            btnNewTab.onclick = () => createTab('` + window.location.origin + `/');
             
-            createTab(window.location.origin + '` + targetUrl + `');
+            createTab('` + window.location.origin + targetUrl + `');
           `;
           win.document.body.appendChild(script);
         } else {
