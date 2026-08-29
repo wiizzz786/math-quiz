@@ -22,6 +22,27 @@ function E(url) {
   }
 }
 
+function D(encoded) {
+  try {
+    let b64 = encoded;
+    const tldIndex = b64.lastIndexOf(".");
+    if (tldIndex > 0) b64 = b64.substring(0, tldIndex);
+    b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const raw = atob(b64);
+    const key = "NoodalMathKey2026";
+    let dec = [];
+    for (let i = 0; i < raw.length; i++) {
+      let k = key.charCodeAt(i % key.length);
+      let code = raw.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+      dec.push(String.fromCharCode(code));
+    }
+    return dec.join('');
+  } catch(e) {
+    return '';
+  }
+}
+
 self.addEventListener('install', event => {
   self.skipWaiting();
 });
@@ -34,9 +55,47 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // If it's a same-origin request, let it pass natively
+  // If it's a same-origin request
   if (url.origin === self.location.origin) {
-    return; 
+    const isAsset = /^\/(p|pe|api|public|sw\.js|favicon)/.test(url.pathname) || url.pathname === '/';
+    if (isAsset) return;
+
+    // Relative request inside iframe
+    const referrer = req.referrer;
+    if (referrer && referrer.startsWith(self.location.origin)) {
+      const refUrl = new URL(referrer);
+      const match = refUrl.pathname.match(/^\/(p|pe)\/([^/]+)/);
+      if (match) {
+        const encodedRef = match[2];
+        const baseTarget = D(encodedRef);
+        if (baseTarget) {
+          const targetUrl = new URL(url.pathname + url.search, baseTarget).href;
+          event.respondWith((async () => {
+            try {
+              const encodedUrl = E(targetUrl);
+              const headers = new Headers(req.headers);
+              headers.set('x-void-dest', req.destination || '');
+              headers.set('x-void-mode', req.mode || '');
+              headers.set('x-void-site', req.mode === 'navigate' ? 'none' : 'cross-site');
+
+              const reqOpts = {
+                method: req.method,
+                headers: headers,
+                redirect: 'manual'
+              };
+              if (!['GET', 'HEAD'].includes(req.method)) {
+                reqOpts.body = await req.blob();
+              }
+              return await fetch(encodedUrl, reqOpts);
+            } catch (err) {
+              return new Response("Service Worker Proxy Error", { status: 500 });
+            }
+          })());
+          return;
+        }
+      }
+    }
+    return;
   }
 
   // Cross-origin request intercepted!
