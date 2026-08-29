@@ -18,7 +18,7 @@ function E(url) {
       chars.push(String.fromCharCode(code));
     }
     const tld = ".www.securly.com";
-    return self.location.origin + "/p/" + btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + tld;
+    return self.location.origin + "/pe/" + btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + tld;
   } catch(e) { return url; }
 }
 
