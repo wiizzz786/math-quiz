@@ -44,9 +44,17 @@ self.addEventListener('fetch', event => {
     try {
       const encodedUrl = E(req.url);
       
+      const headers = new Headers();
+      for (const [k, v] of req.headers.entries()) {
+        headers.set(k, v);
+      }
+      headers.set('x-void-dest', req.headers.get('sec-fetch-dest') || '');
+      headers.set('x-void-mode', req.headers.get('sec-fetch-mode') || '');
+      headers.set('x-void-site', req.headers.get('sec-fetch-site') || '');
+
       const reqOpts = {
         method: req.method,
-        headers: req.headers,
+        headers: headers,
         redirect: 'manual'
       };
 

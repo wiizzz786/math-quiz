@@ -580,6 +580,7 @@ function buildHeaders(req, targetUrl) {
     if (HOP_HEADERS.has(kl)) continue;
     if (kl === "referer" || kl === "origin" || kl === "host" || kl === "cookie") continue;
     if (kl.startsWith("x-vercel-") || kl.startsWith("x-forwarded-") || kl === "forwarded" || kl === "via" || kl === "x-real-ip") continue;
+    if (kl.startsWith("x-void-")) continue;
     h[k] = v;
   }
   try {
@@ -596,6 +597,12 @@ function buildHeaders(req, targetUrl) {
     h["user-agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
   }
   h["accept-encoding"] = "gzip, deflate, br";
+
+  // Override sec-fetch headers from custom headers
+  if (req.headers["x-void-dest"]) h["sec-fetch-dest"] = req.headers["x-void-dest"];
+  if (req.headers["x-void-mode"]) h["sec-fetch-mode"] = req.headers["x-void-mode"];
+  if (req.headers["x-void-site"]) h["sec-fetch-site"] = req.headers["x-void-site"];
+
   return h;
 }
 /* ═══════════════════════════════════════════
