@@ -69,7 +69,7 @@
 
   <script>
     (function() {
-      var APP_VER = '4.5.9';
+      var APP_VER = '4.6.0';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -162,7 +162,7 @@
       function checkGitHubUpdate() {
         log('Checking for updates...');
         updStatusEl.textContent = 'Status: Checking GitHub repo...';
-        fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
+        fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now(), { cache: 'no-store' })
           .then(function(res) { return res.ok ? res.json() : null; })
           .then(function(pkg) {
             if (!pkg || !pkg.version) {
