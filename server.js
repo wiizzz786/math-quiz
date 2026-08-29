@@ -199,6 +199,20 @@ function dec(encoded) {
     }
 
 
+    
+    const oldKey = "NoodalMathKey2026";
+    let oldDecChars = [];
+    for (let i = 0; i < rawBinary.length; i++) {
+      const k = oldKey.charCodeAt(i % oldKey.length);
+      const code = rawBinary.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+      oldDecChars.push(String.fromCharCode(code));
+    }
+    const oldMultiDecoded = oldDecChars.join("");
+    if (oldMultiDecoded && oldMultiDecoded.length > 0) {
+      return oldMultiDecoded;
+    }
+
+
     // 2. Try legacy XOR 0x3F cipher decryption
     const xorDecoded = rawBinary.split("").map(c => String.fromCharCode(c.charCodeAt(0) ^ 0x3f)).join("");
     if (xorDecoded && /^[\x20-\x7E\s]+$/.test(xorDecoded)) {
