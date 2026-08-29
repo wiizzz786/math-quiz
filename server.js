@@ -1710,6 +1710,22 @@ app.get("/api/images", async (req, res) => {
   }
 });
 
+
+app.get("/api/serp", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const engine = (req.query.engine || "google").trim();
+  if (!q) return res.json({ error: "Empty query" });
+  
+  const apiKey = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
+  try {
+    const url = `https://serpapi.com/search.json?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${apiKey}`;
+    const r = await require("axios").get(url, { timeout: 15000 });
+    return res.json(r.data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/youtube", async (req, res) => {
   const q = (req.query.q || "").trim();
   const v = (req.query.v || "").trim();
@@ -1757,10 +1773,10 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], async (req, res) =
 
   let q = rawQ;
   try { q = dec(rawQ); } catch (e) {}
-
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  res.type("text/html; charset=utf-8").send(`<!DOCTYPE html>
+  res.type("text/html; charset=utf-8").send(`
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -1778,21 +1794,25 @@ a{text-decoration:none;color:inherit;}
 .topbar button{padding:6px 14px;border-radius:0;background:#eeeeee;border:1px solid #000000;color:#000000;font-weight:bold;font-size:.9rem;cursor:pointer;white-space:nowrap;}
 .topbar .back{padding:6px 12px;border-radius:0;background:#eeeeee;border:1px solid #000000;color:#000000;font-size:.9rem;text-decoration:none;display:inline-flex;}
 .topbar .back:hover{background:#dddddd;}
-.main{max-width:760px;margin:0 auto;padding:24px 20px 60px;}
+.tabs{display:flex;gap:16px;padding:12px 20px 0;border-bottom:1px solid #000000;max-width:760px;margin:0 auto 20px;overflow-x:auto;}
+.tab{font-size:.95rem;color:#555555;cursor:pointer;padding-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;}
+.tab.active{color:#000000;font-weight:bold;border-bottom:3px solid #000000;}
+.tab:hover:not(.active){color:#000000;}
+.main{max-width:760px;margin:0 auto;padding:0 20px 60px;}
 .meta{font-size:.9rem;color:#555555;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .meta .dot{width:4px;height:4px;border-radius:50%;background:#000000;}
-.cache-tag{font-size:.7rem;padding:2px 5px;border:1px solid #000000;text-transform:uppercase;}
-.cache-tag.live{background:#ffffff;color:#000000;}
-.cache-tag.cached{background:#eeeeee;color:#000000;}
 .result{display:block;padding:16px 0;border-bottom:1px solid #dddddd;margin-bottom:12px;}
 .result:hover{background:#f9f9f9;}
 .result-head{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
 .fav{width:14px;height:14px;}
 .domain{font-size:.8rem;color:#555555;font-family:'Times New Roman',Times,serif;}
-.badge{font-size:.6rem;padding:1px 4px;border:1px solid #000;margin-left:4px;background:#fff;color:#000;}
 .result-title{font-size:1.1rem;font-weight:bold;color:#0000cc;margin-bottom:4px;}
 .result:hover .result-title{text-decoration:underline;}
 .result-snippet{font-size:.9rem;color:#333333;line-height:1.4;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
+.img-card{display:flex;flex-direction:column;border:1px solid #dddddd;padding:8px;text-align:center;}
+.img-card img{width:100%;height:120px;object-fit:cover;margin-bottom:8px;}
+.img-card .domain{font-size:.7rem;margin-top:4px;}
 .no-results{text-align:center;padding:60px;color:#555555;font-size:1rem;}
 .spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:#000;font-size:1rem;}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid #000;border-top-color:transparent;animation:sp .8s linear infinite;}
@@ -1808,6 +1828,14 @@ a{text-decoration:none;color:inherit;}
     <button type="submit">SEARCH</button>
   </form>
 </div>
+<div class="tabs" id="tabs">
+  <div class="tab active" data-engine="google">All</div>
+  <div class="tab" data-engine="google_images">Images</div>
+  <div class="tab" data-engine="google_news">News</div>
+  <div class="tab" data-engine="google_shopping">Shopping</div>
+  <div class="tab" data-engine="google_scholar">Scholar</div>
+  <div class="tab" data-engine="youtube">Videos</div>
+</div>
 <div class="main">
   <div class="meta" id="meta"></div>
   <div id="results"><div class="spinner"><div class="spin"></div>Searching…</div></div>
@@ -1815,98 +1843,116 @@ a{text-decoration:none;color:inherit;}
 <script>
 (function(){
   var Q = ${JSON.stringify(safeQ)};
-  var CACHE_TTL = 24 * 60 * 60 * 1000;
-  var CACHE_PREFIX = 'void_search_';
+  var currentEngine = "google";
+  var resDiv = document.getElementById("results");
+  var metaDiv = document.getElementById("meta");
 
-  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  function levenshtein(a,b){
-    if(a===b)return 0;
-    var dp=[];
-    for(var i=0;i<=a.length;i++){dp[i]=[i];}
-    for(var j=1;j<=b.length;j++)dp[0][j]=j;
-    for(var i=1;i<=a.length;i++)for(var j=1;j<=b.length;j++)
-      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-    return dp[a.length][b.length];
+  function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  
+  function getProxyUrl(raw) {
+    if(!raw) return "";
+    var customTld = localStorage.getItem("void_tld") || ".securly.com";
+    return "/p/" + btoa(raw).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + customTld;
   }
 
-  function maxDist(q){ return q.length<=5?1:q.length<=12?2:3; }
-
-  function normQ(q){ return q.toLowerCase().trim().replace(/\s+/g,' ').replace(/[^\w\s]/g,''); }
-
-  function findCache(qNorm){
-    try{
-      for(var i=0;i<sessionStorage.length;i++){
-        var k=sessionStorage.key(i);
-        if(!k||!k.startsWith(CACHE_PREFIX))continue;
-        var kq=k.slice(CACHE_PREFIX.length);
-        if(levenshtein(qNorm,kq)<=maxDist(qNorm)){
-          var entry=JSON.parse(sessionStorage.getItem(k)||'null');
-          if(entry&&Array.isArray(entry.results)&&Date.now()-entry.ts<CACHE_TTL)
-            return{results:entry.results,cached:true};
-        }
-      }
-    }catch(e){}
-    return null;
+  function renderGoogle(r) {
+    var domain="";try{domain=new URL(r.link||r.url).hostname;}catch(e){}
+    var fav=domain?"<img class=\"fav\" src=\"https://www.google.com/s2/favicons?domain="+encodeURIComponent(domain)+"&sz=32\" onerror=\"this.style.display='none'\"/>":"";
+    return "<a class=\"result\" href=\""+getProxyUrl(r.link||r.url)+"\">"
+      +"<div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div>"
+      +"<div class=\"result-title\">"+esc(r.title)+"</div>"
+      +"<div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
   }
 
-  function saveCache(qNorm,results){
-    try{ sessionStorage.setItem(CACHE_PREFIX+qNorm,JSON.stringify({results:results,ts:Date.now()})); }catch(e){}
+  function renderNews(r) {
+    return "<a class=\"result\" href=\""+getProxyUrl(r.link)+"\">"
+      +"<div class=\"result-head\"><span class=\"domain\">"+esc(r.source)+" • "+esc(r.date)+"</span></div>"
+      +"<div class=\"result-title\">"+esc(r.title)+"</div>"
+      +"<div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
   }
 
-  function renderResult(r){
-    var domain='';try{domain=new URL(r.url).hostname;}catch(e){}
-    var fav=domain?'<img class="fav" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32" alt="" onerror="this.style.display=\'none\'"/>':'';
-    var badge=r.type==='kg'?'<span class="badge">Info</span>':'';
-    var snippet=r.snippet?'<div class="result-snippet">'+esc(r.snippet.slice(0,180))+'</div>':'';
-    var proxyUrl='/p/'+btoa(r.url).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');
-    return '<a class="result" href="'+proxyUrl+'">'
-      +'<div class="result-head">'+fav+'<span class="domain">'+esc(domain)+'</span>'+badge+'</div>'
-      +'<div class="result-title">'+esc(r.title||domain||r.url)+'</div>'
-      +snippet+'</a>';
+  function renderShopping(r) {
+    return "<a class=\"result\" href=\""+getProxyUrl(r.link)+"\">"
+      +"<div class=\"result-title\">"+esc(r.title)+"</div>"
+      +"<div class=\"result-head\"><span class=\"domain\">"+esc(r.source)+" • <strong>"+esc(r.price)+"</strong></span></div>"
+      +"</a>";
   }
 
-  function render(results, fromCache){
-    var meta=document.getElementById('meta');
-    var res=document.getElementById('results');
-    if(meta){
-      meta.innerHTML='<span>'+results.length+' results for <strong>"'+esc(Q)+'"</strong></span>'
-        +'<span class="dot"></span><span>via Mega Engine</span>'
-        +(fromCache
-          ?'<span class="dot"></span><span class="cache-tag cached">cached</span>'
-          :'<span class="dot"></span><span class="cache-tag live">live</span>');
-    }
-    if(res){
-      res.innerHTML=results.length
-        ?results.map(renderResult).join('')
-        :'<div class="no-results">No results found — try a different query.</div>';
-    }
+  function renderScholar(r) {
+    return "<a class=\"result\" href=\""+getProxyUrl(r.link)+"\">"
+      +"<div class=\"result-title\">"+esc(r.title)+"</div>"
+      +"<div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
   }
 
-  var qNorm=normQ(Q);
-  var hit=findCache(qNorm);
-  if(hit){
-    render(hit.results,true);
-    return;
+  function renderVideo(r) {
+    var u = r.link || (r.videoId ? "https://www.youtube.com/watch?v="+r.videoId : "");
+    return "<a class=\"result\" href=\""+getProxyUrl(u)+"\">"
+      +"<div class=\"result-head\"><span class=\"domain\">"+esc(r.channel?.name || r.channel || r.source)+" • "+esc(r.views)+"</span></div>"
+      +"<div class=\"result-title\">"+esc(r.title)+"</div>"
+      +"</a>";
   }
 
-  fetch('/api/search?q='+encodeURIComponent(Q)+'&num=10')
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(data){
-      if(!data||!Array.isArray(data.results)||!data.results.length){
-        render([], false);
+  function renderImage(r) {
+    return "<a class=\"img-card\" href=\""+getProxyUrl(r.link||r.original)+"\">"
+      +"<img src=\""+getProxyUrl(r.thumbnail)+"\" loading=\"lazy\"/>"
+      +"<div class=\"result-title\" style=\"font-size:.9rem\">"+esc(r.title).slice(0,30)+"...</div>"
+      +"<div class=\"domain\">"+esc(r.source)+"</div>"
+      +"</a>";
+  }
+
+  function fetchAndRender() {
+    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching…</div>";
+    var endpoint = currentEngine === "google" ? "/api/search?q="+encodeURIComponent(Q)+"&num=15" : "/api/serp?engine="+currentEngine+"&q="+encodeURIComponent(Q);
+    fetch(endpoint).then(function(r){return r.json()}).then(function(data){
+      var arr = [];
+      if(currentEngine==="google") arr = data.results || [];
+      else if(currentEngine==="google_images") arr = data.images_results || [];
+      else if(currentEngine==="google_news") arr = data.news_results || [];
+      else if(currentEngine==="google_shopping") arr = data.shopping_results || [];
+      else if(currentEngine==="google_scholar") arr = data.organic_results || [];
+      else if(currentEngine==="youtube") arr = data.video_results || [];
+
+      if(!arr || arr.length === 0) {
+        resDiv.innerHTML = "<div class=\"no-results\">No results found for this tab.</div>";
+        metaDiv.innerHTML = "";
         return;
       }
-      saveCache(qNorm,data.results);
-      render(data.results,data.cached||false);
-    })
-    .catch(function(){
-      render([], false);
+      metaDiv.innerHTML = "<span>"+arr.length+" results for <strong>\""+esc(Q)+"\"</strong></span><span class=\"dot\"></span><span>"+esc(currentEngine)+"</span>";
+
+      if(currentEngine === "google_images") {
+        resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(renderImage).join("") + "</div>";
+      } else {
+        var html = "";
+        arr.forEach(function(r){
+          if(currentEngine==="google") html += renderGoogle(r);
+          if(currentEngine==="google_news") html += renderNews(r);
+          if(currentEngine==="google_shopping") html += renderShopping(r);
+          if(currentEngine==="google_scholar") html += renderScholar(r);
+          if(currentEngine==="youtube") html += renderVideo(r);
+        });
+        resDiv.innerHTML = html;
+      }
+    }).catch(function(e){
+      resDiv.innerHTML = "<div class=\"no-results\">Error loading results: "+esc(e.message)+"</div>";
     });
+  }
+
+  document.querySelectorAll(".tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active")});
+      t.classList.add("active");
+      currentEngine = t.getAttribute("data-engine");
+      fetchAndRender();
+    });
+  });
+
+  fetchAndRender();
 })();
 </script>
 </body>
-</html>`);
+</html>
+
+`);
 });
 
 app.get("/api/health", (_req, res) => {
