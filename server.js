@@ -1543,7 +1543,7 @@ async function fetchSerperResults(q, num = 8) {
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPER_API_KEY || "1729c383021935c483b8b324b106c3fbd6d09ff3";
+  const apiKey = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
   try {
     const res = await axios.post("https://google.serper.dev/search", { q, num }, {
       headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
