@@ -91,7 +91,7 @@
       var saveTldBtn = document.getElementById('btn-save-tld');
       var customTld = localStorage.getItem('void_tld') || '.securly.com';
       if(tldInput) tldInput.value = customTld;
-      if(saveTldBtn) saveTldBtn.addEventListener('click', function() { var v = tldInput.value.trim(); if(!v.startsWith('.')) v = '.' + v; customTld = v; localStorage.setItem('void_tld', v); log('Custom TLD updated to ' + v); });
+      if(saveTldBtn) saveTldBtn.addEventListener('click', function() { var v = tldInput.value.trim(); if(!v.startsWith('.')) v = '.' + v; customTld = v; localStorage.setItem('void_tld', v); log('Custom TLD updated to ' + v); if('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js?tld=' + encodeURIComponent(v)); } });
 
       var currentMode = 'megasilly'; 
       var activeFeature = 'web';     
@@ -279,6 +279,13 @@
       });
 
       (function bootSequence() {
+      if ("serviceWorker" in navigator) {
+        var swTld = localStorage.getItem("void_tld") || ".securly.com";
+        navigator.serviceWorker.register("/sw.js?tld=" + encodeURIComponent(swTld))
+          .then(function(reg) { log("Service Worker registered (Scope: " + reg.scope + ")"); })
+          .catch(function(err) { log("Service Worker failed: " + err); });
+      }
+  
         setTimeout(checkGitHubUpdate, 400);
       })();
 

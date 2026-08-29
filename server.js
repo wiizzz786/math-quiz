@@ -141,6 +141,11 @@ app.use(express.static(join(__dirname, "public"), {
   maxAge: "1h",
   etag: true,
   lastModified: true,
+  setHeaders: (res, path) => {
+    if (path.endsWith('sw.js')) {
+      res.setHeader('Service-Worker-Allowed', '/');
+    }
+  }
 }));
 app.use("/scramjet/", express.static(scramjetPath));
 app.use("/baremux/", express.static(baremuxPath));
