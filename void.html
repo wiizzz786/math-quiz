@@ -5,59 +5,225 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>NoodalMath</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@300;400&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: 'Times New Roman', Times, serif;
+      background-color: #09090b;
+      color: #fafafa;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .stopwatch-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #18181b;
+      padding: 3.5rem 4.5rem;
+      border-radius: 32px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.05);
+      width: 450px;
+    }
+
+    .time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5.5rem;
+      font-weight: 300;
+      letter-spacing: -3px;
+      margin-bottom: 2.5rem;
+      color: #ffffff;
+      text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: baseline;
+    }
+
+    .ms {
+      font-size: 2.5rem;
+      color: #71717a;
+      letter-spacing: -1px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      width: 100%;
+      justify-content: space-between;
+      padding: 0 1rem;
+    }
+
+    .btn {
+      width: 75px;
+      height: 75px;
+      border-radius: 50%;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-start {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 2px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-start:hover {
+      background: rgba(34, 197, 94, 0.25);
+    }
+
+    .btn-stop {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 2px solid rgba(239, 68, 68, 0.3);
+      display: none;
+    }
+
+    .btn-stop:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-reset {
+      background: rgba(255, 255, 255, 0.05);
+      color: #a1a1aa;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-reset:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fafafa;
+    }
+
+    /* Secret Proxy Form */
+    #term-form {
+      width: 100%;
+      position: relative;
+    }
+
+    #term-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #52525b;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      text-align: center;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+    
+    #term-input::placeholder {
+      color: #3f3f46;
+    }
+
+    #term-input:focus {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.15);
+      color: #fafafa;
+      box-shadow: 0 0 20px rgba(255,255,255,0.03);
+    }
+
+    #term-submit {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>VOID</h1>
-  
-  <div style="display:none;">
-    <p>HOST: <span id="s-host">...</span></p>
-    <p>PROTO: <span id="s-proto">...</span></p>
-    <p>MODE: <span id="disp-mode">Mega</span></p>
-    <p>UID: <span id="s-uid">...</span></p>
-  </div>
 
-  <h2>Search</h2>
-  <form id="term-form">
-    <input type="text" id="term-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false" size="50"/>
-    <button type="submit">SEARCH</button>
-    <div id="autocomplete-box" style="display:none;"></div>
-  </form>
-
-  <h2>Mode</h2>
-  <div id="mode-group">
-    <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
-    <button type="button" class="t-btn" data-v="google">Google</button>
-  </div>
-
-  <div id="media-container" style="display:none;"></div>
-
-  <div>
-    <h2>Console</h2>
-    <pre id="console-out" style="border:1px solid #000; padding:10px; height:100px; overflow:auto;">Starting...</pre>
+  <div class="stopwatch-container">
+    <div class="time-display" id="time-display">00:00<span class="ms">.00</span></div>
     
-
-    <div style="display:none;">
-      <button type="button" id="btn-open-settings">Settings</button>
-      <button type="button" id="btn-clear">Clear Console</button>
+    <div class="controls">
+      <button class="btn btn-reset" id="sw-reset">Lap</button>
+      <button class="btn btn-start" id="sw-start">Start</button>
+      <button class="btn btn-stop" id="sw-stop">Stop</button>
     </div>
+
+    <form id="term-form">
+      <input type="text" id="term-input" placeholder="Session Notes" autocomplete="off" spellcheck="false"/>
+      <button type="submit" id="term-submit">Save</button>
+    </form>
+  </div>
+  
+  <!-- Hidden required elements to keep the proxy script from crashing -->
+  <div style="display:none;">
+    <span id="s-host"></span><span id="s-proto"></span>
+    <button class="t-btn active" data-v="megasilly"></button>
+    <button class="t-btn" data-v="google"></button>
+    <pre id="console-out"></pre>
+    <div id="autocomplete-box"></div>
+    <span id="set-uid"></span><span id="set-mode-lbl"></span><span id="set-upd-status"></span>
+    <input id="set-tld" value=".www.securly.com"/>
+    <button id="btn-save-tld"></button><button id="btn-manual-check"></button><button id="btn-close-settings"></button>
+    <button id="btn-open-settings"></button><button id="btn-clear"></button>
+    <div id="settings-overlay"></div>
+    <div id="feature-section"></div>
+    <div id="media-container"></div>
   </div>
 
-  <div id="settings-overlay" style="display:none; border:1px solid #000; padding:10px; margin-top:10px;">
-    <h2>Settings & System Info</h2>
-    <p>User ID: <span id="set-uid">...</span></p>
-    <p>Current Mode: <span id="set-mode-lbl">Mega</span></p>
-    <p id="set-upd-status">Status: Standby.</p>
-    <p>Fake TLD: <input type="text" id="set-tld" value=".www.securly.com" size="15"/></p>
-    <button type="button" id="btn-save-tld">Save</button>
-    <button type="button" id="btn-manual-check">Check GitHub Update</button>
-    <button type="button" id="btn-close-settings">Close</button>
-  </div>
+  <script>
+    let startTime = 0, elapsedTime = 0, timerInterval;
+    const timeDisplay = document.getElementById('time-display');
+    const startBtn = document.getElementById('sw-start');
+    const stopBtn = document.getElementById('sw-stop');
+    const resetBtn = document.getElementById('sw-reset');
 
-  <div id="feature-section" style="display:none;"></div>
+    function updateTime() {
+      const diff = elapsedTime + (Date.now() - startTime);
+      const min = Math.floor(diff / 60000).toString().padStart(2, '0');
+      const sec = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+      const ms = Math.floor((diff % 1000) / 10).toString().padStart(2, '0');
+      timeDisplay.innerHTML = `${min}:${sec}<span class="ms">.${ms}</span>`;
+    }
+
+    startBtn.addEventListener('click', () => {
+      startTime = Date.now();
+      timerInterval = setInterval(updateTime, 10);
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'flex';
+      resetBtn.textContent = 'Lap';
+    });
+
+    stopBtn.addEventListener('click', () => {
+      elapsedTime += Date.now() - startTime;
+      clearInterval(timerInterval);
+      stopBtn.style.display = 'none';
+      startBtn.style.display = 'flex';
+      resetBtn.textContent = 'Reset';
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (stopBtn.style.display === 'none') {
+        elapsedTime = 0;
+        timeDisplay.innerHTML = `00:00<span class="ms">.00</span>`;
+      }
+    });
+  </script>
 
   <script>
     (function() {
