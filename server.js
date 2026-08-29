@@ -897,12 +897,10 @@ function encPe(url) {
 
 function decPe(encoded) {
   try {
-    const str = String(encoded);
-    const normalized = str.replace(/-/g, "+").replace(/_/g, "/");
-    const padding = normalized.length % 4;
-    const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
-    const decoded = Buffer.from(padded, "base64").toString("utf8");
-    if (!/^https?:\/\//i.test(decoded)) throw new Error("Decoded value is not an http/https URL");
+    const decoded = dec(encoded);
+    if (!decoded || !/^https?:\/\//i.test(decoded)) {
+      throw new Error("Decoded value is not an http/https URL");
+    }
     return decoded;
   } catch (e) {
     throw new Error(`URL decode failed: ${e.message}`);
@@ -1085,7 +1083,7 @@ function injectionScriptExperimental(base, optSuffix, proxyHost) {
   function E(u){
     try{
       if(!u||typeof u!=="string")return u;
-      if(u.startsWith("/p/"))return u;
+      if(u.startsWith("/pe/"))return u;
       if(SKIP.test(u))return u;
       var a=new URL(u,B).href;
       if(a.startsWith("http")){
@@ -1095,7 +1093,7 @@ function injectionScriptExperimental(base, optSuffix, proxyHost) {
         var key = "Void2026", chars = [];
         for (var i = 0; i < str.length; i++) chars.push(String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
         var tld = ""; try{tld = localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
-        return "/p/"+btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")+tld;
+        return "/pe/"+btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")+tld;
       }
       return u;
     }catch(e){return u;}
