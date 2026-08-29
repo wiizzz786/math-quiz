@@ -6,11 +6,6 @@
       "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "server.js": {
-      "includeFiles": "package.json"
-    }
-  },
   "routes": [
     {
       "src": "/(.*)",
