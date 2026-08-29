@@ -57,6 +57,8 @@
     <p>User ID: <span id="set-uid">...</span></p>
     <p>Current Mode: <span id="set-mode-lbl">Mega</span></p>
     <p id="set-upd-status">Status: Standby.</p>
+    <p>Fake TLD: <input type="text" id="set-tld" value=".securly.com" size="15"/></p>
+    <button type="button" id="btn-save-tld">Save</button>
     <button type="button" id="btn-manual-check">Check GitHub Update</button>
     <button type="button" id="btn-close-settings">Close</button>
   </div>
@@ -85,6 +87,11 @@
       var manualCheckBtn = document.getElementById('btn-manual-check');
       var manualApplyBtn = document.getElementById('btn-manual-apply');
       var directDownloadBtn = document.getElementById('btn-direct-download');
+      var tldInput = document.getElementById('set-tld');
+      var saveTldBtn = document.getElementById('btn-save-tld');
+      var customTld = localStorage.getItem('void_tld') || '.securly.com';
+      if(tldInput) tldInput.value = customTld;
+      if(saveTldBtn) saveTldBtn.addEventListener('click', function() { var v = tldInput.value.trim(); if(!v.startsWith('.')) v = '.' + v; customTld = v; localStorage.setItem('void_tld', v); log('Custom TLD updated to ' + v); });
 
       var currentMode = 'megasilly'; 
       var activeFeature = 'web';     
