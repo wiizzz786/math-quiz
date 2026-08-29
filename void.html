@@ -169,8 +169,9 @@
             }
             log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
             if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.textContent = '[UPDATE AVAILABLE: v' + pkg.version + '] Press Apply Instant Update or Download!';
-              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
+              updStatusEl.textContent = '[UPDATE AVAILABLE: v' + pkg.version + '] Auto-updating...';
+              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<< Auto-applying...');
+              applyManualUpdate();
             } else {
               updStatusEl.textContent = 'System is fully up to date (v' + APP_VER + ').';
               log('System up to date (v' + APP_VER + ').');
@@ -183,9 +184,9 @@
       }
 
       function applyManualUpdate() {
-        log('[MANUAL UPDATE]: Fetching raw void.html from GitHub main branch...');
-        updStatusEl.textContent = '[UPDATE IN PROGRESS]: Fetching latest code from GitHub...';
-        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
+        log('[MANUAL UPDATE]: Fetching fresh void.html from server...');
+        updStatusEl.textContent = '[UPDATE IN PROGRESS]: Fetching latest code...';
+        var rawUrl = window.location.origin + '/void.html?t=' + Date.now();
         fetch(rawUrl)
           .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
