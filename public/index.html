@@ -112,7 +112,7 @@
 
       function log(msg) {
         var t = new Date().toISOString().split('T')[1].slice(0, 8);
-        consoleOut.textContent += '\\n[' + t + '] ' + msg;
+        consoleOut.textContent += '\n[' + t + '] ' + msg;
         consoleOut.scrollTop = consoleOut.scrollHeight;
       }
 
@@ -272,8 +272,6 @@
       });
 
       (function bootSequence() {
-        log('User Authenticated: ' + uid);
-        log('Initializing Void 2-Mode Engine (Mega Silly & Google No API)...');
         setTimeout(checkGitHubUpdate, 400);
       })();
 
