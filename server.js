@@ -366,12 +366,12 @@ function injectionScript(base) {
     t.removeAttribute('target');
     if(raw.startsWith('/p/'))return;
     if(SKIP.test(raw))return;
-    try{var abs=new URL(raw,B).href;if((abs.startsWith('http://')||abs.startsWith('https://'))&&!abs.startsWith(_rawLoc('origin'))){e.preventDefault();e.stopPropagation();if(_LD.href&&_LD.href.set)_LD.href.set.call(location,E(abs));}}catch(err){}
+    try{var abs=new URL(raw,B).href;if(abs.startsWith('http://')||abs.startsWith('https://')){e.preventDefault();e.stopPropagation();if(_LD.href&&_LD.href.set)_LD.href.set.call(location,E(abs));else location.href=E(abs);}}catch(err){}
   },true);
   document.addEventListener('submit',function(e){
     var f=e.target;if(!f||f.tagName!=='FORM')return;
     var a=f.getAttribute('action')||f.action||'';if(!a||a.startsWith('/p/')||SKIP.test(a))return;
-    try{var abs=new URL(a,B).href;if((abs.startsWith('http://')||abs.startsWith('https://'))&&!abs.startsWith(_rawLoc('origin')))f.action=E(abs);}catch(err){}
+    try{var abs=new URL(a,B).href;if(abs.startsWith('http://')||abs.startsWith('https://'))f.action=E(abs);}catch(err){}
   },true);
   var DUA=['data-src','data-srcset','data-lazy-src','data-original','data-bg','data-href','data-url','data-poster'];
   function rwEl(el){
