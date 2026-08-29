@@ -2076,18 +2076,28 @@ app.get("/void-minimal.html", (_req, res) => {
 });
 
 app.get("/void.html", (_req, res) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.sendFile(join(__dirname, "void.html"));
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.sendFile(join(__dirname, "void.html"), { cacheControl: false });
 });
 
 app.get("/", (_req, res) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.sendFile(join(__dirname, "public", "index.html"));
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.sendFile(join(__dirname, "public", "index.html"), { cacheControl: false });
 });
 
 app.get("/index.html", (_req, res) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.sendFile(join(__dirname, "public", "index.html"));
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.sendFile(join(__dirname, "public", "index.html"), { cacheControl: false });
+});
+
+app.get("/force-update", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.sendFile(join(__dirname, "void.html"), { cacheControl: false });
+});
+
+app.get("/void-admin.html", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.sendFile(join(__dirname, "void-admin.html"), { cacheControl: false });
 });
 
 app.get("/{*path}", (_req, res) => {
