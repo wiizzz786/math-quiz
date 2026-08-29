@@ -1910,7 +1910,12 @@ a{text-decoration:none;color:inherit;}
   function getProxyUrl(raw) {
     if(!raw) return "";
     var customTld = localStorage.getItem("void_tld") || ".www.securly.com";
-    return "/p/" + btoa(raw).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + customTld;
+    var salt = Math.random().toString(36).substring(2, 6);
+    while(salt.length<4) salt+="x";
+    var u = salt + "||" + raw;
+    var key = "Void2026", chars = [];
+    for (var i = 0; i < u.length; i++) chars.push(String.fromCharCode(u.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+    return "/p/" + btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + customTld;
   }
 
   function renderGoogle(r) {

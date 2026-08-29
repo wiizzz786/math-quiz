@@ -9,14 +9,15 @@ if (urlParams.has('tld')) {
 function E(url) {
   try {
     let u = new URL(url).href;
-    const key = "NoodalMathKey2026";
-    const out = [];
+    const salt = Math.random().toString(36).substring(2, 6).padEnd(4, "x");
+    u = salt + "||" + u;
+    const key = "Void2026";
+    let chars = [];
     for (let i = 0; i < u.length; i++) {
-      let k = key.charCodeAt(i % key.length);
-      let code = u.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
-      out.push(String.fromCharCode(code));
+      let code = u.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+      chars.push(String.fromCharCode(code));
     }
-    return self.location.origin + '/p/' + btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + customTld;
+    return self.location.origin + '/p/' + btoa(chars.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + customTld;
   } catch(e) {
     return url;
   }
@@ -30,14 +31,14 @@ function D(encoded) {
     b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
     while (b64.length % 4) b64 += "=";
     const raw = atob(b64);
-    const key = "NoodalMathKey2026";
+    const key = "Void2026";
     let dec = [];
     for (let i = 0; i < raw.length; i++) {
-      let k = key.charCodeAt(i % key.length);
-      let code = raw.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+      let code = raw.charCodeAt(i) ^ key.charCodeAt(i % key.length);
       dec.push(String.fromCharCode(code));
     }
-    return dec.join('');
+    const parts = dec.join('').split('||');
+    return parts.length === 2 ? parts[1] : parts[0];
   } catch(e) {
     return '';
   }

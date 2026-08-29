@@ -420,14 +420,14 @@
                 b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
                 while (b64.length % 4) b64 += "=";
                 const raw = atob(b64);
-                const key = "NoodalMathKey2026";
+                const key = "Void2026";
                 let dec = [];
                 for (var i = 0; i < raw.length; i++) {
-                  var k = key.charCodeAt(i % key.length);
-                  var code = raw.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+                  var code = raw.charCodeAt(i) ^ key.charCodeAt(i % key.length);
                   dec.push(String.fromCharCode(code));
                 }
-                return dec.join('');
+                const parts = dec.join('').split('||');
+                return parts.length === 2 ? parts[1] : parts[0];
               } catch(e) {
                 return '';
               }

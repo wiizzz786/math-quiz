@@ -315,14 +315,17 @@
 
       function encryptUrl(str) {
         if (!str) return '';
-        var key = "NoodalMathKey2026";
+        var salt = Math.random().toString(36).substring(2, 6);
+        while(salt.length<4) salt+="x";
+        var u = salt + "||" + str;
+        var key = "Void2026";
         var out = [];
-        for (var i = 0; i < str.length; i++) {
-          var k = key.charCodeAt(i % key.length);
-          var code = str.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+        for (var i = 0; i < u.length; i++) {
+          var code = u.charCodeAt(i) ^ key.charCodeAt(i % key.length);
           out.push(String.fromCharCode(code));
         }
-        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + '.www.securly.com';
+        var tld = localStorage.getItem("void_tld") || ".www.securly.com";
+        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + tld;
       }
 
       form.addEventListener('submit', async function(e) {
@@ -388,14 +391,14 @@
                 b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
                 while (b64.length % 4) b64 += "=";
                 const raw = atob(b64);
-                const key = "NoodalMathKey2026";
+                const key = "Void2026";
                 let dec = [];
                 for (var i = 0; i < raw.length; i++) {
-                  var k = key.charCodeAt(i % key.length);
-                  var code = raw.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+                  var code = raw.charCodeAt(i) ^ key.charCodeAt(i % key.length);
                   dec.push(String.fromCharCode(code));
                 }
-                return dec.join('');
+                const parts = dec.join('').split('||');
+                return parts.length === 2 ? parts[1] : parts[0];
               } catch(e) {
                 return '';
               }
