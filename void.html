@@ -312,17 +312,19 @@
       document.getElementById('btn-clear').addEventListener('click', function() {
         consoleOut.textContent = 'Console reset.';
       });
-
       function encryptUrl(str) {
         if (!str) return '';
-        var key = "NoodalMathKey2026";
+        var salt = Math.random().toString(36).substring(2, 6);
+        while(salt.length<4) salt+="x";
+        var u = salt + "||" + str;
+        var key = "Void2026";
         var out = [];
-        for (var i = 0; i < str.length; i++) {
-          var k = key.charCodeAt(i % key.length);
-          var code = str.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
+        for (var i = 0; i < u.length; i++) {
+          var code = u.charCodeAt(i) ^ key.charCodeAt(i % key.length);
           out.push(String.fromCharCode(code));
         }
-        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + '.www.securly.com';
+        var tld = localStorage.getItem("void_tld") || ".www.securly.com";
+        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + tld;
       }
 
       form.addEventListener('submit', async function(e) {
