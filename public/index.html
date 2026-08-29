@@ -150,7 +150,7 @@
       }
 
       function checkGitHubUpdate() {
-        log('Checking GitHub for updates (' + GITHUB_REPO + ')...');
+        log('Checking for updates...');
         updStatusEl.textContent = 'Status: Checking GitHub repo...';
         fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
           .then(function(res) { return res.ok ? res.json() : null; })
