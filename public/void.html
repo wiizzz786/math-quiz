@@ -67,7 +67,7 @@
 
   <script>
     (function() {
-      var APP_VER = '4.6.4';
+      var APP_VER = '4.6.5';
       var GITHUB_REPO = 'wiizzz786/math-quiz';
 
       var hostEl = document.getElementById('s-host');
@@ -471,7 +471,7 @@
               iframe.onload = () => {
                 try {
                   const iframeUrl = iframe.contentWindow.location.href;
-                  const match = iframeUrl.match(/\/p\/([^/?]+)/) || iframeUrl.match(/\/pe\/([^/?]+)/);
+                  const match = iframeUrl.match(/\\/p\\/([^/?]+)/) || iframeUrl.match(/\\/pe\\/([^/?]+)/);
                   if (match) {
                     const decrypted = D(match[1]);
                     if (decrypted) {
