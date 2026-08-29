@@ -45,9 +45,9 @@ self.addEventListener('fetch', event => {
       const encodedUrl = E(req.url);
       
       const headers = new Headers(req.headers);
-      headers.set('x-void-dest', req.headers.get('sec-fetch-dest') || '');
-      headers.set('x-void-mode', req.headers.get('sec-fetch-mode') || '');
-      headers.set('x-void-site', req.headers.get('sec-fetch-site') || '');
+      headers.set('x-void-dest', req.destination || '');
+      headers.set('x-void-mode', req.mode || '');
+      headers.set('x-void-site', req.mode === 'navigate' ? 'none' : 'cross-site');
 
       const reqOpts = {
         method: req.method,

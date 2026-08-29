@@ -716,6 +716,7 @@ async function handleProxy(req, res) {
 
     const rawBuf = Buffer.from(axiosRes.data);
     cacheSet("p:" + targetUrl, ct, rawBuf);
+    res.type(ct);
     return res.status(axiosRes.status).send(rawBuf);
   } catch (err) {
     if (req.method === "GET") {
