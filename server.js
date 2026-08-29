@@ -1401,7 +1401,7 @@ async function handleExperimentalProxy(req, res) {
       const kl = k.toLowerCase();
       if (STRIP_RESPONSE_HEADERS.has(kl)) continue;
       if (kl === "set-cookie") continue;
-      if (!decompressed && (kl === "content-encoding" || kl === "content-length")) continue;
+      if (decompressed && (kl === "content-encoding" || kl === "content-length")) continue;
       try {
         if (!Array.isArray(v)) res.set(k, v);
       } catch (e) { /* skip headers that Express rejects */ }
