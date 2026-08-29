@@ -39,13 +39,7 @@
     <h2>Console</h2>
     <pre id="console-out" style="border:1px solid #000; padding:10px; height:100px; overflow:auto;">Starting...</pre>
     
-    <button type="button" id="btn-check-update">Check GitHub Update</button>
-    
-    <div id="update-actions" style="display:none; margin-top:10px;">
-      <button type="button" id="btn-manual-apply">Apply Instant Update</button>
-      <button type="button" id="btn-direct-download">Download new version</button>
-    </div>
-    
+
     <div style="display:none;">
       <button type="button" id="btn-open-settings">Settings</button>
       <button type="button" id="btn-clear">Clear Console</button>
@@ -156,94 +150,26 @@
         return false;
       }
 
-      function checkGitHubUpdate() {
-        log('Checking for updates...');
-        updStatusEl.textContent = 'Status: Checking GitHub repo...';
-        fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now())
+      function pollForUpdates() {
+        fetch('/api/version')
           .then(function(res) { return res.ok ? res.json() : null; })
           .then(function(pkg) {
-            if (!pkg || !pkg.version) {
-              updStatusEl.textContent = 'Status: Unable to fetch GitHub release info.';
-              log('Update check failed.');
-              return;
-            }
-            log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
-            if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.textContent = '[UPDATE AVAILABLE: v' + pkg.version + '] Auto-updating...';
-              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<< Auto-applying...');
-              applyManualUpdate();
-            } else {
-              updStatusEl.textContent = 'System is fully up to date (v' + APP_VER + ').';
-              log('System up to date (v' + APP_VER + ').');
+            if (pkg && pkg.version && isNewerVer(pkg.version, APP_VER)) {
+              log('[AUTO-UPDATER]: New version detected (v' + pkg.version + '). Reloading seamlessly...');
+              updStatusEl.textContent = '[UPDATE]: Reloading client to v' + pkg.version + '...';
+              setTimeout(function() {
+                window.location.href = window.location.pathname + '?v=' + pkg.version;
+              }, 1000);
             }
           })
           .catch(function(err) {
-            updStatusEl.textContent = 'Status: Update check failed (' + err.message + ')';
-            log('Update check error: ' + err.message);
+            log('[AUTO-UPDATER]: Background check failed: ' + err.message);
           });
       }
 
-      function applyManualUpdate() {
-        log('[MANUAL UPDATE]: Fetching fresh void.html from server...');
-        updStatusEl.textContent = '[UPDATE IN PROGRESS]: Fetching latest code...';
-        var rawUrl = window.location.origin + '/void.html?t=' + Date.now();
-        fetch(rawUrl)
-          .then(function(res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.text();
-          })
-          .then(function(html) {
-            log('[MANUAL UPDATE SUCCESS]: Received fresh void.html (' + html.length + ' bytes).');
-            updStatusEl.textContent = '[UPDATE APPLIED]: Reloading client...';
-            try {
-              document.open();
-              document.write(html);
-              document.close();
-              log('[MANUAL UPDATE COMPLETE]: Client updated and reloaded with latest code!');
-            } catch(e) {
-              window.location.href = window.location.pathname + '?v=' + Date.now();
-            }
-          })
-          .catch(function(err) {
-            log('[MANUAL UPDATE ERROR]: Failed to fetch raw update (' + err.message + ').');
-            updStatusEl.textContent = '[UPDATE FAILED]: ' + err.message;
-          });
-      }
-
-      function directDownloadFile() {
-        log('[DIRECT DOWNLOAD]: Fetching latest void.html code from GitHub for file download...');
-        updStatusEl.textContent = '[DOWNLOAD]: Preparing void.html download file...';
-        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
-        fetch(rawUrl)
-          .then(function(res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.text();
-          })
-          .then(function(html) {
-            var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'void.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            log('[DIRECT DOWNLOAD SUCCESS]: void.html file downloaded directly to your device!');
-            updStatusEl.textContent = '[DOWNLOAD COMPLETE]: void.html saved to device!';
-          })
-          .catch(function(err) {
-            log('[DIRECT DOWNLOAD ERROR]: ' + err.message);
-            updStatusEl.textContent = '[DOWNLOAD FAILED]: ' + err.message;
-          });
-      }
-
-      if (manualCheckBtn) manualCheckBtn.addEventListener('click', checkGitHubUpdate);
-      if (manualApplyBtn) manualApplyBtn.addEventListener('click', applyManualUpdate);
-      if (directDownloadBtn) directDownloadBtn.addEventListener('click', directDownloadFile);
-      document.getElementById('btn-check-update').addEventListener('click', function() {
-        checkGitHubUpdate();
-        var ua = document.getElementById('update-actions');
-        if (ua) ua.style.display = 'block';
-      });
+      // Check immediately on load, then every 5 minutes
+      pollForUpdates();
+      setInterval(pollForUpdates, 5 * 60 * 1000);
 
       var acTimer = null;
       input.addEventListener('input', function() {

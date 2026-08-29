@@ -1703,6 +1703,15 @@ app.get("/api/search", async (req, res) => {
   return res.json({ cached: fromCache, results: results || [] });
 });
 
+app.get("/api/version", (req, res) => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(join(__dirname, "package.json"), "utf8"));
+    res.json({ version: pkg.version });
+  } catch (e) {
+    res.status(500).json({ error: "Could not read version" });
+  }
+});
+
 app.get("/api/autocomplete", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ suggestions: [] });
