@@ -544,6 +544,7 @@ function buildHeaders(req, targetUrl) {
     const kl = k.toLowerCase();
     if (HOP_HEADERS.has(kl)) continue;
     if (kl === "referer" || kl === "origin" || kl === "host" || kl === "cookie") continue;
+    if (kl.startsWith("x-vercel-") || kl.startsWith("x-forwarded-") || kl === "forwarded" || kl === "via" || kl === "x-real-ip") continue;
     h[k] = v;
   }
   try {
