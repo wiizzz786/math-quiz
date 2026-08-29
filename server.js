@@ -341,6 +341,7 @@ function injectionScript(base) {
     if(val&&typeof val==='string'){
       if(URL_A[n])val=E(val);
       else if(n==='srcset'||n==='data-srcset')val=Esrcset(val);
+      else if(n==='style')val=val.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});
     }
     return _sa.call(this,name,val);
   };
@@ -409,7 +410,7 @@ function injectionScript(base) {
   if(CSSStyleSheet.prototype.insertRule){var _csIR=CSSStyleSheet.prototype.insertRule;CSSStyleSheet.prototype.insertRule=function(r,i){if(typeof r==='string')r=r.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});return _csIR.call(this,r,i);};}
   if(window.Blob){var _Blb=window.Blob;window.Blob=function(p,o){if(o&&o.type&&/javascript|ecmascript/i.test(o.type)&&Array.isArray(p)){p=p.map(function(s){if(typeof s==='string')return s.replace(/importScripts\\s*\\(\\s*(["'])(https?:\\/\\/[^"'\\s]+)\\1/g,function(m,q,u){return 'importScripts('+q+E(u)+q;});return s;});}return new _Blb(p,o);};window.Blob.prototype=_Blb.prototype;}
   if(CSSStyleDeclaration.prototype.setProperty){var _csSP=CSSStyleDeclaration.prototype.setProperty;CSSStyleDeclaration.prototype.setProperty=function(p,v,p2){if(typeof v==='string'&&(p==='background-image'||p==='background')){v=v.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});}return _csSP.call(this,p,v,p2);};}
-  ['backgroundImage','background'].forEach(function(prop){try{var d=Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype,prop);if(d&&d.set){Object.defineProperty(CSSStyleDeclaration.prototype,prop,{get:d.get,set:function(v){if(typeof v==='string'){v=v.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});}d.set.call(this,v);},enumerable:true,configurable:true});}}catch(e){}});
+  ['backgroundImage','background','cssText'].forEach(function(prop){try{var d=Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype,prop);if(d&&d.set){Object.defineProperty(CSSStyleDeclaration.prototype,prop,{get:d.get,set:function(v){if(typeof v==='string'){v=v.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});}d.set.call(this,v);},enumerable:true,configurable:true});}}catch(e){}});
   obs.observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>`;
