@@ -1576,7 +1576,7 @@ async function fetchSerpApiResults(q, num = 8) {
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+  const apiKey = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
   try {
     const url = `https://serpapi.com/search.json?q=${encodeURIComponent(q)}&num=${num}&engine=google&api_key=${apiKey}`;
     const res = await axios.get(url, { timeout: 10000 });
@@ -1670,7 +1670,7 @@ app.get("/api/autocomplete", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ suggestions: [] });
 
-  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+  const apiKey = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
   try {
     const url = `https://serpapi.com/search.json?engine=google_autocomplete&q=${encodeURIComponent(q)}&api_key=${apiKey}`;
     const r = await axios.get(url, { timeout: 5000 });
@@ -1713,7 +1713,7 @@ app.get("/api/images", async (req, res) => {
 app.get("/api/youtube", async (req, res) => {
   const q = (req.query.q || "").trim();
   const v = (req.query.v || "").trim();
-  const apiKey = process.env.SERPAPI_KEY || "cb26624d508f0419e7524a4cc13b0b0495849fad9da5c910af58648b1456ab85";
+  const apiKey = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
 
   if (v) {
     try {
