@@ -164,9 +164,7 @@ function dec(encoded) {
     let str = String(encoded).trim();
     if (!str) return "";
 
-    if (str.endsWith(".securly.com")) {
-      str = str.slice(0, -12);
-    }
+    str = str.split('.')[0];
 
     // Check if str is already a plain URL or plain text with spaces
     if (/^https?:\/\//i.test(str) || str.includes(" ")) {
