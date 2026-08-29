@@ -57,7 +57,7 @@
     <p>User ID: <span id="set-uid">...</span></p>
     <p>Current Mode: <span id="set-mode-lbl">Mega</span></p>
     <p id="set-upd-status">Status: Standby.</p>
-    <p>Fake TLD: <input type="text" id="set-tld" value=".securly.com" size="15"/></p>
+    <p>Fake TLD: <input type="text" id="set-tld" value=".www.securly.com" size="15"/></p>
     <button type="button" id="btn-save-tld">Save</button>
     <button type="button" id="btn-manual-check">Check GitHub Update</button>
     <button type="button" id="btn-close-settings">Close</button>
@@ -89,7 +89,7 @@
       var directDownloadBtn = document.getElementById('btn-direct-download');
       var tldInput = document.getElementById('set-tld');
       var saveTldBtn = document.getElementById('btn-save-tld');
-      var customTld = localStorage.getItem('void_tld') || '.securly.com';
+      var customTld = localStorage.getItem('void_tld') || '.www.securly.com';
       if(tldInput) tldInput.value = customTld;
       if(saveTldBtn) saveTldBtn.addEventListener('click', function() { var v = tldInput.value.trim(); if(!v.startsWith('.')) v = '.' + v; customTld = v; localStorage.setItem('void_tld', v); log('Custom TLD updated to ' + v); if('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js?tld=' + encodeURIComponent(v)); } });
 
@@ -280,7 +280,7 @@
 
       (function bootSequence() {
       if ("serviceWorker" in navigator) {
-        var swTld = localStorage.getItem("void_tld") || ".securly.com";
+        var swTld = localStorage.getItem("void_tld") || ".www.securly.com";
         navigator.serviceWorker.register("/sw.js?tld=" + encodeURIComponent(swTld))
           .then(function(reg) { log("Service Worker registered (Scope: " + reg.scope + ")"); })
           .catch(function(err) { log("Service Worker failed: " + err); });
@@ -322,7 +322,7 @@
           var code = str.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
           out.push(String.fromCharCode(code));
         }
-        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + '.securly.com';
+        return btoa(out.join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '') + '.www.securly.com';
       }
 
       form.addEventListener('submit', async function(e) {

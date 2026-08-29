@@ -156,7 +156,14 @@ app.use("/epoxy/", express.static(join(__dirname, "node_modules", "@mercuryworks
    ═══════════════════════════════════════════ */
 
 function enc(url) {
-  return "/p/" + Buffer.from(url).toString("base64url") + ".securly.com";
+  const salt = Math.random().toString(36).substring(2, 6).padEnd(4, "x");
+  const u = salt + "||" + url;
+  const key = "Void2026";
+  let chars = [];
+  for (let i = 0; i < u.length; i++) {
+    chars.push(String.fromCharCode(u.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+  }
+  return "/p/" + Buffer.from(chars.join(""), "binary").toString("base64url") + ".www.securly.com";
 }
 
 function dec(encoded) {
@@ -177,18 +184,20 @@ function dec(encoded) {
     const padded = padding ? normalized + "=".repeat(4 - padding) : normalized;
     const rawBinary = Buffer.from(padded, "base64").toString("binary");
 
-    // 1. Try salted multi-key cipher decryption
-    const key = "NoodalMathKey2026";
-    const decChars = [];
+    
+    const key = "Void2026";
+    let decChars = [];
     for (let i = 0; i < rawBinary.length; i++) {
-      const k = key.charCodeAt(i % key.length);
-      const code = rawBinary.charCodeAt(i) ^ k ^ ((i * 13 + 7) & 0xFF);
-      decChars.push(String.fromCharCode(code));
+      decChars.push(String.fromCharCode(rawBinary.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
     }
     const multiDecoded = decChars.join("");
     if (multiDecoded && /^[\x20-\x7E\s]+$/.test(multiDecoded)) {
+      if (multiDecoded.substring(4, 6) === "||") {
+        return multiDecoded.substring(6);
+      }
       return multiDecoded;
     }
+
 
     // 2. Try legacy XOR 0x3F cipher decryption
     const xorDecoded = rawBinary.split("").map(c => String.fromCharCode(c.charCodeAt(0) ^ 0x3f)).join("");
@@ -295,11 +304,19 @@ function injectionScript(base) {
   var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/;
   function E(u){
     try{
-      if(!u||typeof u!=='string')return u;
-      if(u.startsWith('/p/'))return u;
+      if(!u||typeof u!=="string")return u;
+      if(u.startsWith("/p/"))return u;
       if(SKIP.test(u))return u;
       var a=new URL(u,B).href;
-      if(a.startsWith('http'))return'/p/'+btoa(a).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'')+'.securly.com';
+      if(a.startsWith("http")){
+        var salt = Math.random().toString(36).substring(2, 6);
+        while(salt.length<4) salt+="x";
+        var str = salt + "||" + a;
+        var key = "Void2026", chars = [];
+        for (var i = 0; i < str.length; i++) chars.push(String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+        var tld = ""; try{tld = localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
+        return "/p/"+btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")+tld;
+      }
       return u;
     }catch(e){return u;}
   }
@@ -1053,11 +1070,19 @@ function injectionScriptExperimental(base, optSuffix, proxyHost) {
   var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/;
   function E(u){
     try{
-      if(!u||typeof u!=='string')return u;
-      if(u.startsWith('/pe/'))return u;
+      if(!u||typeof u!=="string")return u;
+      if(u.startsWith("/p/"))return u;
       if(SKIP.test(u))return u;
       var a=new URL(u,B).href;
-      if(a.startsWith('http'))return'/pe/'+btoa(a).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'')+S;
+      if(a.startsWith("http")){
+        var salt = Math.random().toString(36).substring(2, 6);
+        while(salt.length<4) salt+="x";
+        var str = salt + "||" + a;
+        var key = "Void2026", chars = [];
+        for (var i = 0; i < str.length; i++) chars.push(String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+        var tld = ""; try{tld = localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
+        return "/p/"+btoa(chars.join("")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")+tld;
+      }
       return u;
     }catch(e){return u;}
   }
@@ -1851,7 +1876,7 @@ a{text-decoration:none;color:inherit;}
   
   function getProxyUrl(raw) {
     if(!raw) return "";
-    var customTld = localStorage.getItem("void_tld") || ".securly.com";
+    var customTld = localStorage.getItem("void_tld") || ".www.securly.com";
     return "/p/" + btoa(raw).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"") + customTld;
   }
 
