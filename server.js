@@ -462,14 +462,18 @@ function proxyBar(displayUrl) {
   const faviconHtml = favicon
     ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'" alt=""/>`
     : "";
-  return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#ffffff;border-bottom:1px solid #000000;font-family:'Times New Roman',Times,serif;font-size:14px;color:#000000;">
-<a href="/" target="_top" style="color:#000000;font-weight:bold;text-decoration:none;font-size:18px;text-transform:uppercase;">void</a>
-<span style="color:#555555;font-size:14px;margin-left:4px;">Go Anywhere</span>
+  return `<div id="__vbar" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#ffffff;border-bottom:1px solid #000000;font-family:'Times New Roman',Times,serif;font-size:14px;color:#000000;box-sizing:border-box;">
+<a href="/" style="color:#000000;font-weight:bold;text-decoration:none;font-size:18px;text-transform:uppercase;">void</a>
+<span style="color:#555555;font-size:14px;margin-left:4px;white-space:nowrap;">Go Anywhere</span>
 <button onclick="history.back()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Back">&larr;</button>
 <button onclick="history.forward()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Forward">&rarr;</button>
 <button onclick="location.reload()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Reload">&#8635;</button>
-<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#ffffff;padding:2px 8px;border:1px solid #000000;font-family:'Times New Roman',Times,serif;font-size:13px;color:#000000;display:flex;align-items:center;gap:6px;">${faviconHtml}${safe}</span>
-<a href="/" target="_top" style="padding:2px 10px;background:#eeeeee;color:#000000;text-decoration:none;border:1px solid #000000;">Home</a>
+<form action="/v" method="GET" style="flex:1;display:flex;align-items:center;background:#ffffff;border:1px solid #000000;padding:2px 8px;gap:6px;margin:0;">
+  <input type="hidden" name="mode" value="server" />
+  ${faviconHtml}
+  <input type="text" name="q" value="${safe}" style="flex:1;border:none;outline:none;background:transparent;font-family:'Times New Roman',Times,serif;font-size:13px;color:#000000;min-width:0;" autocomplete="off" spellcheck="false" />
+</form>
+<a href="/" style="padding:2px 10px;background:#eeeeee;color:#000000;text-decoration:none;border:1px solid #000000;">Home</a>
 <button onclick="document.getElementById('__vbar').style.display='none';document.getElementById('__vsp').style.display='none';" style="padding:2px 8px;background:#eeeeee;color:#000000;border:1px solid #000000;cursor:pointer;font-family:'Times New Roman',Times,serif;" aria-label="Close toolbar">&#x2715;</button>
 </div>
 <div id="__vsp" style="height:42px;"></div>`;
