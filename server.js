@@ -171,11 +171,15 @@ function dec(encoded) {
     let str = String(encoded).trim();
     if (!str) return "";
 
-    str = str.split('.')[0];
-
-    // Check if str is already a plain URL or plain text with spaces
+    // Check if str is already a plain URL or plain text with spaces BEFORE stripping TLD
     if (/^https?:\/\//i.test(str) || str.includes(" ")) {
       return str;
+    }
+
+    // Strip TLD suffix (e.g. .www.securly.com) from encoded values only
+    const dotIdx = str.indexOf('.');
+    if (dotIdx > 0) {
+      str = str.substring(0, dotIdx);
     }
 
     // Standardize base64url (- _) to base64 (+ /)
