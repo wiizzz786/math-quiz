@@ -30,8 +30,8 @@ try {
   }
 } catch { /* .env optional */ }
 
-const SERPER_API_KEY = process.env.SERPER_API_KEY || "";
-const SERPAPI_KEY = process.env.SERPAPI_KEY || "";
+const SERPER_API_KEY = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
+const SERPAPI_KEY = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -615,7 +615,6 @@ async function handleProxy(req, res) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
   }
 
-  // Bypass hanging telemetry/analytics requests
   if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
     return res.status(204).end();
   }
@@ -705,7 +704,6 @@ async function handleProxy(req, res) {
   const ct = rawCt.split(";")[0].trim().toLowerCase();
   const isBinary = BINARY_TYPE_PREFIXES.some((prefix) => ct.startsWith(prefix));
 
-  // Direct binary / media pipe
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
     const passthroughHeaders = [
@@ -1129,7 +1127,7 @@ function handlePeWsUpgrade(req, socket, head) {
 }
 
 /* ═══════════════════════════════════════════
-   Reliable Search Fallback Endpoints
+   Search & API Endpoints (Serper, SerpApi, DDG)
    ═══════════════════════════════════════════ */
 
 const SEARCH_ENGINES = {
@@ -1211,23 +1209,50 @@ app.get("/api/search", async (req, res) => {
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
   const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
 
+  // 1. Serper POST Request
   if (SERPER_API_KEY) {
     try {
-      const response = await axios.post("https://google.serper.dev/search", { q, num }, {
-        headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
-        timeout: 4000
+      const payload = JSON.stringify({ q, num });
+      const serperRes = await axios({
+        method: "post",
+        maxBodyLength: Infinity,
+        url: "https://google.serper.dev/search",
+        headers: {
+          "X-API-KEY": SERPER_API_KEY,
+          "Content-Type": "application/json",
+        },
+        data: payload,
+        timeout: 5000,
       });
-      if (Array.isArray(response.data.organic) && response.data.organic.length > 0) {
-        const results = response.data.organic.map(item => ({
+
+      if (Array.isArray(serperRes.data?.organic) && serperRes.data.organic.length > 0) {
+        const results = serperRes.data.organic.map((item) => ({
           title: item.title || item.link,
           url: item.link,
-          snippet: item.snippet || ""
+          snippet: item.snippet || "",
         }));
         return res.json({ cached: false, results });
       }
-    } catch {}
+    } catch (e) {}
   }
 
+  // 2. SerpApi GET Request (https://serpapi.com/search?engine=google)
+  if (SERPAPI_KEY) {
+    try {
+      const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}`;
+      const serpRes = await axios.get(serpUrl, { timeout: 5000 });
+      if (Array.isArray(serpRes.data?.organic_results) && serpRes.data.organic_results.length > 0) {
+        const results = serpRes.data.organic_results.map((item) => ({
+          title: item.title || item.link,
+          url: item.link,
+          snippet: item.snippet || "",
+        }));
+        return res.json({ cached: false, results });
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback Zero-Key DDG Scraper
   const ddgResults = await fetchDdgFallback(q, num);
   return res.json({ cached: false, results: ddgResults });
 });
@@ -1237,7 +1262,7 @@ app.get("/api/images", async (req, res) => {
   if (!q) return res.json({ images: [] });
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
       const r = await axios.get(url, { timeout: 6000 });
       const images = (r.data.images_results || []).map(img => ({
         title: img.title || "",
@@ -1251,6 +1276,22 @@ app.get("/api/images", async (req, res) => {
   return res.json({ images: [] });
 });
 
+app.get("/api/serp", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const engine = (req.query.engine || "google").trim();
+  if (!q) return res.json({ error: "Empty query" });
+  if (SERPAPI_KEY) {
+    try {
+      const url = `https://serpapi.com/search?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const r = await axios.get(url, { timeout: 8000 });
+      return res.json(r.data);
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+  return res.json({ error: "SerpApi Key not set" });
+});
+
 app.get("/api/youtube", async (req, res) => {
   const q = (req.query.q || "").trim();
   const v = (req.query.v || "").trim();
@@ -1261,7 +1302,7 @@ app.get("/api/youtube", async (req, res) => {
 
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
       const r = await axios.get(url, { timeout: 5000 });
       const videos = (r.data.video_results || []).map(vid => ({
         title: vid.title,
