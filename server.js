@@ -1127,7 +1127,7 @@ function handlePeWsUpgrade(req, socket, head) {
 }
 
 /* ═══════════════════════════════════════════
-   Search & API Endpoints (Serper, SerpApi, DDG)
+   Search & Free Public Autocomplete Endpoints
    ═══════════════════════════════════════════ */
 
 const SEARCH_ENGINES = {
@@ -1236,7 +1236,7 @@ app.get("/api/search", async (req, res) => {
     } catch (e) {}
   }
 
-  // 2. SerpApi GET Request (https://serpapi.com/search?engine=google)
+  // 2. SerpApi GET Request
   if (SERPAPI_KEY) {
     try {
       const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}`;
@@ -1262,7 +1262,7 @@ app.get("/api/images", async (req, res) => {
   if (!q) return res.json({ images: [] });
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
       const r = await axios.get(url, { timeout: 6000 });
       const images = (r.data.images_results || []).map(img => ({
         title: img.title || "",
@@ -1282,7 +1282,7 @@ app.get("/api/serp", async (req, res) => {
   if (!q) return res.json({ error: "Empty query" });
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search.json?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
       const r = await axios.get(url, { timeout: 8000 });
       return res.json(r.data);
     } catch (e) {
@@ -1302,7 +1302,7 @@ app.get("/api/youtube", async (req, res) => {
 
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
       const r = await axios.get(url, { timeout: 5000 });
       const videos = (r.data.video_results || []).map(vid => ({
         title: vid.title,
@@ -1320,16 +1320,33 @@ app.get("/api/youtube", async (req, res) => {
   return res.json({ videos: fallbackVideos });
 });
 
+// Zero-Key Public Autocomplete Engine (DuckDuckGo + Google fallback)
 app.get("/api/autocomplete", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ suggestions: [] });
+
+  // 1. DuckDuckGo public autocomplete (zero API key)
   try {
-    const url = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(q)}`;
-    const r = await axios.get(url, { timeout: 3000 });
-    if (Array.isArray(r.data) && Array.isArray(r.data[1])) {
-      return res.json({ suggestions: r.data[1].slice(0, 8) });
+    const ddgRes = await axios.get(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 2500,
+    });
+    if (Array.isArray(ddgRes.data) && Array.isArray(ddgRes.data[1])) {
+      return res.json({ suggestions: ddgRes.data[1].slice(0, 8) });
     }
   } catch {}
+
+  // 2. Google suggest fallback (zero API key)
+  try {
+    const googleRes = await axios.get(`https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(q)}`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 2500,
+    });
+    if (Array.isArray(googleRes.data) && Array.isArray(googleRes.data[1])) {
+      return res.json({ suggestions: googleRes.data[1].slice(0, 8) });
+    }
+  } catch {}
+
   return res.json({ suggestions: [] });
 });
 
