@@ -30,8 +30,8 @@ try {
   }
 } catch { /* .env optional */ }
 
-const SERPER_API_KEY = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
-const SERPAPI_KEY = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
+const SERPER_API_KEY = process.env.SERPER_API_KEY || "";
+const SERPAPI_KEY = process.env.SERPAPI_KEY || "";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -100,7 +100,7 @@ async function assertSafeUrl(rawUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   LRU Cache
+   LRU Cache & Fast In-Memory Storage
    ═══════════════════════════════════════════ */
 
 const CACHE_MAX_SIZE = 2000;
@@ -326,7 +326,7 @@ function rewriteJsUrls(code, base, prefix) {
 }
 
 /* ═══════════════════════════════════════════
-   DOM Injection & Fast Client Traversal
+   DOM Injection & Client Runtime
    ═══════════════════════════════════════════ */
 
 function injectionScript(base) {
@@ -377,7 +377,6 @@ function injectionScript(base) {
     navigator.serviceWorker.register=function(u,o){return _swr(E(u),o);};
   }
 
-  // Intercept image property definitions
   var desc=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
   if(desc&&desc.set){
     Object.defineProperty(HTMLImageElement.prototype,'src',{
@@ -616,6 +615,7 @@ async function handleProxy(req, res) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
   }
 
+  // Bypass hanging telemetry/analytics requests
   if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
     return res.status(204).end();
   }
@@ -705,6 +705,7 @@ async function handleProxy(req, res) {
   const ct = rawCt.split(";")[0].trim().toLowerCase();
   const isBinary = BINARY_TYPE_PREFIXES.some((prefix) => ct.startsWith(prefix));
 
+  // Direct binary / media pipe
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
     const passthroughHeaders = [
@@ -743,7 +744,7 @@ async function handleProxy(req, res) {
     if (ct.includes("text/css")) {
       const rewritten = rewriteCss(text, targetUrl);
       cacheSet("p:" + targetUrl + optSuffix, "text/css; charset=utf-8", rewritten);
-      res.type("text/css; charset=utf-8").status(axiosRes.status).send(rewritten);
+      res.type("text/css; charset=utf-8").send(rewritten);
       return;
     }
 
@@ -1128,7 +1129,7 @@ function handlePeWsUpgrade(req, socket, head) {
 }
 
 /* ═══════════════════════════════════════════
-   Search & API Endpoints
+   Reliable Search Fallback Endpoints
    ═══════════════════════════════════════════ */
 
 const SEARCH_ENGINES = {
@@ -1138,39 +1139,11 @@ const SEARCH_ENGINES = {
   bing:   q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
 };
 
-async function fetchSerperResults(q, num = 8) {
-  const suffix = "|serper|" + num;
-  const cached = _resourceCache.get(q + suffix);
-  if (cached) return { results: cached.body, fromCache: true };
-
-  try {
-    const res = await axios.post("https://google.serper.dev/search", { q, num }, {
-      headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
-      timeout: 8000
-    });
-    const data = res.data;
-    const results = [];
-    if (Array.isArray(data.organic)) {
-      for (const item of data.organic) {
-        if (item.link) results.push({ title: item.title || item.link, url: item.link, snippet: item.snippet || "", type: "web" });
-        if (results.length >= num) break;
-      }
-    }
-    if (results.length > 0) {
-      cacheSet(q + suffix, "application/json", results);
-      return { results, fromCache: false };
-    }
-  } catch (err) {
-    console.error("[serper] fetch failed:", err.message);
-  }
-  return { results: null, fromCache: false };
-}
-
-async function fetchDdgFallback(q, num = 8) {
+async function fetchDdgFallback(q, num = 10) {
   try {
     const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
-      timeout: 8000
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      timeout: 6000
     });
     const $ = cheerio.load(ddgRes.data);
     const fallbackResults = [];
@@ -1190,19 +1163,17 @@ async function fetchDdgFallback(q, num = 8) {
       }
       if (fallbackResults.length >= num) return false;
     });
-    return { results: fallbackResults, fromCache: false };
-  } catch (e) {
-    console.error("[DDG] fallback error:", e.message);
+    return fallbackResults;
+  } catch {
+    return [];
   }
-  return { results: [], fromCache: false, error: "Search failed" };
 }
 
-// Fallback search results directly from DuckDuckGo HTML parser for YouTube
 async function fetchYouTubeDirect(q) {
   try {
     const r = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q + " site:youtube.com/watch")}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      timeout: 8000
+      timeout: 6000
     });
     const $ = cheerio.load(r.data);
     const videos = [];
@@ -1239,73 +1210,70 @@ app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
   const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
-  let { results, fromCache } = await fetchSerperResults(q, num);
-  if (!results || results.length === 0) {
-    const ddg = await fetchDdgFallback(q, num);
-    results = ddg.results;
+
+  if (SERPER_API_KEY) {
+    try {
+      const response = await axios.post("https://google.serper.dev/search", { q, num }, {
+        headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
+        timeout: 4000
+      });
+      if (Array.isArray(response.data.organic) && response.data.organic.length > 0) {
+        const results = response.data.organic.map(item => ({
+          title: item.title || item.link,
+          url: item.link,
+          snippet: item.snippet || ""
+        }));
+        return res.json({ cached: false, results });
+      }
+    } catch {}
   }
-  return res.json({ cached: fromCache, results: results || [] });
+
+  const ddgResults = await fetchDdgFallback(q, num);
+  return res.json({ cached: false, results: ddgResults });
 });
 
 app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
-  try {
-    const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 8000 });
-    const images = (r.data.images_results || []).map(img => ({
-      title: img.title || "",
-      original: img.original || img.link,
-      thumbnail: img.thumbnail,
-      source: img.source || img.domain
-    })).slice(0, 20);
-    return res.json({ images });
-  } catch (e) {
-    return res.status(500).json({ error: e.message, images: [] });
+  if (SERPAPI_KEY) {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const r = await axios.get(url, { timeout: 6000 });
+      const images = (r.data.images_results || []).map(img => ({
+        title: img.title || "",
+        original: img.original || img.link,
+        thumbnail: img.thumbnail,
+        source: img.source || img.domain
+      })).slice(0, 20);
+      return res.json({ images });
+    } catch {}
   }
-});
-
-app.get("/api/serp", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  const engine = (req.query.engine || "google").trim();
-  if (!q) return res.json({ error: "Empty query" });
-  try {
-    const url = `https://serpapi.com/search.json?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 10000 });
-    return res.json(r.data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
+  return res.json({ images: [] });
 });
 
 app.get("/api/youtube", async (req, res) => {
   const q = (req.query.q || "").trim();
   const v = (req.query.v || "").trim();
   if (v) {
-    try {
-      const videoUrl = `https://serpapi.com/search.json?engine=youtube_video&v=${encodeURIComponent(v)}&api_key=${SERPAPI_KEY}`;
-      const r = await axios.get(videoUrl, { timeout: 6000 });
-      return res.json({ video: r.data || {} });
-    } catch {
-      return res.json({ video: { title: "YouTube Video", video_id: v } });
-    }
+    return res.json({ video: { title: "YouTube Video", video_id: v } });
   }
   if (!q) return res.json({ videos: [] });
-  try {
-    const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 6000 });
-    const videos = (r.data.video_results || []).map(vid => ({
-      title: vid.title,
-      link: vid.link,
-      videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
-      thumbnail: vid.thumbnail?.static || vid.thumbnail,
-      channel: vid.channel?.name || "YouTube",
-      views: vid.views || "",
-      published: vid.published_date || ""
-    })).slice(0, 15);
 
-    if (videos.length > 0) return res.json({ videos });
-  } catch {}
+  if (SERPAPI_KEY) {
+    try {
+      const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const r = await axios.get(url, { timeout: 5000 });
+      const videos = (r.data.video_results || []).map(vid => ({
+        title: vid.title,
+        link: vid.link,
+        videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
+        thumbnail: vid.thumbnail?.static || vid.thumbnail,
+        channel: vid.channel?.name || "YouTube",
+        views: vid.views || ""
+      })).slice(0, 15);
+      if (videos.length > 0) return res.json({ videos });
+    } catch {}
+  }
 
   const fallbackVideos = await fetchYouTubeDirect(q);
   return res.json({ videos: fallbackVideos });
@@ -1418,7 +1386,7 @@ a{text-decoration:none;color:inherit;}
     fetch(endpoint).then(function(r){ return r.json(); }).then(function(data){
       var arr = data.results || data.images || data.videos || [];
       if(!arr || arr.length === 0) {
-        resDiv.innerHTML = "<div style='text-align:center;padding:40px;'>No results found.</div>";
+        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#666;'>No results found. Try another search query.</div>";
         metaDiv.innerHTML = "";
         return;
       }
@@ -1440,7 +1408,7 @@ a{text-decoration:none;color:inherit;}
         }).join("");
       }
     }).catch(function(err){
-      resDiv.innerHTML = "<div style='text-align:center;padding:40px;'>Search failed: " + esc(err.message) + "</div>";
+      resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#c00;'>Error retrieving search results. Please try again.</div>";
     });
   }
 
