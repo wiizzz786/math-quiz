@@ -28,7 +28,10 @@ try {
     const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
     if (key && !(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env is optional */ }
+} catch { /* .env optional */ }
+
+const SERPER_API_KEY = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
+const SERPAPI_KEY = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -49,10 +52,10 @@ const isPrivateV4 = (ip) => {
     a === 0 ||
     a === 10 ||
     a === 127 ||
-    a >= 224 || // Multicast / Reserved
-    (a === 100 && b >= 64 && b <= 127) || // CGNAT
-    (a === 169 && b === 254) || // Link-local
-    (a === 172 && b >= 16 && b <= 31) || // RFC 1918
+    a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168)
   );
 };
@@ -61,7 +64,7 @@ const isPrivateV6 = (ip) => {
   const v = ip.toLowerCase();
   if (v === "::" || v === "::1") return true;
   if (v.startsWith("::ffff:")) return isPrivateV4(v.slice(7));
-  return /^f[cd]/i.test(v) || /^fe[89ab]/i.test(v); // ULA & Link-local
+  return /^f[cd]/i.test(v) || /^fe[89ab]/i.test(v);
 };
 
 async function assertSafeUrl(rawUrl) {
@@ -78,7 +81,6 @@ async function assertSafeUrl(rawUrl) {
     throw new Error("Access to internal/private domains is blocked.");
   }
 
-  // If host is a direct IP address literal
   if (net.isIP(host)) {
     if (net.isIPv4(host) ? isPrivateV4(host) : isPrivateV6(host)) {
       throw new Error("Access to private IP space is blocked.");
@@ -86,7 +88,6 @@ async function assertSafeUrl(rawUrl) {
     return;
   }
 
-  // Perform full DNS lookup to prevent DNS Rebinding / internal scanning
   const addrs = await dns.promises.lookup(host, { all: true });
   if (!addrs || addrs.length === 0) {
     throw new Error("DNS resolution failed");
@@ -99,11 +100,11 @@ async function assertSafeUrl(rawUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   LRU Cache & Fuzzy Search Caching
+   LRU Cache & Search Normalization
    ═══════════════════════════════════════════ */
 
 const CACHE_MAX_SIZE = 1000;
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL = 30 * 60 * 1000;
 const _resourceCache = new Map();
 
 function cacheGet(key) {
@@ -113,7 +114,6 @@ function cacheGet(key) {
     _resourceCache.delete(key);
     return null;
   }
-  // Refresh recency
   _resourceCache.delete(key);
   _resourceCache.set(key, entry);
   return entry;
@@ -139,44 +139,8 @@ function normalizeQuery(q) {
   return q.toLowerCase().trim().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ");
 }
 
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
-  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[a.length][b.length];
-}
-
-function maxEditDistance(q) {
-  if (q.length <= 5) return 1;
-  if (q.length <= 12) return 2;
-  return 3;
-}
-
-function fuzzyFindCacheKey(normQ, suffix) {
-  const exact = normQ + suffix;
-  if (_serperCache.has(exact)) return exact;
-  const maxDist = maxEditDistance(normQ);
-  for (const key of _serperCache.keys()) {
-    if (!key.endsWith(suffix)) continue;
-    const keyQ = key.slice(0, key.length - suffix.length);
-    if (levenshtein(normQ, keyQ) <= maxDist) return key;
-  }
-  return null;
-}
-
 function serperCacheGet(query, suffix = "") {
-  const normQ = normalizeQuery(query);
-  const key = fuzzyFindCacheKey(normQ, suffix);
-  if (!key) return null;
+  const key = normalizeQuery(query) + suffix;
   const entry = _serperCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.ts > SERPER_CACHE_TTL) {
@@ -198,7 +162,7 @@ function serperCacheSet(query, data, suffix = "") {
 }
 
 /* ═══════════════════════════════════════════
-   Express Configuration & Static Paths
+   Express Configuration
    ═══════════════════════════════════════════ */
 
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -221,7 +185,7 @@ app.use("/baremux/", express.static(baremuxPath));
 app.use("/epoxy/", express.static(join(__dirname, "node_modules", "@mercuryworkshop", "epoxy-transport", "dist")));
 
 /* ═══════════════════════════════════════════
-   Encoding & URL Translation
+   Encoding Helpers
    ═══════════════════════════════════════════ */
 
 function enc(url) {
@@ -237,15 +201,10 @@ function dec(encoded) {
   try {
     let str = String(encoded).trim();
     if (!str) return "";
-
-    if (/^https?:\/\//i.test(str) || str.includes(" ")) {
-      return str;
-    }
+    if (/^https?:\/\//i.test(str) || str.includes(" ")) return str;
 
     const dotIdx = str.indexOf(".");
-    if (dotIdx > 0) {
-      str = str.substring(0, dotIdx);
-    }
+    if (dotIdx > 0) str = str.substring(0, dotIdx);
 
     const normalized = str.replace(/-/g, "+").replace(/_/g, "/");
     const padding = normalized.length % 4;
@@ -259,16 +218,12 @@ function dec(encoded) {
     }
     const multiDecoded = decChars.join("");
     if (multiDecoded && /^[\x20-\x7E\s]+$/.test(multiDecoded)) {
-      if (multiDecoded.substring(4, 6) === "||") {
-        return multiDecoded.substring(6);
-      }
+      if (multiDecoded.substring(4, 6) === "||") return multiDecoded.substring(6);
       return multiDecoded;
     }
 
     const decodedUtf8 = Buffer.from(padded, "base64").toString("utf8");
-    if (decodedUtf8 && /^[\x20-\x7E\s]+$/.test(decodedUtf8)) {
-      return decodedUtf8;
-    }
+    if (decodedUtf8 && /^[\x20-\x7E\s]+$/.test(decodedUtf8)) return decodedUtf8;
 
     return str;
   } catch {
@@ -293,45 +248,27 @@ function decPe(encoded) {
   }
 }
 
-function rewriteUrl(raw, base) {
-  if (
-    !raw ||
-    raw.startsWith("data:") ||
-    raw.startsWith("blob:") ||
-    raw.startsWith("javascript:") ||
-    raw.startsWith("#") ||
-    raw.startsWith("mailto:")
-  )
-    return raw;
+function normalizeAbsoluteUrl(raw, base) {
+  if (!raw || typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (/^(data:|blob:|javascript:|#|mailto:|about:)/i.test(trimmed)) return null;
   try {
-    return enc(new URL(raw, base).href);
+    if (trimmed.startsWith("//")) return new URL("https:" + trimmed).href;
+    return new URL(trimmed, base).href;
   } catch {
-    return raw;
+    return null;
   }
+}
+
+function rewriteUrl(raw, base) {
+  const abs = normalizeAbsoluteUrl(raw, base);
+  return abs ? enc(abs) : raw;
 }
 
 function rewriteUrlPe(raw, base, optSuffix = "") {
-  if (
-    !raw ||
-    raw.startsWith("data:") ||
-    raw.startsWith("blob:") ||
-    raw.startsWith("javascript:") ||
-    raw.startsWith("#") ||
-    raw.startsWith("mailto:")
-  )
-    return raw;
-  try {
-    const abs = new URL(raw, base).href;
-    if (!/^https?:/.test(abs)) return raw;
-    return encPe(abs) + optSuffix;
-  } catch {
-    return raw;
-  }
+  const abs = normalizeAbsoluteUrl(raw, base);
+  return abs ? encPe(abs) + optSuffix : raw;
 }
-
-/* ═══════════════════════════════════════════
-   CSS & JS Rewriters
-   ═══════════════════════════════════════════ */
 
 function rewriteCss(css, base) {
   return css
@@ -379,19 +316,16 @@ function rewriteEmbeddedUrls(text, base, encodeFn = enc) {
     url.startsWith("/p/") || url.startsWith("/pe/") ? m : q + rw(url) + q
   );
   if (base) {
-    text = text.replace(
-      /(["'])(\/((?!\/)[^"'\s\\]*\.[a-zA-Z0-9]{2,6}[^"']*))(\1)/g,
-      (m, q1, url, _inner, q2) => {
-        if (url.startsWith("/p/") || url.startsWith("/pe/")) return m;
-        try {
-          const abs = new URL(url, base).href;
-          if (!abs.startsWith("http")) return m;
-          return q1 + rw(abs) + q2;
-        } catch {
-          return m;
-        }
+    text = text.replace(/(["'])(\/((?!\/)[^"'\s\\]*\.[a-zA-Z0-9]{2,6}[^"']*))(\1)/g, (m, q1, url, _inner, q2) => {
+      if (url.startsWith("/p/") || url.startsWith("/pe/")) return m;
+      try {
+        const abs = new URL(url, base).href;
+        if (!abs.startsWith("http")) return m;
+        return q1 + rw(abs) + q2;
+      } catch {
+        return m;
       }
-    );
+    });
   }
   return text;
 }
@@ -406,10 +340,7 @@ function rewriteJsUrls(code, base, prefix) {
       return url;
     }
   }
-  code = code.replace(
-    /((?:import|export)\s+[\s\S]*?\bfrom\s+)(["'])(https?:\/\/[^"'\s]+)\2/g,
-    (m, pre, q, url) => pre + q + rw(url) + q
-  );
+  code = code.replace(/((?:import|export)\s+[\s\S]*?\bfrom\s+)(["'])(https?:\/\/[^"'\s]+)\2/g, (m, pre, q, url) => pre + q + rw(url) + q);
   code = code.replace(/\bimport\s*\(\s*(["'`])(https?:\/\/[^"'`\s]+)\1/g, (m, q, url) => `import(${q}${rw(url)}${q}`);
   code = code.replace(/\bimportScripts\s*\(([^)]*)\)/g, (m, args) => {
     const rArgs = args.replace(/(["'])(https?:\/\/[^"'\s]+)\1/g, (_, q, url) => q + rw(url) + q);
@@ -417,7 +348,7 @@ function rewriteJsUrls(code, base, prefix) {
   });
   code = code.replace(/\bnew\s+Worker\s*\(\s*(["'])(https?:\/\/[^"'\s]+)\1/g, (m, q, url) => `new Worker(${q}${rw(url)}${q}`);
   code = code.replace(/\bnew\s+SharedWorker\s*\(\s*(["'])(https?:\/\/[^"'\s]+)\1/g, (m, q, url) => `new SharedWorker(${q}${rw(url)}${q}`);
-  
+
   if (code.length < 1000000) {
     return rewriteEmbeddedUrls(code, base, encodeFn);
   }
@@ -425,34 +356,41 @@ function rewriteJsUrls(code, base, prefix) {
 }
 
 /* ═══════════════════════════════════════════
-   Client Injection Scripts
+   DOM Injection & UI Toolbar
    ═══════════════════════════════════════════ */
 
 function injectionScript(base) {
   return `<script data-void="1">
 (function(){
   var B=${JSON.stringify(base)};
-  var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/;
-  function E(u){
+  var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/i;
+
+  function toAbs(u){
+    if(!u||typeof u!=="string")return null;
+    var t=u.trim();
+    if(t.startsWith("/p/")||t.startsWith("/pe/")||t.startsWith("/v")||t.startsWith("/s")||t.startsWith("/go"))return null;
+    if(SKIP.test(t))return null;
     try{
-      if(!u||typeof u!=="string")return u;
-      if(u.startsWith("/p/"))return u;
-      if(SKIP.test(u))return u;
-      var a=new URL(u,B).href;
-      if(a.startsWith("http")){
-        var key = "Void2026", chars = [];
-        for (var i = 0; i < a.length; i++) chars.push(String.fromCharCode(a.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
-        var tld = ""; try{tld = localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
-        return "/p/"+btoa(chars.join("")).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"")+tld;
-      }
-      return u;
-    }catch(e){return u;}
+      if(t.startsWith("//"))return "https:"+t;
+      return new URL(t,B).href;
+    }catch(e){return null;}
   }
+
+  function E(u){
+    var abs=toAbs(u);
+    if(!abs||!abs.startsWith("http"))return u;
+    var key="Void2026",chars=[];
+    for(var i=0;i<abs.length;i++)chars.push(String.fromCharCode(abs.charCodeAt(i)^key.charCodeAt(i%key.length)));
+    var tld="";try{tld=localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
+    return "/p/"+btoa(chars.join("")).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"")+tld;
+  }
+
   function Esrcset(v){if(!v)return v;return v.replace(/([^\\s,]+)(\\s+[^,]*)?/g,function(_,u,d){return E(u)+(d||'');});}
+
   var _f=window.fetch;
   window.fetch=function(u,o){
     if(typeof u==='string')u=E(u);
-    else if(u&&u.url) return _f.call(this, E(u.url), u);
+    else if(u&&u.url)return _f.call(this,E(u.url),u);
     return _f.call(this,u,o);
   };
   var _xo=XMLHttpRequest.prototype.open;
@@ -463,30 +401,42 @@ function injectionScript(base) {
   History.prototype.pushState=function(s,t,u){if(u)arguments[2]=E(u);return _ps.apply(this,arguments);};
   var _rs=History.prototype.replaceState;
   History.prototype.replaceState=function(s,t,u){if(u)arguments[2]=E(u);return _rs.apply(this,arguments);};
-  if(Location.prototype.assign){var _la=Location.prototype.assign;Location.prototype.assign=function(u){return _la.call(this,E(u));};}
-  if(Location.prototype.replace){var _lr=Location.prototype.replace;Location.prototype.replace=function(u){return _lr.call(this,E(u));};}
-  if(navigator.sendBeacon){var _sb=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return _sb(E(u),d);};}
-  if(window.EventSource){var _ES=window.EventSource;window.EventSource=function(u,o){return new _ES(E(u),o);};window.EventSource.prototype=_ES.prototype;}
-  
-  if (navigator.serviceWorker) {
-    var _swr = navigator.serviceWorker.register.bind(navigator.serviceWorker);
-    navigator.serviceWorker.register = function(u, o) { return _swr(E(u), o); };
+
+  if(navigator.serviceWorker){
+    var _swr=navigator.serviceWorker.register.bind(navigator.serviceWorker);
+    navigator.serviceWorker.register=function(u,o){return _swr(E(u),o);};
   }
-  
-  if(window.Worker){var _Wk=window.Worker;window.Worker=function(u,o){return new _Wk(E(u),o);};window.Worker.prototype=_Wk.prototype;}
-  if(window.SharedWorker){var _SWk=window.SharedWorker;window.SharedWorker=function(u,o){return new _SWk(E(u),o);};window.SharedWorker.prototype=_SWk.prototype;}
-  
+
   var _sa=Element.prototype.setAttribute;
-  var URL_A={'href':1,'src':1,'action':1,'data':1,'formaction':1,'poster':1,'background':1,'ping':1,'data-src':1,'data-href':1,'data-url':1,'data-lazy-src':1,'data-original':1,'data-poster':1,'data-bg':1};
+  var LAZY_TAGS={'src':1,'data-src':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1};
   Element.prototype.setAttribute=function(name,val){
     var n=name.toLowerCase();
-    if(val&&typeof val==='string'){
-      if(URL_A[n])val=E(val);
-      else if(n==='srcset'||n==='data-srcset')val=Esrcset(val);
-      else if(n==='style')val=val.replace(/url\\(\\s*(['"]?)([^'")\\s]+)\\1\\s*\\)/gi,function(m,q,u){if(SKIP.test(u))return m;return 'url('+q+E(u)+q+')';});
+    if(val&&typeof val==='string'&&LAZY_TAGS[n]){
+      if(n==='srcset'||n==='data-srcset')val=Esrcset(val);
+      else val=E(val);
     }
     return _sa.call(this,name,val);
   };
+
+  document.addEventListener('click',function(e){
+    var t=e.target;while(t&&t.tagName!=='A')t=t.parentElement;if(!t)return;
+    if(t.closest('#__vbar'))return;
+    var raw=t.getAttribute('href');if(!raw||raw==='/'||raw==='')return;
+    t.removeAttribute('target');
+    var abs=toAbs(raw);
+    if(abs&&abs.startsWith('http')){
+      e.preventDefault();
+      location.href=E(abs);
+    }
+  },true);
+
+  document.addEventListener('submit',function(e){
+    var f=e.target;if(!f||f.tagName!=='FORM')return;
+    if(f.closest('#__vbar'))return;
+    var a=f.getAttribute('action')||'';
+    var abs=toAbs(a);
+    if(abs&&abs.startsWith('http'))f.action=E(abs);
+  },true);
 })();
 </script>`;
 }
@@ -496,45 +446,42 @@ function injectionScriptExperimental(base, optSuffix) {
 (function(){
   var B=${JSON.stringify(base)};
   var S=${JSON.stringify(optSuffix || "")};
-  var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/;
+  var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/i;
+
+  function toAbs(u){
+    if(!u||typeof u!=="string")return null;
+    var t=u.trim();
+    if(t.startsWith("/pe/")||t.startsWith("/v")||t.startsWith("/s")||t.startsWith("/go"))return null;
+    if(SKIP.test(t))return null;
+    try{
+      if(t.startsWith("//"))return "https:"+t;
+      return new URL(t,B).href;
+    }catch(e){return null;}
+  }
+
   function E(u){
-    try{
-      if(!u||typeof u!=="string")return u;
-      if(u.startsWith("/pe/"))return u;
-      if(SKIP.test(u))return u;
-      var a=new URL(u,B).href;
-      if(a.startsWith("http")){
-        var tld = ""; try{tld = localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
-        return "/pe/"+btoa(a).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"")+tld+S;
-      }
-      return u;
-    }catch(e){return u;}
+    var abs=toAbs(u);
+    if(!abs||!abs.startsWith("http"))return u;
+    var tld="";try{tld=localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
+    return "/pe/"+btoa(abs).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"")+tld+S;
   }
-  function Ws(u){
-    try{
-      if(!u||typeof u!=='string')return u;
-      if(u.startsWith('/pe-ws/'))return u;
-      var a=new URL(u,B).href;
-      if(/^wss?:/.test(a))return'/pe-ws/'+btoa(a).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/g,'');
-      return u;
-    }catch(e){return u;}
-  }
+
   var _f=window.fetch;
   window.fetch=function(u,o){
     if(typeof u==='string')u=E(u);
-    else if(u&&u.url) return _f.call(this, E(u.url), u);
+    else if(u&&u.url)return _f.call(this,E(u.url),u);
     return _f.call(this,u,o);
   };
   var _xo=XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open=function(m,u){arguments[1]=E(u);return _xo.apply(this,arguments);};
-  var _Ws=window.WebSocket;
-  window.WebSocket=function(u,p){return p?new _Ws(Ws(u),p):new _Ws(Ws(u));};
-  window.WebSocket.prototype=_Ws.prototype;
-  
-  if (navigator.serviceWorker) {
-    var _swr = navigator.serviceWorker.register.bind(navigator.serviceWorker);
-    navigator.serviceWorker.register = function(u, o) { return _swr(E(u), o); };
-  }
+
+  var _sa=Element.prototype.setAttribute;
+  var LAZY_TAGS={'src':1,'data-src':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1};
+  Element.prototype.setAttribute=function(name,val){
+    var n=name.toLowerCase();
+    if(val&&typeof val==='string'&&LAZY_TAGS[n]) val=E(val);
+    return _sa.call(this,name,val);
+  };
 })();
 </script>`;
 }
@@ -565,7 +512,7 @@ function proxyBar(displayUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   Headers Management & Stripping
+   Headers Management
    ═══════════════════════════════════════════ */
 
 const HOP_HEADERS = new Set([
@@ -583,8 +530,8 @@ const STRIP_HEADERS = new Set([
 
 const URL_ATTRS = {
   a: ["href", "ping"], area: ["href"], link: ["href"],
-  img: ["src", "srcset", "data-src", "data-srcset", "data-lazy-src", "data-original"],
-  script: ["src"], source: ["src", "srcset"], video: ["src", "poster"],
+  img: ["src", "srcset", "data-src", "data-srcset", "data-lazy-src", "data-original", "data-thumb", "data-hero"],
+  script: ["src"], source: ["src", "srcset"], video: ["src", "poster", "data-src"],
   audio: ["src"], embed: ["src"], object: ["data"], form: ["action"],
   input: ["src", "formaction"], track: ["src"], iframe: ["src"],
   button: ["formaction"], body: ["background"], table: ["background"],
@@ -654,9 +601,7 @@ function buildHeaders(req, targetUrl) {
   if (!h["user-agent"]) {
     h["user-agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
   }
-  if (req.headers.range) {
-    h["range"] = req.headers.range;
-  }
+  if (req.headers.range) h["range"] = req.headers.range;
   h["accept-encoding"] = "gzip, deflate, br";
   return h;
 }
@@ -673,7 +618,7 @@ function decompressStream(stream, encoding) {
 }
 
 /* ═══════════════════════════════════════════
-   Main Proxy Handler (/p/)
+   Proxy Request Handlers (/p/ and /pe/)
    ═══════════════════════════════════════════ */
 
 async function handleProxy(req, res) {
@@ -695,11 +640,8 @@ async function handleProxy(req, res) {
       const u = new URL(targetUrl);
       for (const [k, v] of Object.entries(req.query)) {
         if (["nojs", "noimg", "eruda", "mode", "engine"].includes(k)) continue;
-        if (Array.isArray(v)) {
-          v.forEach((item) => u.searchParams.append(k, item));
-        } else if (!u.searchParams.has(k)) {
-          u.searchParams.append(k, v);
-        }
+        if (Array.isArray(v)) v.forEach((item) => u.searchParams.append(k, item));
+        else if (!u.searchParams.has(k)) u.searchParams.append(k, v);
       }
       targetUrl = u.href;
     } catch (e) {
@@ -707,19 +649,13 @@ async function handleProxy(req, res) {
     }
   }
 
-  const opts = {
-    nojs: req.query.nojs === "1",
-    noimg: req.query.noimg === "1",
-    eruda: req.query.eruda === "1",
-  };
-
+  const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
   const optQs = [];
   if (opts.nojs) optQs.push("nojs=1");
   if (opts.noimg) optQs.push("noimg=1");
   if (opts.eruda) optQs.push("eruda=1");
   const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
 
-  // Check LRU cache for cached documents
   if (req.method === "GET") {
     const cached = cacheGet("p:" + targetUrl + optSuffix);
     if (cached) {
@@ -738,17 +674,15 @@ async function handleProxy(req, res) {
       headers,
       data: ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) ? req.body : undefined,
       responseType: "stream",
-      maxRedirects: 0, // Let client follow rewritten redirects
-      decompress: false, // Handle stream decompression manually
+      maxRedirects: 0,
+      decompress: false,
       validateStatus: () => true,
       timeout: 35000,
     });
   } catch (axiosErr) {
-    console.error("[axios proxy error]:", axiosErr.message);
     return res.status(502).send("Upstream Request Failed: " + axiosErr.message);
   }
 
-  // Handle Redirection Rewrites securely
   if ([301, 302, 303, 307, 308].includes(axiosRes.status) && axiosRes.headers.location) {
     try {
       const nextUrl = new URL(axiosRes.headers.location, targetUrl).href;
@@ -756,13 +690,11 @@ async function handleProxy(req, res) {
       res.setHeader("Location", enc(nextUrl) + optSuffix);
       return res.status(axiosRes.status).end();
     } catch (e) {
-      return res.status(403).send("Blocked unsafe redirect destination: " + e.message);
+      return res.status(403).send("Blocked unsafe redirect: " + e.message);
     }
   }
 
-  if ([204, 304].includes(axiosRes.status)) {
-    return res.status(axiosRes.status).end();
-  }
+  if ([204, 304].includes(axiosRes.status)) return res.status(axiosRes.status).end();
 
   for (const [k, v] of Object.entries(axiosRes.headers)) {
     const kl = k.toLowerCase();
@@ -770,7 +702,6 @@ async function handleProxy(req, res) {
     try { res.setHeader(k, v); } catch {}
   }
 
-  // Enable COOP / COEP for WASM & Poki games
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
@@ -780,16 +711,13 @@ async function handleProxy(req, res) {
   const rawSetCookies = axiosRes.headers["set-cookie"];
   if (rawSetCookies) {
     const cookies = Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies];
-    for (const c of cookies) {
-      res.append("set-cookie", prefixSetCookie(c, targetUrl));
-    }
+    for (const c of cookies) res.append("set-cookie", prefixSetCookie(c, targetUrl));
   }
 
   const rawCt = String(axiosRes.headers["content-type"] || "");
   const ct = rawCt.split(";")[0].trim().toLowerCase();
   const isBinary = BINARY_TYPE_PREFIXES.some((prefix) => ct.startsWith(prefix));
 
-  // --- STREAMING PIPELINE (Video chunks, Audio, WASM, Images) ---
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
     const passthroughHeaders = [
@@ -799,24 +727,17 @@ async function handleProxy(req, res) {
     for (const h of passthroughHeaders) {
       if (axiosRes.headers[h] !== undefined) res.set(h, axiosRes.headers[h]);
     }
-
     axiosRes.data.on("error", () => {
       if (!res.headersSent) res.status(502);
       res.end();
     });
-
-    req.on("close", () => {
-      axiosRes.data.destroy();
-    });
-
+    req.on("close", () => axiosRes.data.destroy());
     return axiosRes.data.pipe(res);
   }
 
-  // --- BUFFERING & REWRITE PIPELINE (HTML, CSS, JS, JSON) ---
   try {
     const contentEncoding = String(axiosRes.headers["content-encoding"] || "").toLowerCase();
     const decompStream = decompressStream(axiosRes.data, contentEncoding);
-
     const chunks = [];
     for await (const chunk of decompStream) chunks.push(chunk);
     const bodyBuf = Buffer.concat(chunks);
@@ -855,21 +776,17 @@ async function handleProxy(req, res) {
 
     res.type(rawCt || "application/octet-stream").status(axiosRes.status).send(bodyBuf);
   } catch (err) {
-    if (!res.headersSent) {
-      res.status(502).send("Buffer processing failure: " + err.message);
-    }
+    if (!res.headersSent) res.status(502).send("Buffer error: " + err.message);
   }
 }
 
 function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
-  const $ = cheerio.load(html); // decodeEntities: true by default to maintain query string fidelity
+  const $ = cheerio.load(html);
 
   const baseTag = $("base[href]").first();
   let resolveBase = base;
   if (baseTag.length) {
-    try {
-      resolveBase = new URL(baseTag.attr("href"), base).href;
-    } catch {}
+    try { resolveBase = new URL(baseTag.attr("href"), base).href; } catch {}
     baseTag.remove();
   }
 
@@ -877,37 +794,15 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   $('meta[http-equiv="content-security-policy"]').remove();
 
   function rw(raw) {
-    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("javascript:") || raw.startsWith("#") || raw.startsWith("mailto:")) {
-      return raw;
-    }
-    try {
-      return enc(new URL(raw, resolveBase).href) + optSuffix;
-    } catch {
-      return raw;
-    }
+    return rewriteUrl(raw, resolveBase) + optSuffix;
   }
 
   function rwNoOpts(raw) {
-    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("javascript:") || raw.startsWith("#") || raw.startsWith("mailto:")) {
-      return raw;
-    }
-    try {
-      return enc(new URL(raw, resolveBase).href);
-    } catch {
-      return raw;
-    }
+    return rewriteUrl(raw, resolveBase);
   }
 
   function rwCssBlock(css) {
-    return css
-      .replace(/url\(\s*(['"]?)([^'")\s]+)\1\s*\)/gi, (match, q, url) => {
-        const r = rwNoOpts(url);
-        return r !== url ? `url(${q}${r}${q})` : match;
-      })
-      .replace(/@import\s+(['"])([^'"]+)\1/gi, (match, q, url) => {
-        const r = rwNoOpts(url);
-        return r !== url ? `@import ${q}${r}${q}` : match;
-      });
+    return rewriteCss(css, resolveBase);
   }
 
   $("a[target]").removeAttr("target");
@@ -917,12 +812,17 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   $("[nonce]").removeAttr("nonce");
   $("[crossorigin]").removeAttr("crossorigin");
 
+  $('link[rel*="icon"]').each((_, el) => {
+    const href = $(el).attr("href");
+    if (href) $(el).attr("href", rwNoOpts(href));
+  });
+
   for (const [tag, attrs] of Object.entries(URL_ATTRS)) {
     $(tag).each((_, el) => {
       for (const attr of attrs) {
         const val = $(el).attr(attr);
         if (!val) continue;
-        if (attr === "srcset") {
+        if (attr === "srcset" || attr === "data-srcset") {
           $(el).attr(
             attr,
             val.replace(/([^\s,]+)(\s+[^,]*)?/g, (m, url, desc) => rwNoOpts(url) + (desc || ""))
@@ -944,9 +844,7 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   $('meta[http-equiv="refresh"]').each((_, el) => {
     const content = $(el).attr("content") || "";
     const m = content.match(/^(\d+)\s*;\s*url\s*=\s*['"]?(.+?)['"]?$/i);
-    if (m) {
-      $(el).attr("content", m[1] + ";url=" + rw(m[2]));
-    }
+    if (m) $(el).attr("content", m[1] + ";url=" + rw(m[2]));
   });
 
   $("script:not([src]):not([data-void])").each((_, el) => {
@@ -964,9 +862,7 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
     });
   }
 
-  if (opts.noimg) {
-    $("img, picture").remove();
-  }
+  if (opts.noimg) $("img, picture").remove();
 
   $("body").prepend(proxyBar(base));
   if (!opts.nojs) $("head").prepend(injectionScript(resolveBase));
@@ -977,9 +873,33 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   return $.html();
 }
 
-/* ═══════════════════════════════════════════
-   Experimental Engine Handler (/pe/)
-   ═══════════════════════════════════════════ */
+function requestWithNode(targetUrl, opts) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(targetUrl);
+    const isHttps = u.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const reqOpts = {
+      hostname: u.hostname,
+      port: u.port || (isHttps ? 443 : 80),
+      path: u.pathname + u.search,
+      method: opts.method || "GET",
+      headers: opts.headers || {},
+      rejectUnauthorized: true,
+      agent: isHttps ? httpsAgent : httpAgent,
+    };
+    const req = lib.request(reqOpts, (res) => {
+      res.on("error", reject);
+      resolve(res);
+    });
+    req.on("error", reject);
+    req.setTimeout(35000, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
+    });
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
 
 function experimentalRewriteHtml(html, base, optSuffix) {
   const baseRegex = /<base\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/gi;
@@ -1014,9 +934,7 @@ function experimentalRewriteHtml(html, base, optSuffix) {
   }
 
   html = html.replace(/<script(\s[^>]*)?>(?!<\/script>)([\s\S]*?)<\/script>/gi, (match, attrs, code) => {
-    if (!code || !code.trim() || (attrs && /\bsrc\s*=/i.test(attrs)) || (attrs && /data-void/i.test(attrs))) {
-      return match;
-    }
+    if (!code || !code.trim() || (attrs && /\bsrc\s*=/i.test(attrs)) || (attrs && /data-void/i.test(attrs))) return match;
     const rewritten = rewriteJsUrls(code, resolveBase, "/pe/");
     return rewritten !== code ? match.replace(code, rewritten) : match;
   });
@@ -1026,34 +944,6 @@ function experimentalRewriteHtml(html, base, optSuffix) {
   html = html.replace(/\sintegrity\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   html = html.replace(/\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   return html;
-}
-
-function requestWithNode(targetUrl, opts) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(targetUrl);
-    const isHttps = u.protocol === "https:";
-    const lib = isHttps ? https : http;
-    const reqOpts = {
-      hostname: u.hostname,
-      port: u.port || (isHttps ? 443 : 80),
-      path: u.pathname + u.search,
-      method: opts.method || "GET",
-      headers: opts.headers || {},
-      rejectUnauthorized: true,
-      agent: isHttps ? httpsAgent : httpAgent,
-    };
-    const req = lib.request(reqOpts, (res) => {
-      res.on("error", reject);
-      resolve(res);
-    });
-    req.on("error", reject);
-    req.setTimeout(35000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    if (opts.body) req.write(opts.body);
-    req.end();
-  });
 }
 
 async function handleExperimentalProxy(req, res) {
@@ -1097,14 +987,11 @@ async function handleExperimentalProxy(req, res) {
 
     let body;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && req.body) {
-      if (Buffer.isBuffer(req.body)) {
-        body = req.body;
-      } else if (typeof req.body === "object") {
+      if (Buffer.isBuffer(req.body)) body = req.body;
+      else if (typeof req.body === "object") {
         body = JSON.stringify(req.body);
         headers["content-type"] = "application/json";
-      } else {
-        body = req.body;
-      }
+      } else body = req.body;
       headers["content-length"] = Buffer.byteLength(body);
     }
 
@@ -1117,9 +1004,7 @@ async function handleExperimentalProxy(req, res) {
       return res.status(upstream.statusCode).end();
     }
 
-    if ([204, 304].includes(upstream.statusCode)) {
-      return res.status(upstream.statusCode).end();
-    }
+    if ([204, 304].includes(upstream.statusCode)) return res.status(upstream.statusCode).end();
 
     const rawCt = upstream.headers["content-type"] || "";
     const contentType = rawCt.split(";")[0].trim().toLowerCase();
@@ -1183,7 +1068,7 @@ async function handleExperimentalProxy(req, res) {
     res.set("content-type", rawCt || "application/octet-stream");
     res.send(bodyBuffer);
   } catch (err) {
-    res.status(502).send(`<!DOCTYPE html><html><body>502 Connection Error: ${err.message}</body></html>`);
+    res.status(502).send(`<!DOCTYPE html><html><body>502 Error: ${err.message}</body></html>`);
   }
 }
 
@@ -1267,10 +1152,9 @@ async function fetchSerperResults(q, num = 8) {
   const cached = serperCacheGet(q, suffix);
   if (cached) return { results: cached, fromCache: true };
 
-  const apiKey = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
   try {
     const res = await axios.post("https://google.serper.dev/search", { q, num }, {
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
       timeout: 8000
     });
     const data = res.data;
@@ -1334,6 +1218,91 @@ app.get("/api/search", async (req, res) => {
   return res.json({ cached: fromCache, results: results || [] });
 });
 
+app.get("/api/images", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.json({ images: [] });
+  try {
+    const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+    const r = await axios.get(url, { timeout: 10000 });
+    const images = (r.data.images_results || []).map(img => ({
+      title: img.title || "",
+      original: img.original || img.link,
+      thumbnail: img.thumbnail,
+      source: img.source || img.domain
+    })).slice(0, 20);
+    return res.json({ images });
+  } catch (e) {
+    return res.status(500).json({ error: e.message, images: [] });
+  }
+});
+
+app.get("/api/serp", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const engine = (req.query.engine || "google").trim();
+  if (!q) return res.json({ error: "Empty query" });
+  try {
+    const url = `https://serpapi.com/search.json?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+    const r = await axios.get(url, { timeout: 15000 });
+    return res.json(r.data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/youtube", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const v = (req.query.v || "").trim();
+  if (v) {
+    try {
+      const videoUrl = `https://serpapi.com/search.json?engine=youtube_video&v=${encodeURIComponent(v)}&api_key=${SERPAPI_KEY}`;
+      const transcriptUrl = `https://serpapi.com/search.json?engine=youtube_video_transcript&v=${encodeURIComponent(v)}&api_key=${SERPAPI_KEY}`;
+      const [vRes, tRes] = await Promise.allSettled([
+        axios.get(videoUrl, { timeout: 8000 }),
+        axios.get(transcriptUrl, { timeout: 8000 })
+      ]);
+      const video = vRes.status === "fulfilled" ? vRes.value.data : {};
+      const transcript = tRes.status === "fulfilled" ? tRes.value.data : {};
+      return res.json({ video, transcript });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+  if (!q) return res.json({ videos: [] });
+  try {
+    const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+    const r = await axios.get(url, { timeout: 10000 });
+    const videos = (r.data.video_results || []).map(vid => ({
+      title: vid.title,
+      link: vid.link,
+      videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
+      thumbnail: vid.thumbnail?.static || vid.thumbnail,
+      channel: vid.channel?.name,
+      views: vid.views,
+      published: vid.published_date
+    })).slice(0, 15);
+    return res.json({ videos });
+  } catch (e) {
+    return res.status(500).json({ error: e.message, videos: [] });
+  }
+});
+
+app.get("/api/autocomplete", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q) return res.json({ suggestions: [] });
+  try {
+    const url = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(q)}`;
+    const r = await axios.get(url, { timeout: 4000 });
+    if (Array.isArray(r.data) && Array.isArray(r.data[1])) {
+      return res.json({ suggestions: r.data[1].slice(0, 8) });
+    }
+  } catch {}
+  return res.json({ suggestions: [] });
+});
+
+/* ═══════════════════════════════════════════
+   Direct URL & Search Router (/go and /v)
+   ═══════════════════════════════════════════ */
+
 app.get(["/go", "/v"], (req, res) => {
   let rawInput = (req.query.q || req.query.url || "").trim();
   if (!rawInput) return res.redirect("/");
@@ -1341,12 +1310,15 @@ app.get(["/go", "/v"], (req, res) => {
   let url = rawInput;
   try {
     url = dec(rawInput);
-  } catch {
+  } catch (e) {
     url = rawInput;
   }
 
+  const domainPattern = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?$/i;
+  const ipPattern = /^(https?:\/\/)?(\d{1,3}\.){3}\d{1,3}(:\d+)?(\/.*)?$/;
+
   if (!/^https?:\/\//i.test(url)) {
-    if (url.includes(".") && !url.includes(" ")) {
+    if (domainPattern.test(url) || ipPattern.test(url)) {
       url = "https://" + url;
     } else {
       const engine = req.query.engine || "brave";
@@ -1362,10 +1334,8 @@ app.get(["/go", "/v"], (req, res) => {
   const qsStr = qs.length ? "?" + qs.join("&") : "";
 
   const mode = (req.query.mode || "server").toLowerCase().trim();
-  if (mode === "experimental") {
-    return res.redirect(encPe(url) + qsStr);
-  }
-  res.redirect(enc(url) + qsStr);
+  if (mode === "experimental") return res.redirect(encPe(url) + qsStr);
+  return res.redirect(enc(url) + qsStr);
 });
 
 app.all("/p/:encoded", handleProxy);
@@ -1378,7 +1348,6 @@ app.get("/", (_req, res) => {
 const PORT = process.env.PORT || 8080;
 const server = createServer(app);
 
-// WebSocket Handler for Wisp & Custom Engine
 server.on("upgrade", (req, socket, head) => {
   if ((req.url || "").startsWith("/wisp/")) {
     wisp.server.routeRequest(req, socket, head);
