@@ -37,8 +37,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set("json spaces", 2);
 
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 128, maxFreeSockets: 32, timeout: 60000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 128, maxFreeSockets: 32, timeout: 60000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
 
 /* ═══════════════════════════════════════════
    IP / SSRF Security Validation
@@ -100,10 +100,10 @@ async function assertSafeUrl(rawUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   LRU Cache & Search Normalization
+   LRU Cache
    ═══════════════════════════════════════════ */
 
-const CACHE_MAX_SIZE = 1000;
+const CACHE_MAX_SIZE = 2000;
 const CACHE_TTL = 30 * 60 * 1000;
 const _resourceCache = new Map();
 
@@ -131,36 +131,6 @@ function cacheSet(key, ct, body) {
   _resourceCache.set(key, { ct, body: bodyBuf, ts: Date.now() });
 }
 
-const SERPER_CACHE_TTL = 24 * 60 * 60 * 1000;
-const SERPER_CACHE_MAX = 500;
-const _serperCache = new Map();
-
-function normalizeQuery(q) {
-  return q.toLowerCase().trim().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ");
-}
-
-function serperCacheGet(query, suffix = "") {
-  const key = normalizeQuery(query) + suffix;
-  const entry = _serperCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > SERPER_CACHE_TTL) {
-    _serperCache.delete(key);
-    return null;
-  }
-  _serperCache.delete(key);
-  _serperCache.set(key, entry);
-  return entry.data;
-}
-
-function serperCacheSet(query, data, suffix = "") {
-  if (_serperCache.size >= SERPER_CACHE_MAX) {
-    const oldest = _serperCache.keys().next().value;
-    _serperCache.delete(oldest);
-  }
-  const key = normalizeQuery(query) + suffix;
-  _serperCache.set(key, { data, ts: Date.now() });
-}
-
 /* ═══════════════════════════════════════════
    Express Configuration
    ═══════════════════════════════════════════ */
@@ -170,7 +140,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.raw({ type: "*/*", limit: "10mb" }));
 
 app.use(express.static(join(__dirname, "public"), {
-  maxAge: "1h",
+  maxAge: "1d",
   etag: true,
   lastModified: true,
   setHeaders: (res, path) => {
@@ -356,7 +326,7 @@ function rewriteJsUrls(code, base, prefix) {
 }
 
 /* ═══════════════════════════════════════════
-   DOM Injection & UI Toolbar
+   DOM Injection & Fast Client Traversal
    ═══════════════════════════════════════════ */
 
 function injectionScript(base) {
@@ -407,8 +377,19 @@ function injectionScript(base) {
     navigator.serviceWorker.register=function(u,o){return _swr(E(u),o);};
   }
 
+  // Intercept image property definitions
+  var desc=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
+  if(desc&&desc.set){
+    Object.defineProperty(HTMLImageElement.prototype,'src',{
+      get:desc.get,
+      set:function(v){desc.set.call(this,E(v));},
+      configurable:true,
+      enumerable:true
+    });
+  }
+
   var _sa=Element.prototype.setAttribute;
-  var LAZY_TAGS={'src':1,'data-src':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1};
+  var LAZY_TAGS={'src':1,'data-src':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1,'poster':1};
   Element.prototype.setAttribute=function(name,val){
     var n=name.toLowerCase();
     if(val&&typeof val==='string'&&LAZY_TAGS[n]){
@@ -512,7 +493,7 @@ function proxyBar(displayUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   Headers Management
+   Headers Management & Fast Passthrough
    ═══════════════════════════════════════════ */
 
 const HOP_HEADERS = new Set([
@@ -618,7 +599,7 @@ function decompressStream(stream, encoding) {
 }
 
 /* ═══════════════════════════════════════════
-   Proxy Request Handlers (/p/ and /pe/)
+   High-Speed Proxy Request Handler (/p/)
    ═══════════════════════════════════════════ */
 
 async function handleProxy(req, res) {
@@ -633,6 +614,10 @@ async function handleProxy(req, res) {
     await assertSafeUrl(targetUrl);
   } catch (err) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
+  }
+
+  if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
+    return res.status(204).end();
   }
 
   if (req.method === "GET" && req.query && Object.keys(req.query).length > 0) {
@@ -677,7 +662,9 @@ async function handleProxy(req, res) {
       maxRedirects: 0,
       decompress: false,
       validateStatus: () => true,
-      timeout: 35000,
+      timeout: 25000,
+      httpAgent,
+      httpsAgent,
     });
   } catch (axiosErr) {
     return res.status(502).send("Upstream Request Failed: " + axiosErr.message);
@@ -812,7 +799,7 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   $("[nonce]").removeAttr("nonce");
   $("[crossorigin]").removeAttr("crossorigin");
 
-  $('link[rel*="icon"]').each((_, el) => {
+  $('link[rel*="icon"], link[rel*="shortcut"], link[rel*="apple-touch-icon"]').each((_, el) => {
     const href = $(el).attr("href");
     if (href) $(el).attr("href", rwNoOpts(href));
   });
@@ -892,7 +879,7 @@ function requestWithNode(targetUrl, opts) {
       resolve(res);
     });
     req.on("error", reject);
-    req.setTimeout(35000, () => {
+    req.setTimeout(25000, () => {
       req.destroy();
       reject(new Error("Request timeout"));
     });
@@ -958,6 +945,10 @@ async function handleExperimentalProxy(req, res) {
     await assertSafeUrl(targetUrl);
   } catch (err) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
+  }
+
+  if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
+    return res.status(204).end();
   }
 
   const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
@@ -1149,8 +1140,8 @@ const SEARCH_ENGINES = {
 
 async function fetchSerperResults(q, num = 8) {
   const suffix = "|serper|" + num;
-  const cached = serperCacheGet(q, suffix);
-  if (cached) return { results: cached, fromCache: true };
+  const cached = _resourceCache.get(q + suffix);
+  if (cached) return { results: cached.body, fromCache: true };
 
   try {
     const res = await axios.post("https://google.serper.dev/search", { q, num }, {
@@ -1166,7 +1157,7 @@ async function fetchSerperResults(q, num = 8) {
       }
     }
     if (results.length > 0) {
-      serperCacheSet(q, results, suffix);
+      cacheSet(q + suffix, "application/json", results);
       return { results, fromCache: false };
     }
   } catch (err) {
@@ -1206,6 +1197,44 @@ async function fetchDdgFallback(q, num = 8) {
   return { results: [], fromCache: false, error: "Search failed" };
 }
 
+// Fallback search results directly from DuckDuckGo HTML parser for YouTube
+async function fetchYouTubeDirect(q) {
+  try {
+    const r = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q + " site:youtube.com/watch")}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      timeout: 8000
+    });
+    const $ = cheerio.load(r.data);
+    const videos = [];
+    $(".result").each((_, el) => {
+      const a = $(el).find(".result__title a").first();
+      const title = a.text().trim();
+      let href = a.attr("href") || "";
+      if (href.includes("uddg=")) {
+        try {
+          const match = href.match(/uddg=([^&]+)/);
+          if (match) href = decodeURIComponent(match[1]);
+        } catch {}
+      }
+      if (/youtube\.com\/watch\?v=/i.test(href)) {
+        const vId = (href.match(/v=([^&]+)/) || [])[1];
+        videos.push({
+          title,
+          link: href,
+          videoId: vId,
+          thumbnail: vId ? `https://i.ytimg.com/vi/${vId}/hqdefault.jpg` : "",
+          channel: "YouTube",
+          views: "YouTube Video"
+        });
+      }
+      if (videos.length >= 12) return false;
+    });
+    return videos;
+  } catch {
+    return [];
+  }
+}
+
 app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
@@ -1223,7 +1252,7 @@ app.get("/api/images", async (req, res) => {
   if (!q) return res.json({ images: [] });
   try {
     const url = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 10000 });
+    const r = await axios.get(url, { timeout: 8000 });
     const images = (r.data.images_results || []).map(img => ({
       title: img.title || "",
       original: img.original || img.link,
@@ -1242,7 +1271,7 @@ app.get("/api/serp", async (req, res) => {
   if (!q) return res.json({ error: "Empty query" });
   try {
     const url = `https://serpapi.com/search.json?engine=${encodeURIComponent(engine)}&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 15000 });
+    const r = await axios.get(url, { timeout: 10000 });
     return res.json(r.data);
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -1255,35 +1284,31 @@ app.get("/api/youtube", async (req, res) => {
   if (v) {
     try {
       const videoUrl = `https://serpapi.com/search.json?engine=youtube_video&v=${encodeURIComponent(v)}&api_key=${SERPAPI_KEY}`;
-      const transcriptUrl = `https://serpapi.com/search.json?engine=youtube_video_transcript&v=${encodeURIComponent(v)}&api_key=${SERPAPI_KEY}`;
-      const [vRes, tRes] = await Promise.allSettled([
-        axios.get(videoUrl, { timeout: 8000 }),
-        axios.get(transcriptUrl, { timeout: 8000 })
-      ]);
-      const video = vRes.status === "fulfilled" ? vRes.value.data : {};
-      const transcript = tRes.status === "fulfilled" ? tRes.value.data : {};
-      return res.json({ video, transcript });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
+      const r = await axios.get(videoUrl, { timeout: 6000 });
+      return res.json({ video: r.data || {} });
+    } catch {
+      return res.json({ video: { title: "YouTube Video", video_id: v } });
     }
   }
   if (!q) return res.json({ videos: [] });
   try {
     const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-    const r = await axios.get(url, { timeout: 10000 });
+    const r = await axios.get(url, { timeout: 6000 });
     const videos = (r.data.video_results || []).map(vid => ({
       title: vid.title,
       link: vid.link,
       videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
       thumbnail: vid.thumbnail?.static || vid.thumbnail,
-      channel: vid.channel?.name,
-      views: vid.views,
-      published: vid.published_date
+      channel: vid.channel?.name || "YouTube",
+      views: vid.views || "",
+      published: vid.published_date || ""
     })).slice(0, 15);
-    return res.json({ videos });
-  } catch (e) {
-    return res.status(500).json({ error: e.message, videos: [] });
-  }
+
+    if (videos.length > 0) return res.json({ videos });
+  } catch {}
+
+  const fallbackVideos = await fetchYouTubeDirect(q);
+  return res.json({ videos: fallbackVideos });
 });
 
 app.get("/api/autocomplete", async (req, res) => {
@@ -1291,12 +1316,149 @@ app.get("/api/autocomplete", async (req, res) => {
   if (!q) return res.json({ suggestions: [] });
   try {
     const url = `https://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(q)}`;
-    const r = await axios.get(url, { timeout: 4000 });
+    const r = await axios.get(url, { timeout: 3000 });
     if (Array.isArray(r.data) && Array.isArray(r.data[1])) {
       return res.json({ suggestions: r.data[1].slice(0, 8) });
     }
   } catch {}
   return res.json({ suggestions: [] });
+});
+
+/* ═══════════════════════════════════════════
+   Search Results UI Routes (/s, /sr, /serper-results)
+   ═══════════════════════════════════════════ */
+
+app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
+  let rawQ = (req.query.q || "").trim();
+  if (!rawQ) return res.redirect("/");
+
+  let q = rawQ;
+  try { q = dec(rawQ); } catch {}
+  const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  res.type("text/html; charset=utf-8").send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${safeQ} — Void Search</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#ffffff;color:#000000;font-family:'Times New Roman',Times,serif;min-height:100vh;}
+a{text-decoration:none;color:inherit;}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#ffffff;border-bottom:1px solid #000000;position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.2rem;font-weight:bold;color:#000000;text-transform:uppercase;}
+.topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
+.topbar input{flex:1;background:#ffffff;border:1px solid #000000;color:#000000;font-family:'Times New Roman',Times,serif;font-size:1rem;padding:6px 10px;outline:none;}
+.topbar button{padding:6px 14px;background:#eeeeee;border:1px solid #000000;color:#000000;font-weight:bold;font-size:.9rem;cursor:pointer;}
+.topbar .back{padding:6px 12px;background:#eeeeee;border:1px solid #000000;color:#000000;font-size:.9rem;text-decoration:none;display:inline-flex;}
+.tabs{display:flex;gap:16px;padding:12px 20px 0;border-bottom:1px solid #000000;max-width:760px;margin:0 auto 20px;overflow-x:auto;}
+.tab{font-size:.95rem;color:#555555;cursor:pointer;padding-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;}
+.tab.active{color:#000000;font-weight:bold;border-bottom:3px solid #000000;}
+.main{max-width:760px;margin:0 auto;padding:0 20px 60px;}
+.meta{font-size:.9rem;color:#555555;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+.result{display:block;padding:16px 0;border-bottom:1px solid #dddddd;margin-bottom:12px;}
+.result:hover{background:#f9f9f9;}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.fav{width:14px;height:14px;}
+.domain{font-size:.8rem;color:#555555;}
+.result-title{font-size:1.1rem;font-weight:bold;color:#0000cc;margin-bottom:4px;}
+.result:hover .result-title{text-decoration:underline;}
+.result-snippet{font-size:.9rem;color:#333333;line-height:1.4;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
+.img-card{display:flex;flex-direction:column;border:1px solid #dddddd;padding:8px;text-align:center;}
+.img-card img{width:100%;height:120px;object-fit:cover;margin-bottom:8px;}
+.spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid #000;border-top-color:transparent;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="logo" href="/">void</a>
+  <a class="back" href="javascript:history.back()">← Back</a>
+  <form id="sf" action="/s" method="get">
+    <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
+    <button type="submit">SEARCH</button>
+  </form>
+</div>
+<div class="tabs" id="tabs">
+  <div class="tab active" data-engine="all">All</div>
+  <div class="tab" data-engine="images">Images</div>
+  <div class="tab" data-engine="youtube">Videos</div>
+</div>
+<div class="main">
+  <div class="meta" id="meta"></div>
+  <div id="results"><div class="spinner"><div class="spin"></div>Searching…</div></div>
+</div>
+<script>
+(function(){
+  var Q = ${JSON.stringify(safeQ)};
+  var currentEngine = "all";
+  var resDiv = document.getElementById("results");
+  var metaDiv = document.getElementById("meta");
+
+  function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  
+  function getProxyUrl(raw) {
+    if(!raw) return "";
+    var customTld = localStorage.getItem("void_tld") || ".www.securly.com";
+    var key = "Void2026", chars = [];
+    for (var i = 0; i < raw.length; i++) chars.push(String.fromCharCode(raw.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+    return "/p/" + btoa(chars.join("")).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"") + customTld;
+  }
+
+  function fetchAndRender() {
+    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching…</div>";
+    var endpoint = "/api/search?q=" + encodeURIComponent(Q);
+    if (currentEngine === "images") endpoint = "/api/images?q=" + encodeURIComponent(Q);
+    if (currentEngine === "youtube") endpoint = "/api/youtube?q=" + encodeURIComponent(Q);
+
+    fetch(endpoint).then(function(r){ return r.json(); }).then(function(data){
+      var arr = data.results || data.images || data.videos || [];
+      if(!arr || arr.length === 0) {
+        resDiv.innerHTML = "<div style='text-align:center;padding:40px;'>No results found.</div>";
+        metaDiv.innerHTML = "";
+        return;
+      }
+      metaDiv.innerHTML = "<span>" + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
+
+      if(currentEngine === "images") {
+        resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
+          return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.link)+"\"><img src=\""+getProxyUrl(img.thumbnail)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
+        }).join("") + "</div>";
+      } else if(currentEngine === "youtube") {
+        resDiv.innerHTML = arr.map(function(vid){
+          return "<a class=\"result\" href=\""+getProxyUrl(vid.link)+"\"><div class=\"result-title\">"+esc(vid.title)+"</div><div class=\"result-head\"><span class=\"domain\">"+esc(vid.channel)+" • "+esc(vid.views)+"</span></div></a>";
+        }).join("");
+      } else {
+        resDiv.innerHTML = arr.map(function(r){
+          var domain = ""; try { domain = new URL(r.url||r.link).hostname; } catch(e){}
+          var fav = domain ? "<img class=\"fav\" src=\"https://www.google.com/s2/favicons?domain="+encodeURIComponent(domain)+"&sz=32\"/>" : "";
+          return "<a class=\"result\" href=\""+getProxyUrl(r.url||r.link)+"\"><div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div><div class=\"result-title\">"+esc(r.title)+"</div><div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
+        }).join("");
+      }
+    }).catch(function(err){
+      resDiv.innerHTML = "<div style='text-align:center;padding:40px;'>Search failed: " + esc(err.message) + "</div>";
+    });
+  }
+
+  document.querySelectorAll(".tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
+      t.classList.add("active");
+      currentEngine = t.getAttribute("data-engine");
+      fetchAndRender();
+    });
+  });
+
+  fetchAndRender();
+})();
+</script>
+</body>
+</html>
+  `);
 });
 
 /* ═══════════════════════════════════════════
