@@ -17,11 +17,11 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Initialize Express App at the very top to prevent ReferenceErrors
+// 1. Initialize Express App first to prevent ReferenceErrors
 const app = express();
 app.set("json spaces", 2);
 
-// Load .env manually if available
+// 2. Load .env manually if present
 try {
   const envPath = join(__dirname, ".env");
   const envLines = readFileSync(envPath, "utf8").split("\n");
@@ -141,7 +141,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.raw({ type: "*/*", limit: "10mb" }));
 
-// Disable static cache so updates reflect immediately
+// Zero-cache static files so HTML/UI updates appear instantly
 app.use(express.static(join(__dirname, "public"), {
   maxAge: 0,
   etag: false,
@@ -633,7 +633,6 @@ function buildHeaders(req, targetUrl) {
   try {
     const u = new URL(targetUrl);
     h["host"] = u.host;
-    // Strip referrers so CDNs and Arkose verification puzzles do not block images
     h["referer"] = "";
   } catch (e) {
     console.error("[proxy] buildHeaders invalid targetUrl:", e.message);
@@ -1287,8 +1286,8 @@ app.get("/api/search", async (req, res) => {
   // 1. SerpApi: https://serpapi.com/search?engine=google
   if (SERPAPI_KEY) {
     try {
-      const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}&output=json`;
-      const serpRes = await axios.get(serpUrl, { timeout: 6000 });
+      const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}`;
+      const serpRes = await axios.get(serpUrl, { timeout: 4500 });
       if (Array.isArray(serpRes.data?.organic_results) && serpRes.data.organic_results.length > 0) {
         const results = serpRes.data.organic_results.map((item) => ({
           title: item.title || item.link,
@@ -1297,7 +1296,9 @@ app.get("/api/search", async (req, res) => {
         }));
         return res.json({ cached: false, results });
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("[search] SerpApi error, falling back:", e.message);
+    }
   }
 
   // 2. Serper API
@@ -1306,14 +1307,13 @@ app.get("/api/search", async (req, res) => {
       const payload = JSON.stringify({ q, num });
       const serperRes = await axios({
         method: "post",
-        maxBodyLength: Infinity,
         url: "https://google.serper.dev/search",
         headers: {
           "X-API-KEY": SERPER_API_KEY,
           "Content-Type": "application/json",
         },
         data: payload,
-        timeout: 5000,
+        timeout: 4500,
       });
 
       if (Array.isArray(serperRes.data?.organic) && serperRes.data.organic.length > 0) {
@@ -1324,7 +1324,9 @@ app.get("/api/search", async (req, res) => {
         }));
         return res.json({ cached: false, results });
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("[search] Serper error, falling back:", e.message);
+    }
   }
 
   // 3. Fallback to DDG Scraper
@@ -1338,8 +1340,8 @@ app.get("/api/images", async (req, res) => {
   if (!q) return res.json({ images: [] });
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&output=json`;
-      const r = await axios.get(url, { timeout: 6000 });
+      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const r = await axios.get(url, { timeout: 4500 });
       const images = (r.data.images_results || []).map(img => ({
         title: img.title || "",
         original: img.original || img.link,
@@ -1362,8 +1364,8 @@ app.get("/api/youtube", async (req, res) => {
 
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&output=json`;
-      const r = await axios.get(url, { timeout: 5000 });
+      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const r = await axios.get(url, { timeout: 4500 });
       const videos = (r.data.video_results || []).map(vid => ({
         title: vid.title,
         link: vid.link,
@@ -1406,7 +1408,15 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
   if (!rawQ) return res.redirect("/");
 
   let q = rawQ;
-  try { q = dec(rawQ); } catch {}
+  try { 
+    let decoded = dec(rawQ);
+    // Strip salt: 'xxxx||query'
+    if (decoded.includes("||")) {
+      decoded = decoded.split("||")[1] || decoded;
+    }
+    q = decoded;
+  } catch {}
+
   const safeQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   res.type("text/html; charset=utf-8").send(`
@@ -1465,17 +1475,17 @@ a{text-decoration:none;color:inherit;}
 </div>
 <div class="main">
   <div class="meta" id="meta"></div>
-  <div id="results"><div class="spinner"><div class="spin"></div>Searching Google results…</div></div>
+  <div id="results"><div class="spinner"><div class="spin"></div>Searching...</div></div>
 </div>
 <script>
 (function(){
-  var Q = ${JSON.stringify(safeQ)};
+  var Q = ${JSON.stringify(q)};
   var currentEngine = "all";
   var resDiv = document.getElementById("results");
   var metaDiv = document.getElementById("meta");
 
   function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  
+
   function getProxyUrl(raw) {
     if(!raw) return "";
     var customTld = localStorage.getItem("void_tld") || ".www.securly.com";
@@ -1485,38 +1495,44 @@ a{text-decoration:none;color:inherit;}
   }
 
   function fetchAndRender() {
-    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching Google results…</div>";
+    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching...</div>";
     var endpoint = "/api/search?q=" + encodeURIComponent(Q);
     if (currentEngine === "images") endpoint = "/api/images?q=" + encodeURIComponent(Q);
     if (currentEngine === "youtube") endpoint = "/api/youtube?q=" + encodeURIComponent(Q);
 
-    fetch(endpoint).then(function(r){ return r.json(); }).then(function(data){
-      var arr = data.results || data.images || data.videos || [];
-      if(!arr || arr.length === 0) {
-        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#70757a;'>No results found. Try another search query.</div>";
-        metaDiv.innerHTML = "";
-        return;
-      }
-      metaDiv.innerHTML = "<span>About " + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
+    fetch(endpoint)
+      .then(function(r){ 
+        if(!r.ok) throw new Error("Search API returned status " + r.status);
+        return r.json(); 
+      })
+      .then(function(data){
+        var arr = data.results || data.images || data.videos || [];
+        if(!arr || arr.length === 0) {
+          resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#70757a;'>No results found. Try another query.</div>";
+          metaDiv.innerHTML = "";
+          return;
+        }
+        metaDiv.innerHTML = "<span>About " + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
 
-      if(currentEngine === "images") {
-        resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
-          return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.link)+"\"><img src=\""+getProxyUrl(img.thumbnail)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
-        }).join("") + "</div>";
-      } else if(currentEngine === "youtube") {
-        resDiv.innerHTML = arr.map(function(vid){
-          return "<a class=\"result\" href=\""+getProxyUrl(vid.link)+"\"><div class=\"result-title\">"+esc(vid.title)+"</div><div class=\"result-head\"><span class=\"domain\">"+esc(vid.channel)+" • "+esc(vid.views)+"</span></div></a>";
-        }).join("");
-      } else {
-        resDiv.innerHTML = arr.map(function(r){
-          var domain = ""; try { domain = new URL(r.url||r.link).hostname; } catch(e){}
-          var fav = domain ? "<img class=\"fav\" src=\"https://icons.duckduckgo.com/ip3/"+encodeURIComponent(domain)+".ico\" onerror=\"this.style.display='none'\"/>" : "";
-          return "<a class=\"result\" href=\""+getProxyUrl(r.url||r.link)+"\"><div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div><div class=\"result-title\">"+esc(r.title)+"</div><div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
-        }).join("");
-      }
-    }).catch(function(){
-      resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#d93025;'>Error retrieving search results. Please try again.</div>";
-    });
+        if(currentEngine === "images") {
+          resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
+            return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.link)+"\"><img src=\""+getProxyUrl(img.thumbnail)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
+          }).join("") + "</div>";
+        } else if(currentEngine === "youtube") {
+          resDiv.innerHTML = arr.map(function(vid){
+            return "<a class=\"result\" href=\""+getProxyUrl(vid.link)+"\"><div class=\"result-title\">"+esc(vid.title)+"</div><div class=\"result-head\"><span class=\"domain\">"+esc(vid.channel)+" • "+esc(vid.views)+"</span></div></a>";
+          }).join("");
+        } else {
+          resDiv.innerHTML = arr.map(function(r){
+            var domain = ""; try { domain = new URL(r.url||r.link).hostname; } catch(e){}
+            var fav = domain ? "<img class=\"fav\" src=\"https://icons.duckduckgo.com/ip3/"+encodeURIComponent(domain)+".ico\" onerror=\"this.style.display='none'\"/>" : "";
+            return "<a class=\"result\" href=\""+getProxyUrl(r.url||r.link)+"\"><div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div><div class=\"result-title\">"+esc(r.title)+"</div><div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
+          }).join("");
+        }
+      })
+      .catch(function(err){
+        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#d93025;'>Failed to load results: " + esc(err.message) + "</div>";
+      });
   }
 
   document.querySelectorAll(".tab").forEach(function(t){
