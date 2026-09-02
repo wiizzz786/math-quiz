@@ -17,7 +17,7 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Initialize Express App first to prevent ReferenceErrors
+// Initialize Express App at the very top to prevent ReferenceErrors
 const app = express();
 app.set("json spaces", 2);
 
@@ -34,7 +34,7 @@ try {
     const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
     if (key && !(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env is optional */ }
+} catch { /* .env optional */ }
 
 const SERPER_API_KEY = process.env.SERPER_API_KEY || "b0bc542c982089c356327a42e18db7fe42815dfc";
 const SERPAPI_KEY = process.env.SERPAPI_KEY || "707a83bd5fcf248d7e6b242a8f458677fa5e1c6e34c618bc596103d59c87665e";
@@ -141,14 +141,16 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.raw({ type: "*/*", limit: "10mb" }));
 
+// Disable static cache so updates reflect immediately
 app.use(express.static(join(__dirname, "public"), {
-  maxAge: "1d",
-  etag: true,
-  lastModified: true,
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
   setHeaders: (res, path) => {
     if (path.endsWith("sw.js")) {
       res.setHeader("Service-Worker-Allowed", "/");
     }
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   }
 }));
 
@@ -493,7 +495,7 @@ function proxyBar(displayUrl) {
   const safe = displayUrl.replace(/&/g, "&amp;").replace(/'/g, "&#39;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   let domain = "";
   try { domain = new URL(displayUrl).hostname; } catch {}
-  const favicon = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32` : "";
+  const favicon = domain ? `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico` : "";
   const faviconHtml = favicon
     ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'" alt=""/>`
     : "";
@@ -504,7 +506,7 @@ function proxyBar(displayUrl) {
     position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647;
     height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
     background: #ffffff; border-bottom: 1px solid #000000;
-    font-family: 'Times New Roman', Times, serif; font-size: 14px; color: #000000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #000000;
     box-sizing: border-box; transition: transform 0.25s ease-in-out;
   }
   #__vbar.vbar-hidden { transform: translateY(-100%); }
@@ -515,18 +517,18 @@ function proxyBar(displayUrl) {
 </style>
 <div id="__vbar-trigger"></div>
 <div id="__vbar">
-  <a href="/" style="color:#000000;font-weight:bold;text-decoration:none;font-size:18px;text-transform:uppercase;">void</a>
-  <span style="color:#555555;font-size:14px;margin-left:4px;white-space:nowrap;">Go Anywhere</span>
-  <button onclick="history.back()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Back">&larr;</button>
-  <button onclick="history.forward()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Forward">&rarr;</button>
-  <button onclick="location.reload()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;font-family:'Times New Roman',Times,serif;" title="Reload">&#8635;</button>
+  <a href="/" style="color:#000000;font-weight:bold;text-decoration:none;font-size:16px;text-transform:uppercase;">void</a>
+  <span style="color:#555555;font-size:13px;margin-left:4px;white-space:nowrap;">Go Anywhere</span>
+  <button onclick="history.back()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Back">&larr;</button>
+  <button onclick="history.forward()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Forward">&rarr;</button>
+  <button onclick="location.reload()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Reload">&#8635;</button>
   <form action="/v" method="GET" style="flex:1;display:flex;align-items:center;background:#ffffff;border:1px solid #000000;padding:2px 8px;gap:6px;margin:0;">
     <input type="hidden" name="mode" value="server" />
     ${faviconHtml}
-    <input type="text" name="q" value="${safe}" style="flex:1;border:none;outline:none;background:transparent;font-family:'Times New Roman',Times,serif;font-size:13px;color:#000000;min-width:0;" autocomplete="off" spellcheck="false" />
+    <input type="text" name="q" value="${safe}" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;color:#000000;min-width:0;" autocomplete="off" spellcheck="false" />
   </form>
   <a href="/" style="padding:2px 10px;background:#eeeeee;color:#000000;text-decoration:none;border:1px solid #000000;">Home</a>
-  <button onclick="document.getElementById('__vbar').classList.add('vbar-hidden')" style="padding:2px 8px;background:#eeeeee;color:#000000;border:1px solid #000000;cursor:pointer;font-family:'Times New Roman',Times,serif;" aria-label="Close toolbar">&#x2715;</button>
+  <button onclick="document.getElementById('__vbar').classList.add('vbar-hidden')" style="padding:2px 8px;background:#eeeeee;color:#000000;border:1px solid #000000;cursor:pointer;" aria-label="Close toolbar">&#x2715;</button>
 </div>
 <script>
   (function(){
@@ -620,18 +622,19 @@ function buildHeaders(req, targetUrl) {
   for (const [k, v] of Object.entries(req.headers)) {
     const kl = k.toLowerCase();
     if (HOP_HEADERS.has(kl)) continue;
-    if (kl === "referer" || kl === "origin" || kl === "host" || kl === "cookie") continue;
-    if (kl.startsWith("x-vercel-") || kl.startsWith("x-forwarded-") || kl === "forwarded" || kl === "via" || kl === "x-real-ip" || kl.startsWith("x-void-")) continue;
+    if (
+      kl === "referer" || kl === "origin" || kl === "host" || kl === "cookie" ||
+      kl.startsWith("x-vercel-") || kl.startsWith("x-forwarded-") ||
+      kl === "forwarded" || kl === "via" || kl === "x-real-ip" ||
+      kl.startsWith("x-void-") || kl.startsWith("sec-ch-ua")
+    ) continue;
     h[k] = v;
   }
   try {
     const u = new URL(targetUrl);
     h["host"] = u.host;
-    if (u.hostname.includes("bing.com") || u.hostname.includes("poki.com")) {
-      h["referer"] = "";
-    } else {
-      h["referer"] = u.origin + "/";
-    }
+    // Strip referrers so CDNs and Arkose verification puzzles do not block images
+    h["referer"] = "";
   } catch (e) {
     console.error("[proxy] buildHeaders invalid targetUrl:", e.message);
   }
@@ -640,9 +643,13 @@ function buildHeaders(req, targetUrl) {
   if (scoped) h["cookie"] = scoped;
 
   h["user-agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-  h["sec-ch-ua"] = '"Chromium";v="131", "Not_A Brand";v="24", "Google Chrome";v="131"';
-  h["sec-ch-ua-mobile"] = "?0";
-  h["sec-ch-ua-platform"] = '"Windows"';
+  h["accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
+  h["accept-language"] = "en-US,en;q=0.9";
+  h["sec-fetch-dest"] = "document";
+  h["sec-fetch-mode"] = "navigate";
+  h["sec-fetch-site"] = "none";
+  h["sec-fetch-user"] = "?1";
+  h["upgrade-insecure-requests"] = "1";
 
   if (req.headers.range) h["range"] = req.headers.range;
   h["accept-encoding"] = "gzip, deflate, br";
@@ -1200,37 +1207,9 @@ function handlePeWsUpgrade(req, socket, head) {
 const SEARCH_ENGINES = {
   brave:  q => "https://search.brave.com/search?q=" + encodeURIComponent(q),
   bing:   q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
-  google: q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
+  google: q => "https://www.google.com/search?q=" + encodeURIComponent(q),
   ddg:    q => "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q),
 };
-
-async function fetchBingFallback(q, num = 10) {
-  try {
-    const res = await axios.get(`https://www.bing.com/search?q=${encodeURIComponent(q)}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.bing.com/"
-      },
-      timeout: 6000
-    });
-    const $ = cheerio.load(res.data);
-    const results = [];
-    $("#b_results .b_algo").each((_, el) => {
-      const a = $(el).find("h2 a").first();
-      const title = a.text().trim();
-      const url = a.attr("href");
-      const snippet = $(el).find(".b_caption p").text().trim();
-      if (url && /^https?:\/\//i.test(url)) {
-        results.push({ title: title || url, url, snippet });
-      }
-      if (results.length >= num) return false;
-    });
-    return results;
-  } catch {
-    return [];
-  }
-}
 
 async function fetchDdgFallback(q, num = 10) {
   try {
@@ -1299,15 +1278,17 @@ async function fetchYouTubeDirect(q) {
   }
 }
 
+// Fixed SerpApi Endpoint: Uses https://serpapi.com/search?engine=google
 app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
   const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
 
+  // 1. SerpApi: https://serpapi.com/search?engine=google
   if (SERPAPI_KEY) {
     try {
-      const serpUrl = `https://serpapi.com/search.json?engine=bing&q=${encodeURIComponent(q)}&count=${num}&api_key=${SERPAPI_KEY}`;
-      const serpRes = await axios.get(serpUrl, { timeout: 5000 });
+      const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}&output=json`;
+      const serpRes = await axios.get(serpUrl, { timeout: 6000 });
       if (Array.isArray(serpRes.data?.organic_results) && serpRes.data.organic_results.length > 0) {
         const results = serpRes.data.organic_results.map((item) => ({
           title: item.title || item.link,
@@ -1316,9 +1297,10 @@ app.get("/api/search", async (req, res) => {
         }));
         return res.json({ cached: false, results });
       }
-    } catch {}
+    } catch (e) {}
   }
 
+  // 2. Serper API
   if (SERPER_API_KEY) {
     try {
       const payload = JSON.stringify({ q, num });
@@ -1342,24 +1324,21 @@ app.get("/api/search", async (req, res) => {
         }));
         return res.json({ cached: false, results });
       }
-    } catch {}
+    } catch (e) {}
   }
 
-  const bingResults = await fetchBingFallback(q, num);
-  if (bingResults.length > 0) {
-    return res.json({ cached: false, results: bingResults });
-  }
-
+  // 3. Fallback to DDG Scraper
   const ddgResults = await fetchDdgFallback(q, num);
   return res.json({ cached: false, results: ddgResults });
 });
 
+// Fixed SerpApi Image Endpoint: Uses https://serpapi.com/search?engine=google_images
 app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search.json?engine=bing_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&output=json`;
       const r = await axios.get(url, { timeout: 6000 });
       const images = (r.data.images_results || []).map(img => ({
         title: img.title || "",
@@ -1383,7 +1362,7 @@ app.get("/api/youtube", async (req, res) => {
 
   if (SERPAPI_KEY) {
     try {
-      const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
+      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&output=json`;
       const r = await axios.get(url, { timeout: 5000 });
       const videos = (r.data.video_results || []).map(vid => ({
         title: vid.title,
@@ -1440,32 +1419,33 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
 <title>${safeQ} — Void Search</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#ffffff;color:#000000;font-family:'Times New Roman',Times,serif;min-height:100vh;}
+body{background:#ffffff;color:#202124;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;}
 a{text-decoration:none;color:inherit;}
-.topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:#ffffff;border-bottom:1px solid #000000;position:sticky;top:0;z-index:100;}
-.topbar .logo{font-size:1.2rem;font-weight:bold;color:#000000;text-transform:uppercase;}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#ffffff;border-bottom:1px solid #dfe1e5;position:sticky;top:0;z-index:100;}
+.topbar .logo{font-size:1.4rem;font-weight:bold;color:#4285f4;text-transform:lowercase;letter-spacing:-1px;}
 .topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
-.topbar input{flex:1;background:#ffffff;border:1px solid #000000;color:#000000;font-family:'Times New Roman',Times,serif;font-size:1rem;padding:6px 10px;outline:none;}
-.topbar button{padding:6px 14px;background:#eeeeee;border:1px solid #000000;color:#000000;font-weight:bold;font-size:.9rem;cursor:pointer;}
-.topbar .back{padding:6px 12px;background:#eeeeee;border:1px solid #000000;color:#000000;font-size:.9rem;text-decoration:none;display:inline-flex;}
-.tabs{display:flex;gap:16px;padding:12px 20px 0;border-bottom:1px solid #000000;max-width:760px;margin:0 auto 20px;overflow-x:auto;}
-.tab{font-size:.95rem;color:#555555;cursor:pointer;padding-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;}
-.tab.active{color:#000000;font-weight:bold;border-bottom:3px solid #000000;}
+.topbar input{flex:1;background:#ffffff;border:1px solid #dfe1e5;color:#202124;border-radius:24px;font-size:.95rem;padding:8px 16px;outline:none;box-shadow:0 1px 4px rgba(32,33,36,0.1);}
+.topbar input:focus{border-color:transparent;box-shadow:0 1px 6px rgba(32,33,36,0.28);}
+.topbar button{padding:8px 18px;background:#f8f9fa;border:1px solid #f8f9fa;color:#3c4043;font-weight:600;font-size:.85rem;border-radius:4px;cursor:pointer;}
+.topbar button:hover{background:#f1f3f4;border-color:#dadce0;color:#202124;}
+.topbar .back{padding:6px 12px;background:#f8f9fa;border:1px solid #dadce0;border-radius:4px;color:#3c4043;font-size:.85rem;text-decoration:none;display:inline-flex;}
+.tabs{display:flex;gap:16px;padding:10px 20px 0;border-bottom:1px solid #ebebeb;max-width:760px;margin:0 auto 16px;overflow-x:auto;}
+.tab{font-size:.9rem;color:#5f6368;cursor:pointer;padding-bottom:8px;white-space:nowrap;}
+.tab.active{color:#1a73e8;font-weight:500;border-bottom:3px solid #1a73e8;}
 .main{max-width:760px;margin:0 auto;padding:0 20px 60px;}
-.meta{font-size:.9rem;color:#555555;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
-.result{display:block;padding:16px 0;border-bottom:1px solid #dddddd;margin-bottom:12px;}
-.result:hover{background:#f9f9f9;}
-.result-head{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
-.fav{width:14px;height:14px;}
-.domain{font-size:.8rem;color:#555555;}
-.result-title{font-size:1.1rem;font-weight:bold;color:#0000cc;margin-bottom:4px;}
+.meta{font-size:.85rem;color:#70757a;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.result{display:block;padding:12px 0;margin-bottom:12px;}
+.result-head{display:flex;align-items:center;gap:7px;margin-bottom:2px;}
+.fav{width:16px;height:16px;border-radius:2px;}
+.domain{font-size:.8rem;color:#202124;}
+.result-title{font-size:1.15rem;font-weight:400;color:#1a0dab;line-height:1.3;margin-bottom:3px;}
 .result:hover .result-title{text-decoration:underline;}
-.result-snippet{font-size:.9rem;color:#333333;line-height:1.4;}
-.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
-.img-card{display:flex;flex-direction:column;border:1px solid #dddddd;padding:8px;text-align:center;}
-.img-card img{width:100%;height:120px;object-fit:cover;margin-bottom:8px;}
-.spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;}
-.spin{width:18px;height:18px;border-radius:50%;border:2px solid #000;border-top-color:transparent;animation:sp .8s linear infinite;}
+.result-snippet{font-size:.88rem;color:#4d5156;line-height:1.5;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
+.img-card{display:flex;flex-direction:column;border:1px solid #dadce0;border-radius:8px;overflow:hidden;padding:6px;text-align:center;background:#fff;}
+.img-card img{width:100%;height:110px;object-fit:cover;border-radius:4px;margin-bottom:6px;}
+.spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:#70757a;}
+.spin{width:20px;height:20px;border-radius:50%;border:2px solid #4285f4;border-top-color:transparent;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -1475,7 +1455,7 @@ a{text-decoration:none;color:inherit;}
   <a class="back" href="javascript:history.back()">← Back</a>
   <form id="sf" action="/s" method="get">
     <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
-    <button type="submit">SEARCH</button>
+    <button type="submit">Search</button>
   </form>
 </div>
 <div class="tabs" id="tabs">
@@ -1485,7 +1465,7 @@ a{text-decoration:none;color:inherit;}
 </div>
 <div class="main">
   <div class="meta" id="meta"></div>
-  <div id="results"><div class="spinner"><div class="spin"></div>Searching…</div></div>
+  <div id="results"><div class="spinner"><div class="spin"></div>Searching Google results…</div></div>
 </div>
 <script>
 (function(){
@@ -1505,7 +1485,7 @@ a{text-decoration:none;color:inherit;}
   }
 
   function fetchAndRender() {
-    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching…</div>";
+    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching Google results…</div>";
     var endpoint = "/api/search?q=" + encodeURIComponent(Q);
     if (currentEngine === "images") endpoint = "/api/images?q=" + encodeURIComponent(Q);
     if (currentEngine === "youtube") endpoint = "/api/youtube?q=" + encodeURIComponent(Q);
@@ -1513,11 +1493,11 @@ a{text-decoration:none;color:inherit;}
     fetch(endpoint).then(function(r){ return r.json(); }).then(function(data){
       var arr = data.results || data.images || data.videos || [];
       if(!arr || arr.length === 0) {
-        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#666;'>No results found. Try another search query.</div>";
+        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#70757a;'>No results found. Try another search query.</div>";
         metaDiv.innerHTML = "";
         return;
       }
-      metaDiv.innerHTML = "<span>" + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
+      metaDiv.innerHTML = "<span>About " + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
 
       if(currentEngine === "images") {
         resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
@@ -1530,12 +1510,12 @@ a{text-decoration:none;color:inherit;}
       } else {
         resDiv.innerHTML = arr.map(function(r){
           var domain = ""; try { domain = new URL(r.url||r.link).hostname; } catch(e){}
-          var fav = domain ? "<img class=\"fav\" src=\"https://www.google.com/s2/favicons?domain="+encodeURIComponent(domain)+"&sz=32\"/>" : "";
+          var fav = domain ? "<img class=\"fav\" src=\"https://icons.duckduckgo.com/ip3/"+encodeURIComponent(domain)+".ico\" onerror=\"this.style.display='none'\"/>" : "";
           return "<a class=\"result\" href=\""+getProxyUrl(r.url||r.link)+"\"><div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div><div class=\"result-title\">"+esc(r.title)+"</div><div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
         }).join("");
       }
-    }).catch(function(err){
-      resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#c00;'>Error retrieving search results. Please try again.</div>";
+    }).catch(function(){
+      resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#d93025;'>Error retrieving search results. Please try again.</div>";
     });
   }
 
@@ -1596,7 +1576,9 @@ app.get(["/go", "/v"], (req, res) => {
 app.all("/p/:encoded", handleProxy);
 app.all("/pe/:encoded", handleExperimentalProxy);
 
+// Explicit root route with no-cache headers
 app.get("/", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.sendFile(join(__dirname, "public", "index.html"));
 });
 
