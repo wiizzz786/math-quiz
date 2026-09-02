@@ -36,9 +36,9 @@ try {
   }
 } catch { /* .env optional */ }
 
-// Updated API Keys
-const SERPER_API_KEY = process.env.SERPER_API_KEY || "96ef703c5a984087898d14fc4851fc0dd75eba1f";
-const SERPAPI_KEY = process.env.SERPAPI_KEY || "8d8c1732f241e73b4aa0984b86798a5779ba530e744f8c45a3adb6b405fb3b0d";
+// API Keys read strictly from environment variables
+const SERPER_API_KEY = process.env.SERPER_API_KEY || "";
+const SERPAPI_KEY = process.env.SERPAPI_KEY || "";
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
@@ -1278,7 +1278,7 @@ async function fetchYouTubeDirect(q) {
   }
 }
 
-// Fixed Search Endpoint: Serper (Primary) -> SerpApi -> DuckDuckGo Scraper
+// Search Endpoint: Serper (Primary) -> SerpApi -> DuckDuckGo Scraper
 app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
@@ -1336,7 +1336,7 @@ app.get("/api/search", async (req, res) => {
   return res.json({ cached: false, results: ddgResults });
 });
 
-// Fixed Image Endpoint: SerpApi -> Serper -> Fallback
+// Image Endpoint: SerpApi -> Serper -> Fallback
 app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
