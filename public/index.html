@@ -3,67 +3,466 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>NoodalMath</title>
+  <title>Google</title>
+  <link rel="icon" href="https://www.google.com/favicon.ico" type="image/x-icon"/>
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: 'Times New Roman', Times, serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #ffffff;
+      color: #202124;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Top Browser Header ── */
+    #browser-header {
+      background: #dfe1e5;
+      border-bottom: 1px solid #c1c4c8;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    .tab-strip {
+      display: flex;
+      align-items: flex-end;
+      padding: 6px 8px 0;
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .b-tab {
+      background: #ced0d4;
+      padding: 6px 14px;
+      border-radius: 8px 8px 0 0;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: #474747;
+      max-width: 180px;
+    }
+
+    .b-tab.active {
+      background: #ffffff;
+      color: #202124;
+      font-weight: 500;
+    }
+
+    .b-tab-add {
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 50%;
+      color: #5f6368;
+    }
+    .b-tab-add:hover { background: #d0d2d6; }
+
+    .nav-toolbar {
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-bottom: 1px solid #edeef0;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      font-size: 14px;
+      color: #5f6368;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    .nav-btn:hover { background: #f1f3f4; }
+
+    .top-address-bar {
+      flex: 1;
+      background: #f1f3f4;
+      border-radius: 20px;
+      padding: 4px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .top-address-bar input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 13px;
+      color: #202124;
+    }
+
+    .bookmarks-bar {
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 16px 6px;
+      border-bottom: 1px solid #f1f3f4;
+      font-size: 12px;
+      overflow-x: auto;
+    }
+
+    .bm-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #3c4043;
+      text-decoration: none;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .bm-item:hover { background: #f1f3f4; }
+    .bm-item img { width: 14px; height: 14px; border-radius: 2px; }
+
+    /* ── Main Google Center View ── */
+    .page-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      margin-top: -40px;
+    }
+
+    .google-logo {
+      font-size: clamp(3.5rem, 8vw, 5.5rem);
+      font-weight: 700;
+      letter-spacing: -2px;
+      user-select: none;
+      margin-bottom: 24px;
+      display: flex;
+    }
+    .g-blue { color: #4285f4; }
+    .g-red { color: #ea4335; }
+    .g-yellow { color: #fbbc05; }
+    .g-green { color: #34a853; }
+
+    .search-wrapper {
+      width: 100%;
+      max-width: 584px;
+      position: relative;
+    }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 46px;
+      background: #ffffff;
+      border: 1px solid #dfe1e5;
+      border-radius: 24px;
+      padding: 0 16px;
+      box-shadow: 0 1px 6px rgba(32,33,36,0.1);
+      transition: all 0.2s ease-in-out;
+    }
+    .search-bar:hover, .search-bar:focus-within {
+      box-shadow: 0 1px 8px rgba(32,33,36,0.24);
+      border-color: transparent;
+    }
+
+    .search-bar svg {
+      width: 18px;
+      height: 18px;
+      fill: #9aa0a6;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .search-bar input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      background: transparent;
+    }
+
+    #autocomplete-box {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 4px 12px rgba(32,33,36,0.15);
+      border: 1px solid #dfe1e5;
+      border-top: none;
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .ac-pill {
+      display: block;
+      padding: 10px 16px;
+      font-size: 14px;
+      color: #202124;
+      cursor: pointer;
+      text-align: left;
+    }
+    .ac-pill:hover { background: #f8f9fa; }
+
+    .search-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .g-btn {
+      background: #f8f9fa;
+      border: 1px solid #f8f9fa;
+      color: #3c4043;
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .g-btn:hover {
+      box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+      background: #f1f3f4;
+      border-color: #dadce0;
+      color: #202124;
+    }
+
+    .mode-select {
+      display: flex;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #5f6368;
+      align-items: center;
+    }
+
+    .mode-select button {
+      background: none;
+      border: 1px solid transparent;
+      color: #1a0dab;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .mode-select button.active {
+      font-weight: 700;
+      border-color: #dadce0;
+      background: #f8f9fa;
+    }
+
+    .option-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #5f6368;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .option-toggle input {
+      cursor: pointer;
+      accent-color: #4285f4;
+    }
+
+    /* ── Settings & Console Modals ── */
+    .overlay-card {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      width: 320px;
+      padding: 16px;
+      z-index: 10000;
+      font-size: 13px;
+    }
+
+    .overlay-card h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .overlay-card pre {
+      background: #f8f9fa;
+      border: 1px solid #dfe1e5;
+      padding: 6px;
+      height: 90px;
+      overflow-y: auto;
+      font-size: 11px;
+      font-family: monospace;
+      margin-bottom: 8px;
     }
   </style>
 </head>
 <body>
-  <h1>VOID</h1>
-  
+
+  <!-- Top Browser Header -->
+  <header id="browser-header">
+    <div class="tab-strip">
+      <div class="b-tab active">
+        <img src="https://www.google.com/favicon.ico" width="14" height="14" alt=""/>
+        <span>New Tab</span>
+      </div>
+      <button type="button" class="b-tab-add" id="top-btn-new-tab" title="Open Clean Tab">+</button>
+    </div>
+
+    <div class="nav-toolbar">
+      <button class="nav-btn" onclick="history.back()" title="Back">&#8592;</button>
+      <button class="nav-btn" onclick="history.forward()" title="Forward">&#8594;</button>
+      <button class="nav-btn" onclick="location.reload()" title="Reload">&#8635;</button>
+      <div class="top-address-bar">
+        <input type="text" id="top-url-input" placeholder="Search Google or type a URL"/>
+      </div>
+      <button class="nav-btn" id="btn-toggle-settings" title="Settings">&#9881;</button>
+      <button class="nav-btn" id="btn-toggle-console" title="Console" style="padding: 5px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="6" width="8" height="14" rx="4"></rect>
+          <path d="M12 6V3"></path>
+          <path d="M10 3h4"></path>
+          <path d="M5 10l3 1"></path>
+          <path d="M5 14l3-1"></path>
+          <path d="M19 10l-3 1"></path>
+          <path d="M19 14l-3-1"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="bookmarks-bar">
+      <a class="bm-item" href="javascript:void(0)" data-url="https://www.google.com">
+        <img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt=""/> Google
+      </a>
+      <a class="bm-item" href="javascript:void(0)" data-url="https://www.bing.com">
+        <img src="https://www.google.com/s2/favicons?domain=bing.com&sz=32" alt=""/> Bing
+      </a>
+      <a class="bm-item" href="javascript:void(0)" data-url="https://www.youtube.com">
+        <img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=32" alt=""/> YouTube
+      </a>
+      <a class="bm-item" href="javascript:void(0)" data-url="https://discord.com/app">
+        <img src="https://www.google.com/s2/favicons?domain=discord.com&sz=32" alt=""/> Discord
+      </a>
+      <a class="bm-item" href="javascript:void(0)" data-url="https://reddit.com">
+        <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=32" alt=""/> Reddit
+      </a>
+      <a class="bm-item" href="javascript:void(0)" data-url="https://github.com">
+        <img src="https://www.google.com/s2/favicons?domain=github.com&sz=32" alt=""/> GitHub
+      </a>
+    </div>
+  </header>
+
+  <!-- Google Main Homepage Layout -->
+  <main class="page-center">
+    <div class="google-logo">
+      <span class="g-blue">G</span>
+      <span class="g-red">o</span>
+      <span class="g-yellow">o</span>
+      <span class="g-blue">g</span>
+      <span class="g-green">l</span>
+      <span class="g-red">e</span>
+    </div>
+
+    <div class="search-wrapper">
+      <form id="term-form">
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24">
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+          <input type="text" id="term-input" placeholder="Search the web or type a URL..." required autocomplete="off" spellcheck="false"/>
+        </div>
+        <div id="autocomplete-box" style="display:none;"></div>
+      </form>
+    </div>
+
+    <div class="search-actions">
+      <button type="button" class="g-btn" id="btn-submit-search">Search</button>
+      <button type="button" class="g-btn" id="btn-lucky">I'm Feeling Lucky</button>
+    </div>
+
+    <div class="mode-select">
+      <span>Mode:</span>
+      <div id="mode-group">
+        <button type="button" class="t-btn active" data-v="bing">Bing (M)</button>
+        <button type="button" class="t-btn" data-v="google">Google</button>
+      </div>
+    </div>
+
+    <!-- about:blank Cloak Toggle (Default Unchecked) -->
+    <label class="option-toggle" for="chk-about-blank">
+      <input type="checkbox" id="chk-about-blank"/>
+      <span>Open in new about:blank</span>
+    </label>
+  </main>
+
+  <!-- Console Drawer -->
+  <div id="console-overlay" class="overlay-card" style="display:none;">
+    <h3>
+      <span>Live Terminal</span>
+      <button type="button" class="nav-btn" id="btn-close-console">&times;</button>
+    </h3>
+    <pre id="console-out">Ready...</pre>
+    <button type="button" class="g-btn" id="btn-clear" style="padding:4px 8px; font-size:11px;">Clear</button>
+    <button type="button" class="g-btn" id="btn-check-update" style="padding:4px 8px; font-size:11px;">Check Update</button>
+    <div id="update-actions" style="display:none; margin-top:6px;">
+      <button type="button" class="g-btn" id="btn-manual-apply" style="padding:4px 8px; font-size:11px;">Apply Update</button>
+      <button type="button" class="g-btn" id="btn-direct-download" style="padding:4px 8px; font-size:11px;">Download File</button>
+    </div>
+  </div>
+
+  <!-- Settings Drawer -->
+  <div id="settings-overlay" class="overlay-card" style="display:none;">
+    <h3>
+      <span>Settings</span>
+      <button type="button" class="nav-btn" id="btn-close-settings">&times;</button>
+    </h3>
+    <p style="margin-bottom:6px;">UID: <span id="set-uid">...</span></p>
+    <p style="margin-bottom:6px;">Current Mode: <span id="set-mode-lbl">Bing (M)</span></p>
+    <p id="set-upd-status" style="margin-bottom:8px; color:#5f6368;">Standby.</p>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:11px; display:block; margin-bottom:2px;">Masking TLD:</label>
+      <input type="text" id="set-tld" value=".www.securly.com" style="width:100%; padding:4px; border:1px solid #dadce0; border-radius:4px; font-size:12px;"/>
+    </div>
+    <button type="button" class="g-btn" id="btn-save-tld" style="padding:4px 8px; font-size:11px;">Save</button>
+    <button type="button" class="g-btn" id="btn-manual-check" style="padding:4px 8px; font-size:11px;">Check Updates</button>
+  </div>
+
+  <!-- Hidden elements for state preservation -->
   <div style="display:none;">
-    <p>HOST: <span id="s-host">...</span></p>
-    <p>PROTO: <span id="s-proto">...</span></p>
-    <p>MODE: <span id="disp-mode">Mega</span></p>
-    <p>UID: <span id="s-uid">...</span></p>
+    <span id="s-host">...</span>
+    <span id="s-proto">...</span>
+    <span id="disp-mode">Bing (M)</span>
+    <span id="s-uid">...</span>
+    <div id="media-container"></div>
+    <div id="feature-section"></div>
   </div>
-
-  <h2>Search</h2>
-  <form id="term-form">
-    <input type="text" id="term-input" placeholder="search the web or enter target URL..." required autocomplete="off" spellcheck="false" size="50"/>
-    <button type="submit">SEARCH</button>
-    <div id="autocomplete-box" style="display:none;"></div>
-  </form>
-
-  <h2>Mode</h2>
-  <div id="mode-group">
-    <button type="button" class="t-btn active" data-v="megasilly">Mega</button>
-    <button type="button" class="t-btn" data-v="google">Google</button>
-  </div>
-
-  <div id="media-container" style="display:none;"></div>
-
-  <div>
-    <h2>Console</h2>
-    <pre id="console-out" style="border:1px solid #000; padding:10px; height:100px; overflow:auto;">Starting...</pre>
-    
-    <button type="button" id="btn-check-update">Check GitHub Update</button>
-    
-    <div id="update-actions" style="display:none; margin-top:10px;">
-      <button type="button" id="btn-manual-apply">Apply Instant Update</button>
-      <button type="button" id="btn-direct-download">Download new version</button>
-    </div>
-    
-    <div style="display:none;">
-      <button type="button" id="btn-open-settings">Settings</button>
-      <button type="button" id="btn-clear">Clear Console</button>
-    </div>
-  </div>
-
-  <div id="settings-overlay" style="display:none; border:1px solid #000; padding:10px; margin-top:10px;">
-    <h2>Settings & System Info</h2>
-    <p>User ID: <span id="set-uid">...</span></p>
-    <p>Current Mode: <span id="set-mode-lbl">Mega</span></p>
-    <p id="set-upd-status">Status: Standby.</p>
-    <p>Fake TLD: <input type="text" id="set-tld" value=".www.securly.com" size="15"/></p>
-    <button type="button" id="btn-save-tld">Save</button>
-    <button type="button" id="btn-manual-check">Check GitHub Update</button>
-    <button type="button" id="btn-close-settings">Close</button>
-  </div>
-
-  <div id="feature-section" style="display:none;"></div>
 
   <script>
     (function() {
@@ -76,25 +475,48 @@
       var setUidEl = document.getElementById('set-uid');
       var dispMode = document.getElementById('disp-mode');
       var setModeLbl = document.getElementById('set-mode-lbl');
-      var featureSection = document.getElementById('feature-section');
       var consoleOut = document.getElementById('console-out');
       var form = document.getElementById('term-form');
       var input = document.getElementById('term-input');
+      var topInput = document.getElementById('top-url-input');
       var acBox = document.getElementById('autocomplete-box');
-      var mediaContainer = document.getElementById('media-container');
       var settingsOverlay = document.getElementById('settings-overlay');
+      var consoleOverlay = document.getElementById('console-overlay');
       var updStatusEl = document.getElementById('set-upd-status');
       var manualCheckBtn = document.getElementById('btn-manual-check');
       var manualApplyBtn = document.getElementById('btn-manual-apply');
       var directDownloadBtn = document.getElementById('btn-direct-download');
       var tldInput = document.getElementById('set-tld');
       var saveTldBtn = document.getElementById('btn-save-tld');
-      var customTld = localStorage.getItem('void_tld') || '.www.securly.com';
-      if(tldInput) tldInput.value = customTld;
-      if(saveTldBtn) saveTldBtn.addEventListener('click', function() { var v = tldInput.value.trim(); if(!v.startsWith('.')) v = '.' + v; customTld = v; localStorage.setItem('void_tld', v); log('Custom TLD updated to ' + v); if('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js?tld=' + encodeURIComponent(v) + '&v=' + APP_VER); } });
+      var chkAboutBlank = document.getElementById('chk-about-blank');
 
-      var currentMode = 'megasilly'; 
-      var activeFeature = 'web';     
+      // Keep top and middle search inputs synchronized
+      topInput.addEventListener('input', function() { input.value = topInput.value; });
+      input.addEventListener('input', function() { topInput.value = input.value; });
+
+      var savedBlankPref = localStorage.getItem('void_about_blank');
+      chkAboutBlank.checked = (savedBlankPref === 'true');
+
+      chkAboutBlank.addEventListener('change', function() {
+        localStorage.setItem('void_about_blank', chkAboutBlank.checked ? 'true' : 'false');
+      });
+
+      var customTld = localStorage.getItem('void_tld') || '.www.securly.com';
+      if (tldInput) tldInput.value = customTld;
+      if (saveTldBtn) {
+        saveTldBtn.addEventListener('click', function() {
+          var v = tldInput.value.trim();
+          if (!v.startsWith('.')) v = '.' + v;
+          customTld = v;
+          localStorage.setItem('void_tld', v);
+          log('Custom TLD updated to ' + v);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js?tld=' + encodeURIComponent(v) + '&v=' + APP_VER);
+          }
+        });
+      }
+
+      var currentMode = 'bing'; 
 
       var isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('now.sh');
       hostEl.textContent = isVercel ? 'vercel.app' : (window.location.hostname || 'localhost');
@@ -123,18 +545,48 @@
         consoleOut.scrollTop = consoleOut.scrollHeight;
       }
 
-      function toggleSettings() {
-        var isShown = (settingsOverlay.style.display === 'block');
-        settingsOverlay.style.display = isShown ? 'none' : 'block';
-        if (!isShown) {
-          log('Opened Settings menu.');
-          checkGitHubUpdate();
-        }
-      }
-
-      document.getElementById('btn-open-settings').addEventListener('click', toggleSettings);
+      document.getElementById('btn-toggle-settings').addEventListener('click', function() {
+        settingsOverlay.style.display = settingsOverlay.style.display === 'block' ? 'none' : 'block';
+        if (settingsOverlay.style.display === 'block') checkGitHubUpdate();
+      });
       document.getElementById('btn-close-settings').addEventListener('click', function() {
         settingsOverlay.style.display = 'none';
+      });
+
+      document.getElementById('btn-toggle-console').addEventListener('click', function() {
+        consoleOverlay.style.display = consoleOverlay.style.display === 'block' ? 'none' : 'block';
+      });
+      document.getElementById('btn-close-console').addEventListener('click', function() {
+        consoleOverlay.style.display = 'none';
+      });
+
+      document.getElementById('btn-submit-search').addEventListener('click', function() {
+        form.dispatchEvent(new Event('submit'));
+      });
+      document.getElementById('btn-lucky').addEventListener('click', function() {
+        input.value = 'https://news.ycombinator.com';
+        topInput.value = input.value;
+        form.dispatchEvent(new Event('submit'));
+      });
+
+      document.querySelectorAll('.bm-item').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          var url = this.getAttribute('data-url');
+          if (url) {
+            input.value = url;
+            topInput.value = url;
+            form.dispatchEvent(new Event('submit'));
+          }
+        });
+      });
+
+      topInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.value = topInput.value;
+          form.dispatchEvent(new Event('submit'));
+        }
       });
 
       function parseVer(v) {
@@ -158,91 +610,62 @@
 
       function checkGitHubUpdate() {
         log('Checking for updates...');
-        updStatusEl.textContent = 'Status: Checking GitHub repo...';
+        updStatusEl.textContent = 'Status: Checking GitHub...';
         fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/package.json?t=' + Date.now(), { cache: 'no-store' })
           .then(function(res) { return res.ok ? res.json() : null; })
           .then(function(pkg) {
             if (!pkg || !pkg.version) {
-              updStatusEl.textContent = 'Status: Unable to fetch GitHub release info.';
+              updStatusEl.textContent = 'Status: Fetch failed.';
               log('Update check failed.');
               return;
             }
-            log('GitHub Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
+            log('Remote Version: v' + pkg.version + ' (Local: v' + APP_VER + ')');
             if (isNewerVer(pkg.version, APP_VER)) {
-              updStatusEl.textContent = '[UPDATE AVAILABLE: v' + pkg.version + '] Press Apply Instant Update or Download!';
-              log('>>> NEW UPDATE FOUND: v' + pkg.version + ' <<<');
+              updStatusEl.textContent = '[UPDATE AVAILABLE: v' + pkg.version + ']';
+              var ua = document.getElementById('update-actions');
+              if (ua) ua.style.display = 'block';
             } else {
-              updStatusEl.textContent = 'System is fully up to date (v' + APP_VER + ').';
-              log('System up to date (v' + APP_VER + ').');
+              updStatusEl.textContent = 'System is up to date (v' + APP_VER + ').';
             }
           })
           .catch(function(err) {
-            updStatusEl.textContent = 'Status: Update check failed (' + err.message + ')';
-            log('Update check error: ' + err.message);
+            updStatusEl.textContent = 'Error: ' + err.message;
           });
       }
 
       function applyManualUpdate() {
-        log('[MANUAL UPDATE]: Fetching raw void.html from GitHub main branch...');
-        updStatusEl.textContent = '[UPDATE IN PROGRESS]: Fetching latest code from GitHub...';
-        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
+        var filename = location.pathname.split('/').pop() || 'index.html';
+        if (!filename.includes('.html')) filename = 'index.html';
+        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + (filename === 'index.html' ? 'public/index.html' : filename) + '?t=' + Date.now();
         fetch(rawUrl)
-          .then(function(res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.text();
-          })
+          .then(function(res) { return res.text(); })
           .then(function(html) {
-            log('[MANUAL UPDATE SUCCESS]: Received fresh void.html (' + html.length + ' bytes).');
-            updStatusEl.textContent = '[UPDATE APPLIED]: Reloading client...';
-            try {
-              document.open();
-              document.write(html);
-              document.close();
-              log('[MANUAL UPDATE COMPLETE]: Client updated and reloaded with latest code!');
-            } catch(e) {
-              window.location.href = window.location.pathname + '?v=' + Date.now();
-            }
-          })
-          .catch(function(err) {
-            log('[MANUAL UPDATE ERROR]: Failed to fetch raw update (' + err.message + ').');
-            updStatusEl.textContent = '[UPDATE FAILED]: ' + err.message;
+            document.open();
+            document.write(html);
+            document.close();
           });
       }
 
       function directDownloadFile() {
-        log('[DIRECT DOWNLOAD]: Fetching latest void.html code from GitHub for file download...');
-        updStatusEl.textContent = '[DOWNLOAD]: Preparing void.html download file...';
-        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/void.html?t=' + Date.now();
+        var filename = location.pathname.split('/').pop() || 'index.html';
+        if (!filename.includes('.html')) filename = 'index.html';
+        var rawUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + (filename === 'index.html' ? 'public/index.html' : filename) + '?t=' + Date.now();
         fetch(rawUrl)
-          .then(function(res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.text();
-          })
+          .then(function(res) { return res.text(); })
           .then(function(html) {
             var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
             var a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'void.html';
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            log('[DIRECT DOWNLOAD SUCCESS]: void.html file downloaded directly to your device!');
-            updStatusEl.textContent = '[DOWNLOAD COMPLETE]: void.html saved to device!';
-          })
-          .catch(function(err) {
-            log('[DIRECT DOWNLOAD ERROR]: ' + err.message);
-            updStatusEl.textContent = '[DOWNLOAD FAILED]: ' + err.message;
           });
       }
 
       if (manualCheckBtn) manualCheckBtn.addEventListener('click', checkGitHubUpdate);
       if (manualApplyBtn) manualApplyBtn.addEventListener('click', applyManualUpdate);
       if (directDownloadBtn) directDownloadBtn.addEventListener('click', directDownloadFile);
-      document.getElementById('btn-check-update').addEventListener('click', function() {
-        checkGitHubUpdate();
-        var ua = document.getElementById('update-actions');
-        if (ua) ua.style.display = 'block';
-      });
 
       var acTimer = null;
       input.addEventListener('input', function() {
@@ -262,7 +685,7 @@
                 return;
               }
               acBox.innerHTML = list.slice(0, 6).map(function(s) {
-                return '<span class="ac-pill" data-val="' + s.replace(/"/g, '&quot;') + '" style="cursor:pointer; margin-right:5px; border:1px solid #ccc; padding:2px;">' + s + '</span>';
+                return '<div class="ac-pill" data-val="' + s.replace(/"/g, '&quot;') + '">' + s + '</div>';
               }).join('');
               acBox.style.display = 'block';
             })
@@ -274,20 +697,10 @@
         var pill = e.target.closest('.ac-pill');
         if (!pill) return;
         input.value = pill.dataset.val;
+        topInput.value = pill.dataset.val;
         acBox.style.display = 'none';
         form.dispatchEvent(new Event('submit'));
       });
-
-      (function bootSequence() {
-      if ("serviceWorker" in navigator) {
-        var swTld = localStorage.getItem("void_tld") || ".www.securly.com";
-        navigator.serviceWorker.register("/sw.js?tld=" + encodeURIComponent(swTld) + "&v=" + APP_VER)
-          .then(function(reg) { log("Service Worker registered (Scope: " + reg.scope + ")"); })
-          .catch(function(err) { log("Service Worker failed: " + err); });
-      }
-  
-        setTimeout(checkGitHubUpdate, 400);
-      })();
 
       function bindGroup(id, onSelect) {
         var el = document.getElementById(id);
@@ -302,11 +715,9 @@
 
       bindGroup('mode-group', function(val) {
         currentMode = val;
-        dispMode.textContent = val === 'megasilly' ? 'Mega' : 'Google';
-        setModeLbl.textContent = val === 'megasilly' ? 'Mega' : 'Google';
-        if (featureSection) featureSection.style.display = val === 'megasilly' ? 'block' : 'none';
-        mediaContainer.style.display = 'none';
-        log('Active Mode set to: ' + (val === 'megasilly' ? 'Mega' : 'Google'));
+        var label = val === 'bing' ? 'Bing (M)' : 'Google';
+        dispMode.textContent = label;
+        setModeLbl.textContent = label;
       });
 
       document.getElementById('btn-clear').addEventListener('click', function() {
@@ -316,7 +727,7 @@
       function encryptUrl(str) {
         if (!str) return '';
         var salt = Math.random().toString(36).substring(2, 6);
-        while(salt.length<4) salt+="x";
+        while(salt.length < 4) salt += "x";
         var u = salt + "||" + str;
         var key = "Void2026";
         var out = [];
@@ -330,219 +741,168 @@
 
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        var rawVal = input.value.trim();
+        var rawVal = (input.value || topInput.value || '').trim();
         if (!rawVal) return;
         acBox.style.display = 'none';
 
         var targetUrl = '';
         var isDirectUrl = /^https?:\/\//i.test(rawVal) || (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(rawVal) && !rawVal.includes(' '));
+
         if (isDirectUrl) {
           var target = /^https?:\/\//i.test(rawVal) ? rawVal : ('https://' + rawVal);
-          log('Opening direct URL via Void Proxy: ' + target);
-          var encryptedTarget = encryptUrl(target);
-          targetUrl = '/v?q=' + encodeURIComponent(encryptedTarget) + '&mode=server';
-        } else if (currentMode === 'google') {
-          log('Executing Google Mode Search (No API) for: "' + rawVal + '"...');
-          var googleSearchUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(rawVal);
-          var encryptedVal = encryptUrl(googleSearchUrl);
-          targetUrl = '/v?q=' + encodeURIComponent(encryptedVal) + '&mode=server';
+          targetUrl = '/v?q=' + encodeURIComponent(encryptUrl(target)) + '&mode=server';
         } else {
-          log('Executing Mega Search (Randomized SerpApi + Serper) for: "' + rawVal + '"...');
-          var encryptedVal = encryptUrl(rawVal);
-          targetUrl = '/s?q=' + encodeURIComponent(encryptedVal);
+          targetUrl = '/s?q=' + encodeURIComponent(encryptUrl(rawVal));
         }
 
-        var win = window.open('about:blank', '_blank');
-        if (win) {
-          win.document.title = 'Classes';
-          var link = win.document.createElement('link');
-          link.type = 'image/svg+xml';
-          link.rel = 'shortcut icon';
-          link.href = '` + window.location.origin + `/favicon.svg';
-          win.document.head.appendChild(link);
-          
-          win.document.body.innerHTML = `
-            <style>
-              body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: 'Times New Roman', Times, serif; }
-              #tab-bar { display: flex; background: #eee; border-bottom: 1px solid #000; padding: 4px 8px; gap: 4px; align-items: center; overflow-x: auto; flex-shrink: 0; }
-              .tab { padding: 4px 12px; border: 1px solid #000; background: #fff; cursor: pointer; display: flex; gap: 6px; align-items: center; max-width: 200px; white-space: nowrap; overflow: hidden; font-size: 14px; user-select: none; }
-              .tab.active { background: #ddd; font-weight: bold; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-              .tab-close { cursor: pointer; font-weight: bold; margin-left: auto; padding-left: 8px; color: #555; }
-              .tab-close:hover { color: #000; }
-              .new-tab { cursor: pointer; padding: 4px 10px; border: 1px solid #000; background: #fff; font-weight: bold; font-size: 16px; user-select: none; }
-              .new-tab:hover { background: #eee; }
-              #iframes { flex: 1; position: relative; }
-              iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: none; }
-              iframe.active { display: block; }
-            </style>
-            <div id="tab-bar">
-              <div class="new-tab" id="btn-new-tab" title="New Tab">+</div>
-            </div>
-            <div id="iframes"></div>
-          `;
-          
-          var script = win.document.createElement('script');
-          script.textContent = `
-            function D(encoded) {
-              try {
-                let b64 = encoded;
-                const tldIndex = b64.lastIndexOf(".");
-                if (tldIndex > 0) b64 = b64.substring(0, tldIndex);
-                b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
-                while (b64.length % 4) b64 += "=";
-                const raw = atob(b64);
-                const key = "Void2026";
-                let dec = [];
-                for (var i = 0; i < raw.length; i++) {
-                  var code = raw.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-                  dec.push(String.fromCharCode(code));
-                }
-                const parts = dec.join('').split('||');
-                return parts.length === 2 ? parts[1] : parts[0];
-              } catch(e) {
-                return '';
-              }
-            }
+        if (chkAboutBlank.checked) {
+          var win = window.open('about:blank', '_blank');
+          if (win) {
+            win.document.title = 'Classes';
+            var link = win.document.createElement('link');
+            link.type = 'image/svg+xml';
+            link.rel = 'shortcut icon';
+            link.href = window.location.origin + '/favicon.svg';
+            win.document.head.appendChild(link);
 
-            function updateBrowserFavicon(src) {
-              try {
-                let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
-                link.type = 'image/x-icon';
-                link.rel = 'shortcut icon';
-                link.href = src;
-                document.head.appendChild(link);
-              } catch(e) {}
-            }
+            win.document.body.innerHTML = `
+              <style>
+                body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: -apple-system, sans-serif; }
+                #tab-bar { display: flex; background: #dfe1e5; border-bottom: 1px solid #c1c4c8; padding: 6px 8px 0; gap: 4px; align-items: flex-end; overflow-x: auto; flex-shrink: 0; }
+                .tab { padding: 6px 14px; border-radius: 8px 8px 0 0; background: #ced0d4; cursor: pointer; display: flex; gap: 6px; align-items: center; max-width: 200px; font-size: 12px; user-select: none; }
+                .tab.active { background: #fff; font-weight: 500; }
+                .tab-close { cursor: pointer; margin-left: auto; padding-left: 6px; color: #555; }
+                .new-tab { cursor: pointer; padding: 4px 8px; border: none; background: transparent; font-size: 16px; border-radius: 50%; }
+                #iframes { flex: 1; position: relative; }
+                iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: none; }
+                iframe.active { display: block; }
+              </style>
+              <div id="tab-bar"><div class="new-tab" id="btn-new-tab" title="New Tab">+</div></div>
+              <div id="iframes"></div>
+            `;
 
-            let tabIdCounter = 0;
-            const tabBar = document.getElementById('tab-bar');
-            const iframesContainer = document.getElementById('iframes');
-            const btnNewTab = document.getElementById('btn-new-tab');
-
-            function createTab(url) {
-              const id = 'tab-' + (++tabIdCounter);
-              
-              const tabEl = document.createElement('div');
-              tabEl.className = 'tab';
-              tabEl.id = 'ui-' + id;
-              
-              let domain = '';
-              try {
-                const match = url.match(/[?&]q=([^&]+)/);
-                if (match) {
-                  const decrypted = D(decodeURIComponent(match[1]));
-                  if (decrypted) {
-                    domain = new URL(decrypted).hostname;
-                  }
-                }
-              } catch(e) {}
-              
-              const favEl = document.createElement('img');
-              favEl.src = domain ? ('https://www.google.com/s2/favicons?domain=' + domain + '&sz=32') : '` + window.location.origin + `/favicon.svg';
-              favEl.style.width = '14px';
-              favEl.style.height = '14px';
-              favEl.style.marginRight = '6px';
-              favEl.style.borderRadius = '2px';
-              favEl.style.flexShrink = '0';
-
-              const titleEl = document.createElement('span');
-              titleEl.textContent = 'Loading...';
-              titleEl.style.overflow = 'hidden';
-              titleEl.style.textOverflow = 'ellipsis';
-              
-              const closeBtn = document.createElement('span');
-              closeBtn.className = 'tab-close';
-              closeBtn.textContent = '✕';
-              closeBtn.onclick = (e) => {
-                e.stopPropagation();
-                closeTab(id);
-              };
-              
-              tabEl.appendChild(favEl);
-              tabEl.appendChild(titleEl);
-              tabEl.appendChild(closeBtn);
-              
-              tabBar.insertBefore(tabEl, btnNewTab);
-              
-              const iframe = document.createElement('iframe');
-              iframe.id = 'frame-' + id;
-              iframe.src = url;
-              iframesContainer.appendChild(iframe);
-              
-              tabEl.onclick = () => activateTab(id);
-
-              iframe.onload = () => {
+            var script = win.document.createElement('script');
+            script.textContent = `
+              function D(encoded) {
                 try {
-                  const iframeUrl = iframe.contentWindow.location.href;
-                  const match = iframeUrl.match(/\\/p\\/([^/?]+)/) || iframeUrl.match(/\\/pe\\/([^/?]+)/);
+                  let b64 = encoded;
+                  const tldIndex = b64.lastIndexOf(".");
+                  if (tldIndex > 0) b64 = b64.substring(0, tldIndex);
+                  b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+                  while (b64.length % 4) b64 += "=";
+                  const raw = atob(b64);
+                  const key = "Void2026";
+                  let dec = [];
+                  for (var i = 0; i < raw.length; i++) {
+                    dec.push(String.fromCharCode(raw.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
+                  }
+                  const parts = dec.join('').split('||');
+                  return parts.length === 2 ? parts[1] : parts[0];
+                } catch(e) { return ''; }
+              }
+
+              let tabIdCounter = 0;
+              const tabBar = document.getElementById('tab-bar');
+              const iframesContainer = document.getElementById('iframes');
+              const btnNewTab = document.getElementById('btn-new-tab');
+
+              function createTab(url) {
+                const id = 'tab-' + (++tabIdCounter);
+                const tabEl = document.createElement('div');
+                tabEl.className = 'tab';
+                tabEl.id = 'ui-' + id;
+                
+                let domain = '';
+                try {
+                  const match = url.match(/[?&]q=([^&]+)/);
                   if (match) {
-                    const decrypted = D(match[1]);
-                    if (decrypted) {
-                      const domain = new URL(decrypted).hostname;
-                      favEl.src = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=32';
-                      if (tabEl.classList.contains('active')) {
-                        updateBrowserFavicon(favEl.src);
-                      }
+                    const decrypted = D(decodeURIComponent(match[1]));
+                    if (decrypted && /^https?:\\/\\//i.test(decrypted)) {
+                      domain = new URL(decrypted).hostname;
                     }
                   }
                 } catch(e) {}
-              };
-              
-              setInterval(() => {
-                try {
-                  if (iframe.contentDocument && iframe.contentDocument.title) {
-                    titleEl.textContent = iframe.contentDocument.title;
-                  }
-                } catch(e) {}
-              }, 1000);
-              
-              activateTab(id);
-            }
+                
+                const favEl = document.createElement('img');
+                favEl.src = domain ? ('https://www.google.com/s2/favicons?domain=' + domain + '&sz=32') : '${window.location.origin}/favicon.svg';
+                favEl.style.width = '14px';
+                favEl.style.height = '14px';
 
-            function activateTab(id) {
-              document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-              document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
-              
-              const tabEl = document.getElementById('ui-' + id);
-              const iframeEl = document.getElementById('frame-' + id);
-              
-              if (tabEl) {
-                tabEl.classList.add('active');
-                const img = tabEl.querySelector('img');
-                if (img && img.src) {
-                  updateBrowserFavicon(img.src);
+                const titleEl = document.createElement('span');
+                titleEl.textContent = 'Loading...';
+                titleEl.style.overflow = 'hidden';
+                titleEl.style.textOverflow = 'ellipsis';
+                
+                const closeBtn = document.createElement('span');
+                closeBtn.className = 'tab-close';
+                closeBtn.textContent = '✕';
+                closeBtn.onclick = (e) => { e.stopPropagation(); closeTab(id); };
+                
+                tabEl.appendChild(favEl);
+                tabEl.appendChild(titleEl);
+                tabEl.appendChild(closeBtn);
+                tabBar.insertBefore(tabEl, btnNewTab);
+                
+                const iframe = document.createElement('iframe');
+                iframe.id = 'frame-' + id;
+                iframe.src = url;
+                iframesContainer.appendChild(iframe);
+                
+                tabEl.onclick = () => activateTab(id);
+                activateTab(id);
+              }
+
+              function activateTab(id) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+                const tabEl = document.getElementById('ui-' + id);
+                const iframeEl = document.getElementById('frame-' + id);
+                if (tabEl) tabEl.classList.add('active');
+                if (iframeEl) iframeEl.classList.add('active');
+              }
+
+              function closeTab(id) {
+                const tabEl = document.getElementById('ui-' + id);
+                const iframeEl = document.getElementById('frame-' + id);
+                const wasActive = tabEl.classList.contains('active');
+                if (tabEl) tabEl.remove();
+                if (iframeEl) iframeEl.remove();
+                if (wasActive) {
+                  const remaining = document.querySelectorAll('.tab');
+                  if (remaining.length > 0) activateTab(remaining[remaining.length - 1].id.replace('ui-', ''));
+                  else window.close();
                 }
               }
-              if (iframeEl) iframeEl.classList.add('active');
-            }
 
-            function closeTab(id) {
-              const tabEl = document.getElementById('ui-' + id);
-              const iframeEl = document.getElementById('frame-' + id);
-              
-              const wasActive = tabEl.classList.contains('active');
-              
-              if (tabEl) tabEl.remove();
-              if (iframeEl) iframeEl.remove();
-              
-              if (wasActive) {
-                const remainingTabs = document.querySelectorAll('.tab');
-                if (remainingTabs.length > 0) {
-                  const lastTabId = remainingTabs[remainingTabs.length - 1].id.replace('ui-', '');
-                  activateTab(lastTabId);
-                } else {
-                  window.close();
-                }
-              }
-            }
-
-            btnNewTab.onclick = () => createTab('` + window.location.origin + `/');
-            
-            createTab('` + window.location.origin + targetUrl + `');
-          `;
-          win.document.body.appendChild(script);
+              btnNewTab.onclick = () => createTab('${window.location.origin}/');
+              createTab('${window.location.origin}' + '${targetUrl}');
+            `;
+            win.document.body.appendChild(script);
+          } else {
+            window.location.href = targetUrl;
+          }
         } else {
           window.location.href = targetUrl;
+        }
+      });
+
+      document.getElementById('top-btn-new-tab').addEventListener('click', function() {
+        if (chkAboutBlank.checked) {
+          var win = window.open('about:blank', '_blank');
+          if (win) {
+            win.document.title = 'Classes';
+            var link = win.document.createElement('link');
+            link.type = 'image/svg+xml';
+            link.rel = 'shortcut icon';
+            link.href = window.location.origin + '/favicon.svg';
+            win.document.head.appendChild(link);
+            var fr = win.document.createElement('iframe');
+            fr.style.cssText = 'position:fixed;top:0;left:0;bottom:0;right:0;width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;z-index:999999;';
+            fr.src = window.location.origin;
+            win.document.body.appendChild(fr);
+          }
+        } else {
+          window.open(window.location.origin, '_blank');
         }
       });
     })();
