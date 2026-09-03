@@ -11,17 +11,17 @@ import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { getJson } from "serpapi";
 import * as wisp from "@mercuryworkshop/wisp-js/server";
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// 1. Initialize Express App first
 const app = express();
 app.set("json spaces", 2);
 
-// Load .env manually if present
+// 2. Load .env manually if present
 try {
   const envPath = join(__dirname, ".env");
   const envLines = readFileSync(envPath, "utf8").split("\n");
@@ -34,14 +34,15 @@ try {
     const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
     if (key && !(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env optional */ }
+} catch { /* .env is optional */ }
 
+// Keys read strictly from environment variables
 const KEYS = {
   serper: process.env.SERPER_API_KEY || "",
   serpapi: process.env.SERPAPI_KEY || ""
 };
 
-// High-concurrency Keep-Alive agents to drastically cut TLS handshake overhead
+// High-concurrency Keep-Alive agents to cut latency
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 128, timeout: 15000 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 128, timeout: 15000 });
 
@@ -88,7 +89,6 @@ async function assertSafeUrl(rawUrl) {
     return;
   }
 
-  // Fast-path DNS cache lookup to avoid 200ms+ lag per image
   const cachedDns = dnsCache.get(host);
   if (cachedDns && (Date.now() - cachedDns.ts < DNS_CACHE_TTL)) {
     if (cachedDns.blocked) throw new Error("Domain points to forbidden network.");
@@ -177,21 +177,6 @@ function dec(encoded) {
   }
 }
 
-function encPe(url) {
-  return "/pe/" + Buffer.from(url, "utf8").toString("base64url");
-}
-
-function decPe(encoded) {
-  try {
-    let str = String(encoded).trim();
-    const dotIdx = str.indexOf(".");
-    if (dotIdx > 0) str = str.substring(0, dotIdx);
-    return Buffer.from(str, "base64url").toString("utf8");
-  } catch (e) {
-    throw new Error(`URL decode failed: ${e.message}`);
-  }
-}
-
 function normalizeAbsoluteUrl(raw, base) {
   if (!raw || typeof raw !== "string") return null;
   const trimmed = raw.trim();
@@ -224,7 +209,7 @@ function rewriteCss(css, base) {
 function rewriteEmbeddedUrls(text, base) {
   if (!text) return text;
   return text.replace(/(["'`])(https?:\/\/[^"'`\s\\]+)\1/g, (m, q, url) => {
-    if (url.startsWith("/p/") || url.startsWith("/pe/")) return m;
+    if (url.startsWith("/p/")) return m;
     try { return q + enc(new URL(url, base).href) + q; } catch { return m; }
   });
 }
@@ -247,7 +232,7 @@ function injectionScript(base) {
   function toAbs(u){
     if(!u || typeof u !== "string") return null;
     var t = u.trim();
-    if(t.startsWith("/p/") || t.startsWith("/pe/") || t.startsWith("/v") || t.startsWith("/s") || t.startsWith("/go")) return null;
+    if(t.startsWith("/p/") || t.startsWith("/v") || t.startsWith("/s") || t.startsWith("/go")) return null;
     if(SKIP.test(t)) return null;
     try {
       if(t.startsWith("//")) return "https:" + t;
@@ -353,7 +338,6 @@ const URL_ATTRS = {
   script: ["src"], source: ["src", "srcset"], video: ["src", "poster"], audio: ["src"], form: ["action"], iframe: ["src"]
 };
 
-// Expanded to catch missing image content-types and prevent cheerio buffer stalls
 const BINARY_PREFIXES = [
   "image/", "video/", "audio/", "font/", "application/font-woff", "application/x-font-ttf",
   "application/octet-stream", "application/wasm", "application/pdf"
@@ -376,7 +360,6 @@ function buildHeaders(req, targetUrl) {
   try {
     const u = new URL(targetUrl);
     h["host"] = u.host;
-    // Set referer to target origin to satisfy strict CDN hotlink protection
     h["referer"] = u.origin + "/";
   } catch {}
 
@@ -418,7 +401,6 @@ async function handleProxy(req, res) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
   }
 
-  // Fast binary path detection by URL extension to avoid buffer stall
   const isImageExt = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff)(\?.*)?$/i.test(targetUrl);
 
   let axiosRes;
@@ -455,7 +437,6 @@ async function handleProxy(req, res) {
   const ct = rawCt.split(";")[0].trim().toLowerCase();
   const isBinary = isImageExt || BINARY_PREFIXES.some((prefix) => ct.startsWith(prefix));
 
-  // Stream binaries and images directly with zero buffering or parsing
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
     if (!res.getHeader("content-type") && rawCt) res.setHeader("content-type", rawCt);
@@ -468,7 +449,6 @@ async function handleProxy(req, res) {
     return axiosRes.data.pipe(res);
   }
 
-  // Only HTML, CSS, JS run through Cheerio & text decompression
   try {
     const contentEncoding = String(axiosRes.headers["content-encoding"] || "").toLowerCase();
     const decompStream = decompressStream(axiosRes.data, contentEncoding);
@@ -581,10 +561,13 @@ async function fetchFromSerper(query, type = "web", num = 10) {
 async function fetchFromSerpApi(query, type = "web", num = 10) {
   if (!KEYS.serpapi) throw new Error("Missing SERPAPI_KEY");
   const engine = type === "images" ? "google_images" : "google";
-  const json = await getJson({ engine, q: query, num, api_key: KEYS.serpapi, gl: "us", hl: "en" });
+  const url = `https://serpapi.com/search.json?engine=${engine}&q=${encodeURIComponent(query)}&num=${num}&api_key=${KEYS.serpapi}&gl=us&hl=en`;
+
+  const response = await axios.get(url, { timeout: 5000 });
+  const data = response.data;
 
   if (type === "images") {
-    return (json.images_results || []).map((img) => ({
+    return (data.images_results || []).map((img) => ({
       title: img.title || "",
       imageUrl: img.original || img.link,
       thumbnail: img.thumbnail,
@@ -592,7 +575,7 @@ async function fetchFromSerpApi(query, type = "web", num = 10) {
     }));
   }
 
-  return (json.organic_results || []).map((item) => ({
+  return (data.organic_results || []).map((item) => ({
     title: item.title,
     link: item.link,
     snippet: item.snippet,
@@ -688,7 +671,7 @@ app.get("/api/autocomplete", async (req, res) => {
   }
 });
 
-/* ── Results UI (Loads image thumbnails directly via browser CDN) ── */
+/* ── Results UI ── */
 app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
   let rawQ = (req.query.q || "").trim();
   if (!rawQ) return res.redirect("/");
@@ -777,7 +760,6 @@ a{text-decoration:none;color:inherit;}
 
       if(currentEngine === "images") {
         resDiv.innerHTML = "<div class='img-grid'>" + arr.map(function(img){
-          // Thumbnails load direct via no-referrer, full target loads via proxy
           return "<a class='img-card' href='" + getProxyUrl(img.imageUrl) + "'><img src='" + (img.thumbnail || img.imageUrl) + "' loading='lazy'/><div class='domain'>" + esc(img.source) + "</div></a>";
         }).join("") + "</div>";
       } else {
