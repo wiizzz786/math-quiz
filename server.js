@@ -11,6 +11,7 @@ import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
+import { getJson } from "serpapi";
 import * as wisp from "@mercuryworkshop/wisp-js/server";
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
@@ -34,11 +35,13 @@ try {
     const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
     if (key && !(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env optional */ }
+} catch { /* .env is optional */ }
 
-// API Keys read strictly from environment variables
-const SERPER_API_KEY = process.env.SERPER_API_KEY || "";
-const SERPAPI_KEY = process.env.SERPAPI_KEY || "";
+// Keys read strictly from environment variables
+const KEYS = {
+  serper: process.env.SERPER_API_KEY || "",
+  serpapi: process.env.SERPAPI_KEY || ""
+};
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
@@ -103,7 +106,7 @@ async function assertSafeUrl(rawUrl) {
 }
 
 /* ═══════════════════════════════════════════
-   LRU Cache & Fast In-Memory Storage
+   LRU Cache & In-Memory Storage
    ═══════════════════════════════════════════ */
 
 const CACHE_MAX_SIZE = 2000;
@@ -142,7 +145,6 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.raw({ type: "*/*", limit: "10mb" }));
 
-// Zero-cache static files so HTML/UI updates appear instantly
 app.use(express.static(join(__dirname, "public"), {
   maxAge: 0,
   etag: false,
@@ -1201,24 +1203,89 @@ function handlePeWsUpgrade(req, socket, head) {
 }
 
 /* ═══════════════════════════════════════════
-   Search & Free Public Autocomplete Endpoints
+   Load-Balanced Search Engine Implementations
    ═══════════════════════════════════════════ */
 
-const SEARCH_ENGINES = {
-  brave:  q => "https://search.brave.com/search?q=" + encodeURIComponent(q),
-  bing:   q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
-  google: q => "https://www.google.com/search?q=" + encodeURIComponent(q),
-  ddg:    q => "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q),
-};
+async function fetchFromSerper(query, type = "web", num = 8) {
+  if (!KEYS.serper) throw new Error("Missing SERPER_API_KEY");
+  const endpoint = `https://google.serper.dev/${type === "images" ? "images" : "search"}`;
+  const response = await axios({
+    method: "post",
+    maxBodyLength: Infinity,
+    url: endpoint,
+    headers: {
+      "X-API-KEY": KEYS.serper,
+      "Content-Type": "application/json",
+    },
+    data: JSON.stringify({ q: query, num: num, gl: "us", hl: "en" }),
+    timeout: 5000,
+  });
 
-async function fetchDdgFallback(q, num = 10) {
+  const data = response.data;
+  if (type === "images") {
+    return (data.images || []).map((img) => ({
+      title: img.title || "",
+      imageUrl: img.imageUrl || img.link,
+      source: img.domain || "serper",
+    }));
+  }
+
+  return (data.organic || []).map((item) => ({
+    title: item.title,
+    link: item.link,
+    snippet: item.snippet,
+    source: "serper",
+  }));
+}
+
+async function fetchFromSerpApi(query, type = "web", num = 8) {
+  if (!KEYS.serpapi) throw new Error("Missing SERPAPI_KEY");
+  const engine = type === "images" ? "google_images" : (type === "youtube" ? "youtube" : "google");
+  const json = await getJson({
+    engine,
+    q: query,
+    num: num,
+    api_key: KEYS.serpapi,
+    gl: "us",
+    hl: "en",
+  });
+
+  if (type === "images") {
+    return (json.images_results || []).map((img) => ({
+      title: img.title || "",
+      imageUrl: img.original || img.link,
+      thumbnail: img.thumbnail,
+      source: img.source || img.domain || "serpapi",
+    }));
+  }
+
+  if (type === "youtube") {
+    return (json.video_results || []).map((vid) => ({
+      title: vid.title,
+      link: vid.link,
+      videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
+      thumbnail: vid.thumbnail?.static || vid.thumbnail,
+      channel: vid.channel?.name || "YouTube",
+      views: vid.views || "",
+    }));
+  }
+
+  return (json.organic_results || []).map((item) => ({
+    title: item.title,
+    link: item.link,
+    snippet: item.snippet,
+    source: "serpapi",
+  }));
+}
+
+async function fetchFromDuckDuckGo(query, num = 8) {
   try {
-    const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
+    const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      timeout: 6000
+      timeout: 6000,
     });
     const $ = cheerio.load(ddgRes.data);
-    const fallbackResults = [];
+    const results = [];
     $(".result").each((_, el) => {
       const a = $(el).find(".result__title a").first();
       const snippet = $(el).find(".result__snippet").text().trim();
@@ -1231,11 +1298,11 @@ async function fetchDdgFallback(q, num = 10) {
         } catch {}
       }
       if (href && /^https?:\/\//i.test(href)) {
-        fallbackResults.push({ title: title || href, url: href, snippet, type: "web" });
+        results.push({ title: title || href, link: href, snippet, source: "duckduckgo" });
       }
-      if (fallbackResults.length >= num) return false;
+      if (results.length >= num) return false;
     });
-    return fallbackResults;
+    return results;
   } catch {
     return [];
   }
@@ -1245,7 +1312,7 @@ async function fetchYouTubeDirect(q) {
   try {
     const r = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q + " site:youtube.com/watch")}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      timeout: 6000
+      timeout: 6000,
     });
     const $ = cheerio.load(r.data);
     const videos = [];
@@ -1267,7 +1334,7 @@ async function fetchYouTubeDirect(q) {
           videoId: vId,
           thumbnail: vId ? `https://i.ytimg.com/vi/${vId}/hqdefault.jpg` : "",
           channel: "YouTube",
-          views: "YouTube Video"
+          views: "YouTube Video",
         });
       }
       if (videos.length >= 12) return false;
@@ -1278,107 +1345,97 @@ async function fetchYouTubeDirect(q) {
   }
 }
 
-// Search Endpoint: Serper (Primary) -> SerpApi -> DuckDuckGo Scraper
+// Priority chain: Try a random primary (Serper or SerpAPI), fallback to secondary paid, fallback to DuckDuckGo
+async function searchGoogle(query, type = "web", num = 8) {
+  const availablePaid = [];
+  if (KEYS.serper) availablePaid.push("serper");
+  if (KEYS.serpapi) availablePaid.push("serpapi");
+
+  if (availablePaid.length === 0) {
+    return await fetchFromDuckDuckGo(query, num);
+  }
+
+  const primaryIndex = Math.floor(Math.random() * availablePaid.length);
+  const primaryProvider = availablePaid[primaryIndex];
+
+  // 1. Try Primary Provider
+  try {
+    if (primaryProvider === "serper") {
+      return await fetchFromSerper(query, type, num);
+    } else {
+      return await fetchFromSerpApi(query, type, num);
+    }
+  } catch (primaryError) {
+    console.warn(`[Load Balancer] Primary provider (${primaryProvider}) failed:`, primaryError.message);
+
+    // 2. Try Secondary Paid Provider if configured
+    const secondaryProvider = availablePaid.find((p) => p !== primaryProvider);
+    if (secondaryProvider) {
+      try {
+        if (secondaryProvider === "serper") {
+          return await fetchFromSerper(query, type, num);
+        } else {
+          return await fetchFromSerpApi(query, type, num);
+        }
+      } catch (secondaryError) {
+        console.warn(`[Load Balancer] Secondary provider (${secondaryProvider}) failed:`, secondaryError.message);
+      }
+    }
+
+    // 3. Fallback to Free DuckDuckGo
+    return await fetchFromDuckDuckGo(query, num);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Search & Free Public Autocomplete Endpoints
+   ═══════════════════════════════════════════ */
+
 app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
   const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
 
-  // 1. Serper API
-  if (SERPER_API_KEY) {
-    try {
-      const payload = JSON.stringify({ q, num });
-      const serperRes = await axios({
-        method: "post",
-        maxBodyLength: Infinity,
-        url: "https://google.serper.dev/search",
-        headers: {
-          "X-API-KEY": SERPER_API_KEY,
-          "Content-Type": "application/json",
-        },
-        data: payload,
-        timeout: 5000,
-      });
-
-      if (Array.isArray(serperRes.data?.organic) && serperRes.data.organic.length > 0) {
-        const results = serperRes.data.organic.map((item) => ({
-          title: item.title || item.link,
-          url: item.link,
-          snippet: item.snippet || "",
-        }));
-        return res.json({ cached: false, results });
-      }
-    } catch (e) {
-      console.error("[search] Serper API error, trying fallback:", e.message);
-    }
+  try {
+    const results = await searchGoogle(q, "web", num);
+    return res.json({
+      cached: false,
+      results: results.map((item) => ({
+        title: item.title,
+        url: item.link || item.url,
+        snippet: item.snippet || "",
+      })),
+    });
+  } catch (err) {
+    const fallback = await fetchFromDuckDuckGo(q, num);
+    return res.json({
+      cached: false,
+      results: fallback.map((item) => ({
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet || "",
+      })),
+    });
   }
-
-  // 2. SerpApi Fallback
-  if (SERPAPI_KEY) {
-    try {
-      const serpUrl = `https://serpapi.com/search?engine=google&q=${encodeURIComponent(q)}&num=${num}&api_key=${SERPAPI_KEY}`;
-      const serpRes = await axios.get(serpUrl, { timeout: 5000 });
-      if (Array.isArray(serpRes.data?.organic_results) && serpRes.data.organic_results.length > 0) {
-        const results = serpRes.data.organic_results.map((item) => ({
-          title: item.title || item.link,
-          url: item.link,
-          snippet: item.snippet || "",
-        }));
-        return res.json({ cached: false, results });
-      }
-    } catch (e) {
-      console.error("[search] SerpApi error, trying fallback:", e.message);
-    }
-  }
-
-  // 3. Fallback to DDG Scraper
-  const ddgResults = await fetchDdgFallback(q, num);
-  return res.json({ cached: false, results: ddgResults });
 });
 
-// Image Endpoint: SerpApi -> Serper -> Fallback
 app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
 
-  if (SERPAPI_KEY) {
-    try {
-      const url = `https://serpapi.com/search?engine=google_images&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-      const r = await axios.get(url, { timeout: 5000 });
-      const images = (r.data.images_results || []).map(img => ({
+  try {
+    const images = await searchGoogle(q, "images", 20);
+    return res.json({
+      images: images.map((img) => ({
         title: img.title || "",
-        original: img.original || img.link,
-        thumbnail: img.thumbnail,
-        source: img.source || img.domain
-      })).slice(0, 20);
-      return res.json({ images });
-    } catch {}
+        original: img.imageUrl || img.original || img.link,
+        thumbnail: img.thumbnail || img.imageUrl,
+        source: img.source || "",
+      })),
+    });
+  } catch {
+    return res.json({ images: [] });
   }
-
-  if (SERPER_API_KEY) {
-    try {
-      const payload = JSON.stringify({ q, num: 20 });
-      const r = await axios({
-        method: "post",
-        url: "https://google.serper.dev/images",
-        headers: {
-          "X-API-KEY": SERPER_API_KEY,
-          "Content-Type": "application/json",
-        },
-        data: payload,
-        timeout: 5000,
-      });
-      const images = (r.data.images || []).map(img => ({
-        title: img.title || "",
-        original: img.imageUrl || img.link,
-        thumbnail: img.imageUrl,
-        source: img.domain || ""
-      })).slice(0, 20);
-      return res.json({ images });
-    } catch {}
-  }
-
-  return res.json({ images: [] });
 });
 
 app.get("/api/youtube", async (req, res) => {
@@ -1389,19 +1446,10 @@ app.get("/api/youtube", async (req, res) => {
   }
   if (!q) return res.json({ videos: [] });
 
-  if (SERPAPI_KEY) {
+  if (KEYS.serpapi) {
     try {
-      const url = `https://serpapi.com/search?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}`;
-      const r = await axios.get(url, { timeout: 5000 });
-      const videos = (r.data.video_results || []).map(vid => ({
-        title: vid.title,
-        link: vid.link,
-        videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
-        thumbnail: vid.thumbnail?.static || vid.thumbnail,
-        channel: vid.channel?.name || "YouTube",
-        views: vid.views || ""
-      })).slice(0, 15);
-      if (videos.length > 0) return res.json({ videos });
+      const vids = await fetchFromSerpApi(q, "youtube", 15);
+      if (vids.length > 0) return res.json({ videos: vids });
     } catch {}
   }
 
@@ -1435,9 +1483,8 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
   if (!rawQ) return res.redirect("/");
 
   let q = rawQ;
-  try { 
+  try {
     let decoded = dec(rawQ);
-    // Strip random 4-char salt prefix: 'xxxx||query'
     if (decoded.includes("||")) {
       decoded = decoded.split("||")[1] || decoded;
     }
@@ -1543,7 +1590,7 @@ a{text-decoration:none;color:inherit;}
 
         if(currentEngine === "images") {
           resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
-            return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.link)+"\"><img src=\""+getProxyUrl(img.thumbnail)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
+            return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.imageUrl)+"\"><img src=\""+getProxyUrl(img.thumbnail||img.imageUrl)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
           }).join("") + "</div>";
         } else if(currentEngine === "youtube") {
           resDiv.innerHTML = arr.map(function(vid){
