@@ -18,11 +18,10 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// 1. Initialize Express App first to prevent ReferenceErrors
 const app = express();
 app.set("json spaces", 2);
 
-// 2. Load .env manually if present
+// Load .env manually if present
 try {
   const envPath = join(__dirname, ".env");
   const envLines = readFileSync(envPath, "utf8").split("\n");
@@ -35,30 +34,30 @@ try {
     const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
     if (key && !(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env is optional */ }
+} catch { /* .env optional */ }
 
-// Keys read strictly from environment variables
 const KEYS = {
   serper: process.env.SERPER_API_KEY || "",
   serpapi: process.env.SERPAPI_KEY || ""
 };
 
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 64, timeout: 25000 });
+// High-concurrency Keep-Alive agents to drastically cut TLS handshake overhead
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 128, timeout: 15000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 128, timeout: 15000 });
 
 /* ═══════════════════════════════════════════
-   IP / SSRF Security Validation
+   DNS Cache & Fast SSRF Security Validation
    ═══════════════════════════════════════════ */
+
+const dnsCache = new Map();
+const DNS_CACHE_TTL = 10 * 60 * 1000;
 
 const isPrivateV4 = (ip) => {
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(isNaN)) return true;
   const [a, b] = parts;
   return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    a >= 224 ||
+    a === 0 || a === 10 || a === 127 || a >= 224 ||
     (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
@@ -75,15 +74,10 @@ const isPrivateV6 = (ip) => {
 
 async function assertSafeUrl(rawUrl) {
   const u = new URL(rawUrl);
-  if (!["http:", "https:"].includes(u.protocol)) {
-    throw new Error("Unsupported protocol");
-  }
+  if (!["http:", "https:"].includes(u.protocol)) throw new Error("Unsupported protocol");
+
   const host = u.hostname.replace(/^\[(.*)\]$/, "$1");
-  if (
-    host === "metadata.google.internal" ||
-    host === "localhost" ||
-    /\.(local|internal|localhost)$/i.test(host)
-  ) {
+  if (host === "metadata.google.internal" || host === "localhost" || /\.(local|internal|localhost)$/i.test(host)) {
     throw new Error("Access to internal/private domains is blocked.");
   }
 
@@ -94,47 +88,24 @@ async function assertSafeUrl(rawUrl) {
     return;
   }
 
-  const addrs = await dns.promises.lookup(host, { all: true });
-  if (!addrs || addrs.length === 0) {
-    throw new Error("DNS resolution failed");
+  // Fast-path DNS cache lookup to avoid 200ms+ lag per image
+  const cachedDns = dnsCache.get(host);
+  if (cachedDns && (Date.now() - cachedDns.ts < DNS_CACHE_TTL)) {
+    if (cachedDns.blocked) throw new Error("Domain points to forbidden network.");
+    return;
   }
+
+  const addrs = await dns.promises.lookup(host, { all: true });
+  if (!addrs || addrs.length === 0) throw new Error("DNS resolution failed");
+
   for (const a of addrs) {
     if (net.isIPv4(a.address) ? isPrivateV4(a.address) : isPrivateV6(a.address)) {
-      throw new Error("Domain points to forbidden private network.");
+      dnsCache.set(host, { blocked: true, ts: Date.now() });
+      throw new Error("Domain points to forbidden network.");
     }
   }
-}
 
-/* ═══════════════════════════════════════════
-   LRU Cache & In-Memory Storage
-   ═══════════════════════════════════════════ */
-
-const CACHE_MAX_SIZE = 2000;
-const CACHE_TTL = 30 * 60 * 1000;
-const _resourceCache = new Map();
-
-function cacheGet(key) {
-  const entry = _resourceCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > CACHE_TTL) {
-    _resourceCache.delete(key);
-    return null;
-  }
-  _resourceCache.delete(key);
-  _resourceCache.set(key, entry);
-  return entry;
-}
-
-function cacheSet(key, ct, body) {
-  if (!body) return;
-  const bodyBuf = Buffer.isBuffer(body) ? body : Buffer.from(body);
-  if (bodyBuf.length > 2 * 1024 * 1024) return;
-
-  if (_resourceCache.size >= CACHE_MAX_SIZE) {
-    const oldest = _resourceCache.keys().next().value;
-    _resourceCache.delete(oldest);
-  }
-  _resourceCache.set(key, { ct, body: bodyBuf, ts: Date.now() });
+  dnsCache.set(host, { blocked: false, ts: Date.now() });
 }
 
 /* ═══════════════════════════════════════════
@@ -150,9 +121,7 @@ app.use(express.static(join(__dirname, "public"), {
   etag: false,
   lastModified: false,
   setHeaders: (res, path) => {
-    if (path.endsWith("sw.js")) {
-      res.setHeader("Service-Worker-Allowed", "/");
-    }
+    if (path.endsWith("sw.js")) res.setHeader("Service-Worker-Allowed", "/");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   }
 }));
@@ -217,9 +186,7 @@ function decPe(encoded) {
     let str = String(encoded).trim();
     const dotIdx = str.indexOf(".");
     if (dotIdx > 0) str = str.substring(0, dotIdx);
-    const url = Buffer.from(str, "base64url").toString("utf8");
-    if (!/^https?:\/\//i.test(url)) throw new Error("Not a valid URL");
-    return url;
+    return Buffer.from(str, "base64url").toString("utf8");
   } catch (e) {
     throw new Error(`URL decode failed: ${e.message}`);
   }
@@ -242,11 +209,6 @@ function rewriteUrl(raw, base) {
   return abs ? enc(abs) : raw;
 }
 
-function rewriteUrlPe(raw, base, optSuffix = "") {
-  const abs = normalizeAbsoluteUrl(raw, base);
-  return abs ? encPe(abs) + optSuffix : raw;
-}
-
 function rewriteCss(css, base) {
   return css
     .replace(/url\(\s*(['"]?)([^'")\s]+)\1\s*\)/gi, (match, q, url) => {
@@ -259,83 +221,23 @@ function rewriteCss(css, base) {
     });
 }
 
-function rewriteCssPe(css, base, optSuffix = "") {
-  const rw = (url) => rewriteUrlPe(url, base, optSuffix);
-  return css
-    .replace(/url\(\s*(['"]?)([^'")\s]+)\1\s*\)/gi, (match, q, url) => {
-      const r = rw(url);
-      return r !== url ? `url(${q}${r}${q})` : match;
-    })
-    .replace(/@import\s+(['"])([^'"]+)\1/gi, (match, q, url) => {
-      const r = rw(url);
-      return r !== url ? `@import ${q}${r}${q}` : match;
-    });
-}
-
-function rewriteEmbeddedUrls(text, base, encodeFn = enc) {
+function rewriteEmbeddedUrls(text, base) {
   if (!text) return text;
-  function rw(url) {
-    try {
-      return encodeFn(new URL(url, base).href);
-    } catch {
-      return url;
-    }
-  }
-  text = text.replace(/(["'`])(\/\/[^"'`\s\\]+)\1/g, (m, q, url) => {
+  return text.replace(/(["'`])(https?:\/\/[^"'`\s\\]+)\1/g, (m, q, url) => {
     if (url.startsWith("/p/") || url.startsWith("/pe/")) return m;
-    try {
-      return q + rw(new URL("https:" + url).href) + q;
-    } catch {
-      return m;
-    }
+    try { return q + enc(new URL(url, base).href) + q; } catch { return m; }
   });
-  text = text.replace(/(["'`])(https?:\/\/[^"'`\s\\]+)\1/g, (m, q, url) =>
-    url.startsWith("/p/") || url.startsWith("/pe/") ? m : q + rw(url) + q
-  );
-  if (base) {
-    text = text.replace(/(["'])(\/((?!\/)[^"'\s\\]*\.[a-zA-Z0-9]{2,6}[^"']*))(\1)/g, (m, q1, url, _inner, q2) => {
-      if (url.startsWith("/p/") || url.startsWith("/pe/")) return m;
-      try {
-        const abs = new URL(url, base).href;
-        if (!abs.startsWith("http")) return m;
-        return q1 + rw(abs) + q2;
-      } catch {
-        return m;
-      }
-    });
-  }
-  return text;
 }
 
-function rewriteJsUrls(code, base, prefix) {
+function rewriteJsUrls(code, base) {
   if (!code) return code;
-  const encodeFn = prefix === "/pe/" ? encPe : enc;
-  function rw(url) {
-    try {
-      return encodeFn(new URL(url, base).href);
-    } catch {
-      return url;
-    }
-  }
-  code = code.replace(/((?:import|export)\s+[\s\S]*?\bfrom\s+)(["'])(https?:\/\/[^"'\s]+)\2/g, (m, pre, q, url) => pre + q + rw(url) + q);
-  code = code.replace(/\bimport\s*\(\s*(["'`])(https?:\/\/[^"'`\s]+)\1/g, (m, q, url) => `import(${q}${rw(url)}${q}`);
-  code = code.replace(/\bimportScripts\s*\(([^)]*)\)/g, (m, args) => {
-    const rArgs = args.replace(/(["'])(https?:\/\/[^"'\s]+)\1/g, (_, q, url) => q + rw(url) + q);
-    return `importScripts(${rArgs})`;
-  });
-  code = code.replace(/\bnew\s+Worker\s*\(\s*(["'])(https?:\/\/[^"'\s]+)\1/g, (m, q, url) => `new Worker(${q}${rw(url)}${q}`);
-  code = code.replace(/\bnew\s+SharedWorker\s*\(\s*(["'])(https?:\/\/[^"'\s]+)\1/g, (m, q, url) => `new SharedWorker(${q}${rw(url)}${q}`);
-
-  if (code.length < 1000000) {
-    return rewriteEmbeddedUrls(code, base, encodeFn);
-  }
+  code = code.replace(/((?:import|export)\s+[\s\S]*?\bfrom\s+)(["'])(https?:\/\/[^"'\s]+)\2/g, (m, pre, q, url) => pre + q + enc(url) + q);
+  code = code.replace(/\bimport\s*\(\s*(["'`])(https?:\/\/[^"'`\s]+)\1/g, (m, q, url) => `import(${q}${enc(url)}${q}`);
+  if (code.length < 1000000) return rewriteEmbeddedUrls(code, base);
   return code;
 }
 
-/* ═══════════════════════════════════════════
-   DOM Injection & Client Runtime
-   ═══════════════════════════════════════════ */
-
+/* ── DOM Injection ── */
 function injectionScript(base) {
   return `<script data-void="1">
 (function(){
@@ -380,46 +282,15 @@ function injectionScript(base) {
     return _xo.apply(this, arguments);
   };
 
-  var _wo = window.open;
-  window.open = function(u){
-    if(u && typeof u === 'string') arguments[0] = E(u);
-    return _wo.apply(this, arguments);
-  };
-
-  var _ps = History.prototype.pushState;
-  History.prototype.pushState = function(s, t, u){ if(u) arguments[2] = E(u); return _ps.apply(this, arguments); };
-  var _rs = History.prototype.replaceState;
-  History.prototype.replaceState = function(s, t, u){ if(u) arguments[2] = E(u); return _rs.apply(this, arguments); };
-
-  if (navigator.serviceWorker) {
-    navigator.serviceWorker.register = function() {
-      return navigator.serviceWorker.getRegistration().then(function(reg) {
-        return reg || { scope: '/', active: true, installing: null, waiting: null };
-      });
-    };
-  }
-
-  var desc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-  if(desc && desc.set){
-    Object.defineProperty(HTMLImageElement.prototype, 'src', {
-      get: desc.get,
-      set: function(v){ desc.set.call(this, E(v)); },
-      configurable: true,
-      enumerable: true
-    });
-  }
-
   var _sa = Element.prototype.setAttribute;
-  var LAZY_TAGS = {'src':1,'data-src':1,'data-src-hq':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1,'poster':1};
+  var LAZY_TAGS = {'src':1,'data-src':1,'data-src-hq':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1};
   Element.prototype.setAttribute = function(name, val){
     var n = name.toLowerCase();
     if(val && typeof val === 'string' && LAZY_TAGS[n]){
       if(n === 'srcset' || n === 'data-srcset') val = Esrcset(val);
       else {
         val = E(val);
-        if(n.startsWith('data-src') && this.tagName === 'IMG') {
-          _sa.call(this, 'src', val);
-        }
+        if(n.startsWith('data-src') && this.tagName === 'IMG') _sa.call(this, 'src', val);
       }
     }
     return _sa.call(this, name, val);
@@ -436,120 +307,28 @@ function injectionScript(base) {
       location.href = E(abs);
     }
   }, true);
-
-  document.addEventListener('submit', function(e){
-    var f = e.target; if(!f || f.tagName !== 'FORM') return;
-    if(f.closest('#__vbar')) return;
-    var a = f.getAttribute('action') || '';
-    var abs = toAbs(a);
-    if(abs && abs.startsWith('http')) f.action = E(abs);
-  }, true);
 })();
 </script>`;
 }
 
-function injectionScriptExperimental(base, optSuffix) {
-  return `<script data-void="1">
-(function(){
-  var B=${JSON.stringify(base)};
-  var S=${JSON.stringify(optSuffix || "")};
-  var SKIP=/^(data:|blob:|javascript:|#|mailto:|about:)/i;
-
-  function toAbs(u){
-    if(!u||typeof u!=="string")return null;
-    var t=u.trim();
-    if(t.startsWith("/pe/")||t.startsWith("/v")||t.startsWith("/s")||t.startsWith("/go"))return null;
-    if(SKIP.test(t))return null;
-    try{
-      if(t.startsWith("//"))return "https:"+t;
-      return new URL(t,B).href;
-    }catch(e){return null;}
-  }
-
-  function E(u){
-    var abs=toAbs(u);
-    if(!abs||!abs.startsWith("http"))return u;
-    var tld="";try{tld=localStorage.getItem("void_tld")||".www.securly.com";}catch(e){tld=".www.securly.com";}
-    return "/pe/"+btoa(abs).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"")+tld+S;
-  }
-
-  var _f=window.fetch;
-  window.fetch=function(u,o){
-    if(typeof u==='string')u=E(u);
-    else if(u&&u.url)return _f.call(this,E(u.url),u);
-    return _f.call(this,u,o);
-  };
-  var _xo=XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open=function(m,u){arguments[1]=E(u);return _xo.apply(this,arguments);};
-
-  var _sa=Element.prototype.setAttribute;
-  var LAZY_TAGS={'src':1,'data-src':1,'data-src-hq':1,'data-lazy-src':1,'data-thumb':1,'data-original':1,'data-hero':1,'href':1,'action':1};
-  Element.prototype.setAttribute=function(name,val){
-    var n=name.toLowerCase();
-    if(val&&typeof val==='string'&&LAZY_TAGS[n]) val=E(val);
-    return _sa.call(this,name,val);
-  };
-})();
-</script>`;
-}
-
-/* ── Auto-Hiding Tab Bar ── */
 function proxyBar(displayUrl) {
   const safe = displayUrl.replace(/&/g, "&amp;").replace(/'/g, "&#39;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  let domain = "";
-  try { domain = new URL(displayUrl).hostname; } catch {}
-  const favicon = domain ? `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico` : "";
-  const faviconHtml = favicon
-    ? `<img src="${favicon}" style="width:14px;height:14px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'" alt=""/>`
-    : "";
-
   return `
 <style>
   #__vbar {
     position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647;
-    height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
-    background: #ffffff; border-bottom: 1px solid #000000;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #000000;
-    box-sizing: border-box; transition: transform 0.25s ease-in-out;
-  }
-  #__vbar.vbar-hidden { transform: translateY(-100%); }
-  #__vbar-trigger {
-    position: fixed; top: 0; left: 0; right: 0; height: 12px;
-    z-index: 2147483646; background: transparent;
+    height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    background: #ffffff; border-bottom: 1px solid #dfe1e5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #202124;
   }
 </style>
-<div id="__vbar-trigger"></div>
 <div id="__vbar">
-  <a href="/" style="color:#000000;font-weight:bold;text-decoration:none;font-size:16px;text-transform:uppercase;">void</a>
-  <span style="color:#555555;font-size:13px;margin-left:4px;white-space:nowrap;">Go Anywhere</span>
-  <button onclick="history.back()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Back">&larr;</button>
-  <button onclick="history.forward()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Forward">&rarr;</button>
-  <button onclick="location.reload()" style="background:#eeeeee;border:1px solid #000000;color:#000000;padding:2px 8px;cursor:pointer;" title="Reload">&#8635;</button>
-  <form action="/v" method="GET" style="flex:1;display:flex;align-items:center;background:#ffffff;border:1px solid #000000;padding:2px 8px;gap:6px;margin:0;">
-    <input type="hidden" name="mode" value="server" />
-    ${faviconHtml}
-    <input type="text" name="q" value="${safe}" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;color:#000000;min-width:0;" autocomplete="off" spellcheck="false" />
-  </form>
-  <a href="/" style="padding:2px 10px;background:#eeeeee;color:#000000;text-decoration:none;border:1px solid #000000;">Home</a>
-  <button onclick="document.getElementById('__vbar').classList.add('vbar-hidden')" style="padding:2px 8px;background:#eeeeee;color:#000000;border:1px solid #000000;cursor:pointer;" aria-label="Close toolbar">&#x2715;</button>
-</div>
-<script>
-  (function(){
-    var bar = document.getElementById('__vbar');
-    var trig = document.getElementById('__vbar-trigger');
-    var lastY = window.scrollY;
-    window.addEventListener('scroll', function(){
-      var curY = window.scrollY;
-      if (curY > lastY && curY > 60) {
-        bar.classList.add('vbar-hidden');
-      } else {
-        bar.classList.remove('vbar-hidden');
-      }
-      lastY = curY;
-    }, {passive: true});
-    if(trig) trig.addEventListener('mouseenter', function(){ bar.classList.remove('vbar-hidden'); });
-  })();
-</script>`;
+  <a href="/" style="font-weight:bold;color:#4285f4;text-decoration:none;">Google</a>
+  <button onclick="history.back()" style="padding:2px 8px;cursor:pointer;">&larr;</button>
+  <button onclick="location.reload()" style="padding:2px 8px;cursor:pointer;">&#8635;</button>
+  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5f6368;">${safe}</span>
+  <a href="/" style="text-decoration:none;color:#1a73e8;">Home</a>
+</div>`;
 }
 
 /* ═══════════════════════════════════════════
@@ -570,55 +349,15 @@ const STRIP_HEADERS = new Set([
 ]);
 
 const URL_ATTRS = {
-  a: ["href", "ping"], area: ["href"], link: ["href"],
-  img: ["src", "srcset", "data-src", "data-src-hq", "data-srcset", "data-lazy-src", "data-original", "data-thumb", "data-hero"],
-  script: ["src"], source: ["src", "srcset"], video: ["src", "poster", "data-src"],
-  audio: ["src"], embed: ["src"], object: ["data"], form: ["action"],
-  input: ["src", "formaction"], track: ["src"], iframe: ["src"],
-  button: ["formaction"], body: ["background"], table: ["background"],
-  td: ["background"], th: ["background"],
+  a: ["href"], link: ["href"], img: ["src", "srcset", "data-src", "data-src-hq", "data-lazy-src", "data-original"],
+  script: ["src"], source: ["src", "srcset"], video: ["src", "poster"], audio: ["src"], form: ["action"], iframe: ["src"]
 };
 
-const BINARY_TYPE_PREFIXES = [
-  "video/", "audio/", "image/", "application/wasm",
-  "application/octet-stream", "font/", "application/font-woff", "application/x-font-ttf",
+// Expanded to catch missing image content-types and prevent cheerio buffer stalls
+const BINARY_PREFIXES = [
+  "image/", "video/", "audio/", "font/", "application/font-woff", "application/x-font-ttf",
+  "application/octet-stream", "application/wasm", "application/pdf"
 ];
-
-function cookiePrefix(hostname) {
-  return "__v_" + Buffer.from(hostname).toString("base64url").slice(0, 8) + "_";
-}
-
-function scopeCookiesForTarget(rawCookieHeader, targetUrl) {
-  if (!rawCookieHeader) return "";
-  try {
-    const prefix = cookiePrefix(new URL(targetUrl).hostname);
-    return rawCookieHeader
-      .split(";")
-      .map((c) => c.trim())
-      .filter((c) => c.startsWith(prefix))
-      .map((c) => c.slice(prefix.length))
-      .join("; ");
-  } catch {
-    return rawCookieHeader;
-  }
-}
-
-function prefixSetCookie(rawSetCookie, targetUrl) {
-  try {
-    const prefix = cookiePrefix(new URL(targetUrl).hostname);
-    const eqIdx = rawSetCookie.indexOf("=");
-    if (eqIdx === -1) return rawSetCookie;
-    const name = rawSetCookie.slice(0, eqIdx);
-    const rest = rawSetCookie.slice(eqIdx);
-    return (prefix + name + rest)
-      .replace(/;\s*domain=[^;]*/gi, "")
-      .replace(/;\s*secure/gi, "")
-      .replace(/;\s*samesite=[^;]*/gi, "; samesite=lax")
-      .replace(/;\s*path=[^;]*/gi, "; path=/");
-  } catch {
-    return rawSetCookie;
-  }
-}
 
 function buildHeaders(req, targetUrl) {
   const h = {};
@@ -633,28 +372,20 @@ function buildHeaders(req, targetUrl) {
     ) continue;
     h[k] = v;
   }
+
   try {
     const u = new URL(targetUrl);
     h["host"] = u.host;
-    h["referer"] = "";
-  } catch (e) {
-    console.error("[proxy] buildHeaders invalid targetUrl:", e.message);
-  }
-
-  const scoped = scopeCookiesForTarget(req.headers.cookie, targetUrl);
-  if (scoped) h["cookie"] = scoped;
+    // Set referer to target origin to satisfy strict CDN hotlink protection
+    h["referer"] = u.origin + "/";
+  } catch {}
 
   h["user-agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-  h["accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
+  h["accept"] = req.headers["accept"] || "*/*";
   h["accept-language"] = "en-US,en;q=0.9";
-  h["sec-fetch-dest"] = "document";
-  h["sec-fetch-mode"] = "navigate";
-  h["sec-fetch-site"] = "none";
-  h["sec-fetch-user"] = "?1";
-  h["upgrade-insecure-requests"] = "1";
+  h["accept-encoding"] = "gzip, deflate, br";
 
   if (req.headers.range) h["range"] = req.headers.range;
-  h["accept-encoding"] = "gzip, deflate, br";
   return h;
 }
 
@@ -687,69 +418,26 @@ async function handleProxy(req, res) {
     return res.status(403).send("Forbidden URL destination: " + err.message);
   }
 
-  if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
-    return res.status(204).end();
-  }
-
-  if (req.method === "GET" && req.query && Object.keys(req.query).length > 0) {
-    try {
-      const u = new URL(targetUrl);
-      for (const [k, v] of Object.entries(req.query)) {
-        if (["nojs", "noimg", "eruda", "mode", "engine"].includes(k)) continue;
-        if (Array.isArray(v)) v.forEach((item) => u.searchParams.append(k, item));
-        else if (!u.searchParams.has(k)) u.searchParams.append(k, v);
-      }
-      targetUrl = u.href;
-    } catch (e) {
-      console.error("[proxy] Query parameter merge failed:", e.message);
-    }
-  }
-
-  const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
-  const optQs = [];
-  if (opts.nojs) optQs.push("nojs=1");
-  if (opts.noimg) optQs.push("noimg=1");
-  if (opts.eruda) optQs.push("eruda=1");
-  const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
-
-  if (req.method === "GET") {
-    const cached = cacheGet("p:" + targetUrl + optSuffix);
-    if (cached) {
-      res.type(cached.ct);
-      res.setHeader("X-Void-Cache", "HIT");
-      return res.send(cached.body);
-    }
-  }
+  // Fast binary path detection by URL extension to avoid buffer stall
+  const isImageExt = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff)(\?.*)?$/i.test(targetUrl);
 
   let axiosRes;
   try {
-    const headers = buildHeaders(req, targetUrl);
     axiosRes = await axios({
       url: targetUrl,
       method: req.method,
-      headers,
+      headers: buildHeaders(req, targetUrl),
       data: ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) ? req.body : undefined,
       responseType: "stream",
-      maxRedirects: 0,
+      maxRedirects: 5,
       decompress: false,
       validateStatus: () => true,
-      timeout: 25000,
+      timeout: 15000,
       httpAgent,
       httpsAgent,
     });
   } catch (axiosErr) {
     return res.status(502).send("Upstream Request Failed: " + axiosErr.message);
-  }
-
-  if ([301, 302, 303, 307, 308].includes(axiosRes.status) && axiosRes.headers.location) {
-    try {
-      const nextUrl = new URL(axiosRes.headers.location, targetUrl).href;
-      await assertSafeUrl(nextUrl);
-      res.setHeader("Location", enc(nextUrl) + optSuffix);
-      return res.status(axiosRes.status).end();
-    } catch (e) {
-      return res.status(403).send("Blocked unsafe redirect: " + e.message);
-    }
   }
 
   if ([204, 304].includes(axiosRes.status)) return res.status(axiosRes.status).end();
@@ -761,30 +449,17 @@ async function handleProxy(req, res) {
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "*");
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-
-  const rawSetCookies = axiosRes.headers["set-cookie"];
-  if (rawSetCookies) {
-    const cookies = Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies];
-    for (const c of cookies) res.append("set-cookie", prefixSetCookie(c, targetUrl));
-  }
+  res.setHeader("Timing-Allow-Origin", "*");
 
   const rawCt = String(axiosRes.headers["content-type"] || "");
   const ct = rawCt.split(";")[0].trim().toLowerCase();
-  const isBinary = BINARY_TYPE_PREFIXES.some((prefix) => ct.startsWith(prefix));
+  const isBinary = isImageExt || BINARY_PREFIXES.some((prefix) => ct.startsWith(prefix));
 
+  // Stream binaries and images directly with zero buffering or parsing
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
-    const passthroughHeaders = [
-      "content-type", "content-length", "content-disposition",
-      "accept-ranges", "content-range", "cache-control", "etag", "last-modified",
-    ];
-    for (const h of passthroughHeaders) {
-      if (axiosRes.headers[h] !== undefined) res.set(h, axiosRes.headers[h]);
-    }
+    if (!res.getHeader("content-type") && rawCt) res.setHeader("content-type", rawCt);
+
     axiosRes.data.on("error", () => {
       if (!res.headersSent) res.status(502);
       res.end();
@@ -793,6 +468,7 @@ async function handleProxy(req, res) {
     return axiosRes.data.pipe(res);
   }
 
+  // Only HTML, CSS, JS run through Cheerio & text decompression
   try {
     const contentEncoding = String(axiosRes.headers["content-encoding"] || "").toLowerCase();
     const decompStream = decompressStream(axiosRes.data, contentEncoding);
@@ -805,31 +481,18 @@ async function handleProxy(req, res) {
     res.removeHeader("content-length");
 
     if (ct.includes("text/html")) {
-      const patched = text ? rewriteHtmlWithOpts(text, targetUrl, opts, optSuffix) : text;
-      res.type("text/html; charset=utf-8").status(axiosRes.status).send(patched);
-      cacheSet("p:" + targetUrl + optSuffix, "text/html; charset=utf-8", patched);
-      return;
+      const patched = rewriteHtml(text, targetUrl);
+      return res.type("text/html; charset=utf-8").status(axiosRes.status).send(patched);
     }
 
     if (ct.includes("text/css")) {
       const rewritten = rewriteCss(text, targetUrl);
-      cacheSet("p:" + targetUrl + optSuffix, "text/css; charset=utf-8", rewritten);
-      res.type("text/css; charset=utf-8").send(rewritten);
-      return;
+      return res.type("text/css; charset=utf-8").send(rewritten);
     }
 
     if (ct.includes("javascript") || ct.includes("ecmascript")) {
-      const rewritten = rewriteJsUrls(text, targetUrl, "/p/");
-      cacheSet("p:" + targetUrl + optSuffix, ct, rewritten);
-      res.type(rawCt || "application/javascript").status(axiosRes.status).send(rewritten);
-      return;
-    }
-
-    if (ct.includes("json")) {
-      const rewritten = rewriteEmbeddedUrls(text, targetUrl);
-      cacheSet("p:" + targetUrl + optSuffix, ct, rewritten);
-      res.type(rawCt || "application/json").status(axiosRes.status).send(rewritten);
-      return;
+      const rewritten = rewriteJsUrls(text, targetUrl);
+      return res.type(rawCt || "application/javascript").status(axiosRes.status).send(rewritten);
     }
 
     res.type(rawCt || "application/octet-stream").status(axiosRes.status).send(bodyBuf);
@@ -838,7 +501,7 @@ async function handleProxy(req, res) {
   }
 }
 
-function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
+function rewriteHtml(html, base) {
   const $ = cheerio.load(html);
 
   const baseTag = $("base[href]").first();
@@ -852,29 +515,9 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
   $('meta[http-equiv="content-security-policy"]').remove();
   $('head').prepend('<meta name="referrer" content="no-referrer">');
 
-  function rw(raw) {
-    return rewriteUrl(raw, resolveBase) + optSuffix;
-  }
-
-  function rwNoOpts(raw) {
-    return rewriteUrl(raw, resolveBase);
-  }
-
-  function rwCssBlock(css) {
-    return rewriteCss(css, resolveBase);
-  }
-
   $("a[target]").removeAttr("target");
-  $("form[target]").removeAttr("target");
-  $("base[target]").removeAttr("target");
   $("[integrity]").removeAttr("integrity");
   $("[nonce]").removeAttr("nonce");
-  $("[crossorigin]").removeAttr("crossorigin");
-
-  $('link[rel*="icon"], link[rel*="shortcut"], link[rel*="apple-touch-icon"]').each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) $(el).attr("href", rwNoOpts(href));
-  });
 
   for (const [tag, attrs] of Object.entries(URL_ATTRS)) {
     $(tag).each((_, el) => {
@@ -882,14 +525,11 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
         const val = $(el).attr(attr);
         if (!val) continue;
         if (attr === "srcset" || attr === "data-srcset") {
-          $(el).attr(
-            attr,
-            val.replace(/([^\s,]+)(\s+[^,]*)?/g, (m, url, desc) => rwNoOpts(url) + (desc || ""))
-          );
+          $(el).attr(attr, val.replace(/([^\s,]+)(\s+[^,]*)?/g, (m, url, desc) => rewriteUrl(url, resolveBase) + (desc || "")));
         } else {
-          const rewritten = rw(val);
+          const rewritten = rewriteUrl(val, resolveBase);
           $(el).attr(attr, rewritten);
-          if (tag === "img" && (attr === "data-src" || attr === "data-src-hq" || attr === "data-original")) {
+          if (tag === "img" && (attr === "data-src" || attr === "data-original")) {
             $(el).attr("src", rewritten);
           }
         }
@@ -897,327 +537,27 @@ function rewriteHtmlWithOpts(html, base, opts, optSuffix) {
     });
   }
 
-  $("[style]").each((_, el) => {
-    $(el).attr("style", rwCssBlock($(el).attr("style") || ""));
-  });
-  $("style").each((_, el) => {
-    $(el).html(rwCssBlock($(el).html() || ""));
-  });
-
-  $('meta[http-equiv="refresh"]').each((_, el) => {
-    const content = $(el).attr("content") || "";
-    const m = content.match(/^(\d+)\s*;\s*url\s*=\s*['"]?(.+?)['"]?$/i);
-    if (m) $(el).attr("content", m[1] + ";url=" + rw(m[2]));
-  });
-
-  $("script:not([src]):not([data-void])").each((_, el) => {
-    let code = $(el).html();
-    if (!code || !code.trim()) return;
-    code = rewriteJsUrls(code, resolveBase, "/p/");
-    $(el).html(code);
-  });
-
-  if (opts.nojs) {
-    $("script:not([data-void])").remove();
-    const evts = "onclick,onload,onerror,onsubmit,onchange,onmouseover,onfocus,onblur,onkeydown,onkeyup,onmousedown,onmouseup".split(",");
-    $("*").each((_, el) => {
-      for (const e of evts) $(el).removeAttr(e);
-    });
-  }
-
-  if (opts.noimg) $("img, picture").remove();
+  $("[style]").each((_, el) => { $(el).attr("style", rewriteCss($(el).attr("style") || "", resolveBase)); });
+  $("style").each((_, el) => { $(el).html(rewriteCss($(el).html() || "", resolveBase)); });
 
   $("body").prepend(proxyBar(base));
-  if (!opts.nojs) $("head").prepend(injectionScript(resolveBase));
-  if (opts.eruda) {
-    $("head").append('<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>');
-  }
+  $("head").prepend(injectionScript(resolveBase));
 
   return $.html();
-}
-
-function requestWithNode(targetUrl, opts) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(targetUrl);
-    const isHttps = u.protocol === "https:";
-    const lib = isHttps ? https : http;
-    const reqOpts = {
-      hostname: u.hostname,
-      port: u.port || (isHttps ? 443 : 80),
-      path: u.pathname + u.search,
-      method: opts.method || "GET",
-      headers: opts.headers || {},
-      rejectUnauthorized: true,
-      agent: isHttps ? httpsAgent : httpAgent,
-    };
-    const req = lib.request(reqOpts, (res) => {
-      res.on("error", reject);
-      resolve(res);
-    });
-    req.on("error", reject);
-    req.setTimeout(25000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    if (opts.body) req.write(opts.body);
-    req.end();
-  });
-}
-
-function experimentalRewriteHtml(html, base, optSuffix) {
-  const baseRegex = /<base\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  let resolveBase = base;
-  let m;
-  if ((m = baseRegex.exec(html))) {
-    try { resolveBase = new URL(m[1], base).href; } catch {}
-  }
-  html = html.replace(baseRegex, "");
-
-  const rw = (url) => rewriteUrlPe(url, resolveBase, optSuffix);
-  const rwNoOpts = (url) => rewriteUrlPe(url, resolveBase, "");
-
-  const attrPatterns = [
-    [/<a\s+([^>]*?)href\s*=\s*["']([^"']*)["']/gi, "href"],
-    [/<link\s+([^>]*?)href\s*=\s*["']([^"']*)["']/gi, "href"],
-    [/<img\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
-    [/<img\s+([^>]*?)srcset\s*=\s*["']([^"']*)["']/gi, "srcset"],
-    [/<script\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
-    [/<form\s+([^>]*?)action\s*=\s*["']([^"']*)["']/gi, "action"],
-    [/<iframe\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
-    [/<source\s+([^>]*?)src\s*=\s*["']([^"']*)["']/gi, "src"],
-  ];
-
-  for (const [re, attr] of attrPatterns) {
-    html = html.replace(re, (full, _rest, url) => {
-      const rewritten = attr === "srcset" ? url.replace(/([^\s,]+)(\s+[^,]*)?/g, (_, u, d) => rwNoOpts(u) + (d || "")) : rw(url);
-      if (rewritten === url) return full;
-      const cut = full.length - url.length - 1;
-      return full.slice(0, cut) + rewritten + full.slice(cut + url.length);
-    });
-  }
-
-  html = html.replace(/<script(\s[^>]*)?>(?!<\/script>)([\s\S]*?)<\/script>/gi, (match, attrs, code) => {
-    if (!code || !code.trim() || (attrs && /\bsrc\s*=/i.test(attrs)) || (attrs && /data-void/i.test(attrs))) return match;
-    const rewritten = rewriteJsUrls(code, resolveBase, "/pe/");
-    return rewritten !== code ? match.replace(code, rewritten) : match;
-  });
-
-  html = html.replace(/<meta\s+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
-  html = html.replace(/\starget\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  html = html.replace(/\sintegrity\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  html = html.replace(/\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  return html;
-}
-
-async function handleExperimentalProxy(req, res) {
-  let targetUrl;
-  try {
-    targetUrl = decPe(req.params.encoded);
-  } catch {
-    return res.status(400).send("Invalid URL encoding");
-  }
-
-  try {
-    await assertSafeUrl(targetUrl);
-  } catch (err) {
-    return res.status(403).send("Forbidden URL destination: " + err.message);
-  }
-
-  if (/(\/fd\/ls\/|bat\.bing\.com\/action\/|clarity\.ms\/collect)/i.test(targetUrl)) {
-    return res.status(204).end();
-  }
-
-  const opts = { nojs: req.query.nojs === "1", noimg: req.query.noimg === "1", eruda: req.query.eruda === "1" };
-  const optQs = [];
-  if (opts.nojs) optQs.push("nojs=1");
-  if (opts.noimg) optQs.push("noimg=1");
-  if (opts.eruda) optQs.push("eruda=1");
-  const optSuffix = optQs.length ? "?" + optQs.join("&") : "";
-
-  try {
-    const u = new URL(targetUrl);
-    const headers = {
-      host: u.host,
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      accept: req.headers["accept"] || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "accept-language": req.headers["accept-language"] || "en-US,en;q=0.9",
-      "accept-encoding": "gzip, deflate, br",
-      referer: "",
-      connection: "keep-alive",
-    };
-
-    if (req.headers.range) headers.range = req.headers.range;
-    if (req.method === "POST" && req.headers["content-type"]) headers["content-type"] = req.headers["content-type"];
-    const scoped = scopeCookiesForTarget(req.headers.cookie, targetUrl);
-    if (scoped) headers.cookie = scoped;
-
-    let body;
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && req.body) {
-      if (Buffer.isBuffer(req.body)) body = req.body;
-      else if (typeof req.body === "object") {
-        body = JSON.stringify(req.body);
-        headers["content-type"] = "application/json";
-      } else body = req.body;
-      headers["content-length"] = Buffer.byteLength(body);
-    }
-
-    const upstream = await requestWithNode(targetUrl, { method: req.method, headers, body });
-
-    if ([301, 302, 303, 307, 308].includes(upstream.statusCode) && upstream.headers.location) {
-      const nextUrl = new URL(upstream.headers.location, targetUrl).href;
-      await assertSafeUrl(nextUrl);
-      res.setHeader("Location", encPe(nextUrl) + optSuffix);
-      return res.status(upstream.statusCode).end();
-    }
-
-    if ([204, 304].includes(upstream.statusCode)) return res.status(upstream.statusCode).end();
-
-    const rawCt = upstream.headers["content-type"] || "";
-    const contentType = rawCt.split(";")[0].trim().toLowerCase();
-    const contentEncoding = (upstream.headers["content-encoding"] || "").toLowerCase();
-
-    for (const [k, v] of Object.entries(upstream.headers)) {
-      const kl = k.toLowerCase();
-      if (STRIP_HEADERS.has(kl) || kl === "set-cookie") continue;
-      try { if (!Array.isArray(v)) res.set(k, v); } catch {}
-    }
-
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-
-    const rawSetCookies = upstream.headers["set-cookie"];
-    if (rawSetCookies) {
-      const cookies = Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies];
-      for (const c of cookies) res.append("set-cookie", prefixSetCookie(c, targetUrl));
-    }
-
-    const isBinary = BINARY_TYPE_PREFIXES.some((prefix) => contentType.startsWith(prefix));
-    if (isBinary || upstream.statusCode === 206) {
-      res.status(upstream.statusCode);
-      return upstream.pipe(res);
-    }
-
-    const decompressed = decompressStream(upstream, contentEncoding);
-    const chunks = [];
-    for await (const c of decompressed) chunks.push(c);
-    const bodyBuffer = Buffer.concat(chunks);
-
-    res.removeHeader("content-encoding");
-    res.removeHeader("content-length");
-
-    if (contentType.includes("text/html")) {
-      let html = bodyBuffer.toString("utf8");
-      html = experimentalRewriteHtml(html, targetUrl, optSuffix);
-      const barHtml = proxyBar(targetUrl);
-      const scriptHtml = opts.nojs ? "" : injectionScriptExperimental(targetUrl, optSuffix);
-      html = html.replace(/<body\s*/i, `<body>${barHtml}${scriptHtml}`);
-      res.type("text/html; charset=utf-8").send(html);
-      return;
-    }
-    if (contentType.includes("text/css")) {
-      const css = rewriteCssPe(bodyBuffer.toString("utf8"), targetUrl, optSuffix);
-      res.type("text/css; charset=utf-8").send(css);
-      return;
-    }
-    if (contentType.includes("javascript") || contentType.includes("ecmascript")) {
-      const js = rewriteJsUrls(bodyBuffer.toString("utf8"), targetUrl, "/pe/");
-      res.type(rawCt || "application/javascript").send(js);
-      return;
-    }
-    if (contentType.includes("json")) {
-      const json = rewriteEmbeddedUrls(bodyBuffer.toString("utf8"), targetUrl, encPe);
-      res.type(rawCt || "application/json").send(json);
-      return;
-    }
-
-    res.set("content-type", rawCt || "application/octet-stream");
-    res.send(bodyBuffer);
-  } catch (err) {
-    res.status(502).send(`<!DOCTYPE html><html><body>502 Error: ${err.message}</body></html>`);
-  }
-}
-
-function handlePeWsUpgrade(req, socket, head) {
-  const path = req.url || "";
-  const match = path.match(/^\/pe-ws\/([A-Za-z0-9_-]+)/);
-  if (!match) return socket.destroy();
-
-  let targetWsUrl;
-  try {
-    targetWsUrl = Buffer.from(match[1], "base64url").toString("utf8");
-  } catch {
-    return socket.destroy();
-  }
-
-  if (!/^wss?:\/\//i.test(targetWsUrl)) return socket.destroy();
-
-  assertSafeUrl(targetWsUrl).then(() => {
-    const u = new URL(targetWsUrl);
-    const isWss = u.protocol === "wss:";
-    const port = parseInt(u.port, 10) || (isWss ? 443 : 80);
-    const key = req.headers["sec-websocket-key"] || "";
-    const accept = createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
-
-    socket.write(
-      `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
-    );
-
-    const pathQuery = u.pathname + u.search;
-    const wsKey = Buffer.from(u.hostname + Date.now() + Math.random()).toString("base64").replace(/=+$/, "");
-    const targetReq =
-      `GET ${pathQuery} HTTP/1.1\r\nHost: ${u.host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${wsKey}\r\nSec-WebSocket-Version: 13\r\nOrigin: ${u.origin}\r\n\r\n`;
-
-    const conn = isWss
-      ? tls.connect(port, u.hostname, { servername: u.hostname }, () => {})
-      : net.connect(port, u.hostname, () => {});
-
-    let targetHandshakeDone = false;
-    let handshakeBuf = Buffer.alloc(0);
-    const clientBuf = [];
-
-    conn.on("data", (chunk) => {
-      if (!targetHandshakeDone) {
-        handshakeBuf = Buffer.concat([handshakeBuf, chunk]);
-        if (handshakeBuf.indexOf("\r\n\r\n") !== -1) {
-          targetHandshakeDone = true;
-          const bodyStart = handshakeBuf.indexOf("\r\n\r\n") + 4;
-          if (bodyStart < handshakeBuf.length) socket.write(handshakeBuf.subarray(bodyStart));
-          while (clientBuf.length) conn.write(clientBuf.shift());
-        }
-        return;
-      }
-      socket.write(chunk);
-    });
-
-    conn.on("error", () => { socket.destroy(); conn.destroy(); });
-    socket.on("error", () => { socket.destroy(); conn.destroy(); });
-    socket.on("data", (data) => {
-      if (targetHandshakeDone) conn.write(data);
-      else clientBuf.push(data);
-    });
-
-    conn.write(targetReq);
-    if (head && head.length) conn.write(head);
-  }).catch(() => socket.destroy());
 }
 
 /* ═══════════════════════════════════════════
    Load-Balanced Search Engine Implementations
    ═══════════════════════════════════════════ */
 
-async function fetchFromSerper(query, type = "web", num = 8) {
+async function fetchFromSerper(query, type = "web", num = 10) {
   if (!KEYS.serper) throw new Error("Missing SERPER_API_KEY");
   const endpoint = `https://google.serper.dev/${type === "images" ? "images" : "search"}`;
   const response = await axios({
     method: "post",
-    maxBodyLength: Infinity,
     url: endpoint,
-    headers: {
-      "X-API-KEY": KEYS.serper,
-      "Content-Type": "application/json",
-    },
-    data: JSON.stringify({ q: query, num: num, gl: "us", hl: "en" }),
+    headers: { "X-API-KEY": KEYS.serper, "Content-Type": "application/json" },
+    data: JSON.stringify({ q: query, num, gl: "us", hl: "en" }),
     timeout: 5000,
   });
 
@@ -1226,7 +566,8 @@ async function fetchFromSerper(query, type = "web", num = 8) {
     return (data.images || []).map((img) => ({
       title: img.title || "",
       imageUrl: img.imageUrl || img.link,
-      source: img.domain || "serper",
+      thumbnail: img.imageUrl,
+      source: img.domain || "google",
     }));
   }
 
@@ -1234,39 +575,20 @@ async function fetchFromSerper(query, type = "web", num = 8) {
     title: item.title,
     link: item.link,
     snippet: item.snippet,
-    source: "serper",
   }));
 }
 
-async function fetchFromSerpApi(query, type = "web", num = 8) {
+async function fetchFromSerpApi(query, type = "web", num = 10) {
   if (!KEYS.serpapi) throw new Error("Missing SERPAPI_KEY");
-  const engine = type === "images" ? "google_images" : (type === "youtube" ? "youtube" : "google");
-  const json = await getJson({
-    engine,
-    q: query,
-    num: num,
-    api_key: KEYS.serpapi,
-    gl: "us",
-    hl: "en",
-  });
+  const engine = type === "images" ? "google_images" : "google";
+  const json = await getJson({ engine, q: query, num, api_key: KEYS.serpapi, gl: "us", hl: "en" });
 
   if (type === "images") {
     return (json.images_results || []).map((img) => ({
       title: img.title || "",
       imageUrl: img.original || img.link,
       thumbnail: img.thumbnail,
-      source: img.source || img.domain || "serpapi",
-    }));
-  }
-
-  if (type === "youtube") {
-    return (json.video_results || []).map((vid) => ({
-      title: vid.title,
-      link: vid.link,
-      videoId: vid.link ? (vid.link.match(/v=([^&]+)/) || [])[1] : null,
-      thumbnail: vid.thumbnail?.static || vid.thumbnail,
-      channel: vid.channel?.name || "YouTube",
-      views: vid.views || "",
+      source: img.source || "google",
     }));
   }
 
@@ -1274,15 +596,14 @@ async function fetchFromSerpApi(query, type = "web", num = 8) {
     title: item.title,
     link: item.link,
     snippet: item.snippet,
-    source: "serpapi",
   }));
 }
 
-async function fetchFromDuckDuckGo(query, num = 8) {
+async function fetchFromDuckDuckGo(query, num = 10) {
   try {
     const ddgRes = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      timeout: 6000,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      timeout: 5000,
     });
     const $ = cheerio.load(ddgRes.data);
     const results = [];
@@ -1298,7 +619,7 @@ async function fetchFromDuckDuckGo(query, num = 8) {
         } catch {}
       }
       if (href && /^https?:\/\//i.test(href)) {
-        results.push({ title: title || href, link: href, snippet, source: "duckduckgo" });
+        results.push({ title: title || href, link: href, snippet });
       }
       if (results.length >= num) return false;
     });
@@ -1308,176 +629,66 @@ async function fetchFromDuckDuckGo(query, num = 8) {
   }
 }
 
-async function fetchYouTubeDirect(q) {
-  try {
-    const r = await axios.get(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q + " site:youtube.com/watch")}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      timeout: 6000,
-    });
-    const $ = cheerio.load(r.data);
-    const videos = [];
-    $(".result").each((_, el) => {
-      const a = $(el).find(".result__title a").first();
-      const title = a.text().trim();
-      let href = a.attr("href") || "";
-      if (href.includes("uddg=")) {
-        try {
-          const match = href.match(/uddg=([^&]+)/);
-          if (match) href = decodeURIComponent(match[1]);
-        } catch {}
-      }
-      if (/youtube\.com\/watch\?v=/i.test(href)) {
-        const vId = (href.match(/v=([^&]+)/) || [])[1];
-        videos.push({
-          title,
-          link: href,
-          videoId: vId,
-          thumbnail: vId ? `https://i.ytimg.com/vi/${vId}/hqdefault.jpg` : "",
-          channel: "YouTube",
-          views: "YouTube Video",
-        });
-      }
-      if (videos.length >= 12) return false;
-    });
-    return videos;
-  } catch {
-    return [];
-  }
-}
-
-// Priority chain: Try a random primary (Serper or SerpAPI), fallback to secondary paid, fallback to DuckDuckGo
-async function searchGoogle(query, type = "web", num = 8) {
+async function searchGoogle(query, type = "web", num = 10) {
   const availablePaid = [];
   if (KEYS.serper) availablePaid.push("serper");
   if (KEYS.serpapi) availablePaid.push("serpapi");
 
-  if (availablePaid.length === 0) {
-    return await fetchFromDuckDuckGo(query, num);
-  }
+  if (availablePaid.length === 0) return await fetchFromDuckDuckGo(query, num);
 
-  const primaryIndex = Math.floor(Math.random() * availablePaid.length);
-  const primaryProvider = availablePaid[primaryIndex];
-
-  // 1. Try Primary Provider
+  const primary = availablePaid[Math.floor(Math.random() * availablePaid.length)];
   try {
-    if (primaryProvider === "serper") {
-      return await fetchFromSerper(query, type, num);
-    } else {
-      return await fetchFromSerpApi(query, type, num);
-    }
-  } catch (primaryError) {
-    console.warn(`[Load Balancer] Primary provider (${primaryProvider}) failed:`, primaryError.message);
-
-    // 2. Try Secondary Paid Provider if configured
-    const secondaryProvider = availablePaid.find((p) => p !== primaryProvider);
-    if (secondaryProvider) {
+    return primary === "serper" ? await fetchFromSerper(query, type, num) : await fetchFromSerpApi(query, type, num);
+  } catch {
+    const secondary = availablePaid.find((p) => p !== primary);
+    if (secondary) {
       try {
-        if (secondaryProvider === "serper") {
-          return await fetchFromSerper(query, type, num);
-        } else {
-          return await fetchFromSerpApi(query, type, num);
-        }
-      } catch (secondaryError) {
-        console.warn(`[Load Balancer] Secondary provider (${secondaryProvider}) failed:`, secondaryError.message);
-      }
+        return secondary === "serper" ? await fetchFromSerper(query, type, num) : await fetchFromSerpApi(query, type, num);
+      } catch {}
     }
-
-    // 3. Fallback to Free DuckDuckGo
     return await fetchFromDuckDuckGo(query, num);
   }
 }
 
 /* ═══════════════════════════════════════════
-   Search & Free Public Autocomplete Endpoints
+   Endpoints
    ═══════════════════════════════════════════ */
 
 app.get("/api/search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Missing query parameter q" });
-  const num = Math.min(10, Math.max(1, parseInt(req.query.num, 10) || 8));
+  const num = Math.min(15, Math.max(1, parseInt(req.query.num, 10) || 10));
 
-  try {
-    const results = await searchGoogle(q, "web", num);
-    return res.json({
-      cached: false,
-      results: results.map((item) => ({
-        title: item.title,
-        url: item.link || item.url,
-        snippet: item.snippet || "",
-      })),
-    });
-  } catch (err) {
-    const fallback = await fetchFromDuckDuckGo(q, num);
-    return res.json({
-      cached: false,
-      results: fallback.map((item) => ({
-        title: item.title,
-        url: item.link,
-        snippet: item.snippet || "",
-      })),
-    });
-  }
+  const results = await searchGoogle(q, "web", num);
+  return res.json({
+    cached: false,
+    results: results.map((item) => ({
+      title: item.title,
+      url: item.link || item.url,
+      snippet: item.snippet || "",
+    })),
+  });
 });
 
 app.get("/api/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ images: [] });
-
-  try {
-    const images = await searchGoogle(q, "images", 20);
-    return res.json({
-      images: images.map((img) => ({
-        title: img.title || "",
-        original: img.imageUrl || img.original || img.link,
-        thumbnail: img.thumbnail || img.imageUrl,
-        source: img.source || "",
-      })),
-    });
-  } catch {
-    return res.json({ images: [] });
-  }
-});
-
-app.get("/api/youtube", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  const v = (req.query.v || "").trim();
-  if (v) {
-    return res.json({ video: { title: "YouTube Video", video_id: v } });
-  }
-  if (!q) return res.json({ videos: [] });
-
-  if (KEYS.serpapi) {
-    try {
-      const vids = await fetchFromSerpApi(q, "youtube", 15);
-      if (vids.length > 0) return res.json({ videos: vids });
-    } catch {}
-  }
-
-  const fallbackVideos = await fetchYouTubeDirect(q);
-  return res.json({ videos: fallbackVideos });
+  const images = await searchGoogle(q, "images", 20);
+  return res.json({ images });
 });
 
 app.get("/api/autocomplete", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ suggestions: [] });
-
   try {
-    const ddgRes = await axios.get(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      timeout: 2500,
-    });
-    if (Array.isArray(ddgRes.data) && Array.isArray(ddgRes.data[1])) {
-      return res.json({ suggestions: ddgRes.data[1].slice(0, 8) });
-    }
-  } catch {}
-
-  return res.json({ suggestions: [] });
+    const ddgRes = await axios.get(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, { timeout: 2000 });
+    return res.json({ suggestions: ddgRes.data[1]?.slice(0, 8) || [] });
+  } catch {
+    return res.json({ suggestions: [] });
+  }
 });
 
-/* ═══════════════════════════════════════════
-   Search Results UI Routes (/s, /sr, /serper-results)
-   ═══════════════════════════════════════════ */
-
+/* ── Results UI (Loads image thumbnails directly via browser CDN) ── */
 app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
   let rawQ = (req.query.q || "").trim();
   if (!rawQ) return res.redirect("/");
@@ -1485,9 +696,7 @@ app.get(["/serper-results", "/sr", "/serpapi-results", "/s"], (req, res) => {
   let q = rawQ;
   try {
     let decoded = dec(rawQ);
-    if (decoded.includes("||")) {
-      decoded = decoded.split("||")[1] || decoded;
-    }
+    if (decoded.includes("||")) decoded = decoded.split("||")[1] || decoded;
     q = decoded;
   } catch {}
 
@@ -1508,36 +717,26 @@ a{text-decoration:none;color:inherit;}
 .topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#ffffff;border-bottom:1px solid #dfe1e5;position:sticky;top:0;z-index:100;}
 .topbar .logo{font-size:1.4rem;font-weight:bold;color:#4285f4;text-transform:lowercase;letter-spacing:-1px;}
 .topbar form{flex:1;display:flex;gap:8px;max-width:640px;}
-.topbar input{flex:1;background:#ffffff;border:1px solid #dfe1e5;color:#202124;border-radius:24px;font-size:.95rem;padding:8px 16px;outline:none;box-shadow:0 1px 4px rgba(32,33,36,0.1);}
-.topbar input:focus{border-color:transparent;box-shadow:0 1px 6px rgba(32,33,36,0.28);}
+.topbar input{flex:1;background:#ffffff;border:1px solid #dfe1e5;color:#202124;border-radius:24px;font-size:.95rem;padding:8px 16px;outline:none;}
 .topbar button{padding:8px 18px;background:#f8f9fa;border:1px solid #f8f9fa;color:#3c4043;font-weight:600;font-size:.85rem;border-radius:4px;cursor:pointer;}
-.topbar button:hover{background:#f1f3f4;border-color:#dadce0;color:#202124;}
-.topbar .back{padding:6px 12px;background:#f8f9fa;border:1px solid #dadce0;border-radius:4px;color:#3c4043;font-size:.85rem;text-decoration:none;display:inline-flex;}
-.tabs{display:flex;gap:16px;padding:10px 20px 0;border-bottom:1px solid #ebebeb;max-width:760px;margin:0 auto 16px;overflow-x:auto;}
-.tab{font-size:.9rem;color:#5f6368;cursor:pointer;padding-bottom:8px;white-space:nowrap;}
+.tabs{display:flex;gap:16px;padding:10px 20px 0;border-bottom:1px solid #ebebeb;max-width:760px;margin:0 auto 16px;}
+.tab{font-size:.9rem;color:#5f6368;cursor:pointer;padding-bottom:8px;}
 .tab.active{color:#1a73e8;font-weight:500;border-bottom:3px solid #1a73e8;}
 .main{max-width:760px;margin:0 auto;padding:0 20px 60px;}
-.meta{font-size:.85rem;color:#70757a;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.meta{font-size:.85rem;color:#70757a;margin-bottom:16px;}
 .result{display:block;padding:12px 0;margin-bottom:12px;}
-.result-head{display:flex;align-items:center;gap:7px;margin-bottom:2px;}
-.fav{width:16px;height:16px;border-radius:2px;}
 .domain{font-size:.8rem;color:#202124;}
 .result-title{font-size:1.15rem;font-weight:400;color:#1a0dab;line-height:1.3;margin-bottom:3px;}
-.result:hover .result-title{text-decoration:underline;}
 .result-snippet{font-size:.88rem;color:#4d5156;line-height:1.5;}
 .img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
 .img-card{display:flex;flex-direction:column;border:1px solid #dadce0;border-radius:8px;overflow:hidden;padding:6px;text-align:center;background:#fff;}
-.img-card img{width:100%;height:110px;object-fit:cover;border-radius:4px;margin-bottom:6px;}
-.spinner{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:#70757a;}
-.spin{width:20px;height:20px;border-radius:50%;border:2px solid #4285f4;border-top-color:transparent;animation:sp .8s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg)}}
+.img-card img{width:100%;height:110px;object-fit:cover;border-radius:4px;margin-bottom:6px;background:#f1f3f4;}
 </style>
 </head>
 <body>
 <div class="topbar">
   <a class="logo" href="/">void</a>
-  <a class="back" href="javascript:history.back()">← Back</a>
-  <form id="sf" action="/s" method="get">
+  <form action="/s" method="get">
     <input name="q" type="text" value="${safeQ}" autocomplete="off" spellcheck="false"/>
     <button type="submit">Search</button>
   </form>
@@ -1545,11 +744,10 @@ a{text-decoration:none;color:inherit;}
 <div class="tabs" id="tabs">
   <div class="tab active" data-engine="all">All</div>
   <div class="tab" data-engine="images">Images</div>
-  <div class="tab" data-engine="youtube">Videos</div>
 </div>
 <div class="main">
   <div class="meta" id="meta"></div>
-  <div id="results"><div class="spinner"><div class="spin"></div>Searching...</div></div>
+  <div id="results">Searching...</div>
 </div>
 <script>
 (function(){
@@ -1569,44 +767,25 @@ a{text-decoration:none;color:inherit;}
   }
 
   function fetchAndRender() {
-    resDiv.innerHTML = "<div class=\"spinner\"><div class=\"spin\"></div>Searching...</div>";
-    var endpoint = "/api/search?q=" + encodeURIComponent(Q);
-    if (currentEngine === "images") endpoint = "/api/images?q=" + encodeURIComponent(Q);
-    if (currentEngine === "youtube") endpoint = "/api/youtube?q=" + encodeURIComponent(Q);
+    resDiv.innerHTML = "Searching...";
+    var endpoint = (currentEngine === "images") ? "/api/images?q=" + encodeURIComponent(Q) : "/api/search?q=" + encodeURIComponent(Q);
 
-    fetch(endpoint)
-      .then(function(r){ 
-        if(!r.ok) throw new Error("Search API returned status " + r.status);
-        return r.json(); 
-      })
-      .then(function(data){
-        var arr = data.results || data.images || data.videos || [];
-        if(!arr || arr.length === 0) {
-          resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#70757a;'>No results found. Try another query.</div>";
-          metaDiv.innerHTML = "";
-          return;
-        }
-        metaDiv.innerHTML = "<span>About " + arr.length + " results for <strong>\"" + esc(Q) + "\"</strong></span>";
+    fetch(endpoint).then(function(r){ return r.json(); }).then(function(data){
+      var arr = data.results || data.images || [];
+      if(!arr.length) { resDiv.innerHTML = "No results found."; metaDiv.innerHTML = ""; return; }
+      metaDiv.innerHTML = "About " + arr.length + " results for <strong>" + esc(Q) + "</strong>";
 
-        if(currentEngine === "images") {
-          resDiv.innerHTML = "<div class=\"img-grid\">" + arr.map(function(img){
-            return "<a class=\"img-card\" href=\""+getProxyUrl(img.original||img.imageUrl)+"\"><img src=\""+getProxyUrl(img.thumbnail||img.imageUrl)+"\"/><div class=\"domain\">"+esc(img.source)+"</div></a>";
-          }).join("") + "</div>";
-        } else if(currentEngine === "youtube") {
-          resDiv.innerHTML = arr.map(function(vid){
-            return "<a class=\"result\" href=\""+getProxyUrl(vid.link)+"\"><div class=\"result-title\">"+esc(vid.title)+"</div><div class=\"result-head\"><span class=\"domain\">"+esc(vid.channel)+" • "+esc(vid.views)+"</span></div></a>";
-          }).join("");
-        } else {
-          resDiv.innerHTML = arr.map(function(r){
-            var domain = ""; try { domain = new URL(r.url||r.link).hostname; } catch(e){}
-            var fav = domain ? "<img class=\"fav\" src=\"https://icons.duckduckgo.com/ip3/"+encodeURIComponent(domain)+".ico\" onerror=\"this.style.display='none'\"/>" : "";
-            return "<a class=\"result\" href=\""+getProxyUrl(r.url||r.link)+"\"><div class=\"result-head\">"+fav+"<span class=\"domain\">"+esc(domain)+"</span></div><div class=\"result-title\">"+esc(r.title)+"</div><div class=\"result-snippet\">"+esc(r.snippet)+"</div></a>";
-          }).join("");
-        }
-      })
-      .catch(function(err){
-        resDiv.innerHTML = "<div style='text-align:center;padding:40px;color:#d93025;'>Failed to load results: " + esc(err.message) + "</div>";
-      });
+      if(currentEngine === "images") {
+        resDiv.innerHTML = "<div class='img-grid'>" + arr.map(function(img){
+          // Thumbnails load direct via no-referrer, full target loads via proxy
+          return "<a class='img-card' href='" + getProxyUrl(img.imageUrl) + "'><img src='" + (img.thumbnail || img.imageUrl) + "' loading='lazy'/><div class='domain'>" + esc(img.source) + "</div></a>";
+        }).join("") + "</div>";
+      } else {
+        resDiv.innerHTML = arr.map(function(r){
+          return "<a class='result' href='" + getProxyUrl(r.url) + "'><div class='domain'>" + esc(r.url) + "</div><div class='result-title'>" + esc(r.title) + "</div><div class='result-snippet'>" + esc(r.snippet) + "</div></a>";
+        }).join("");
+      }
+    }).catch(function(){ resDiv.innerHTML = "Error loading results."; });
   }
 
   document.querySelectorAll(".tab").forEach(function(t){
@@ -1626,47 +805,22 @@ a{text-decoration:none;color:inherit;}
   `);
 });
 
-/* ═══════════════════════════════════════════
-   Direct URL & Search Router (/go and /v)
-   ═══════════════════════════════════════════ */
-
 app.get(["/go", "/v"], (req, res) => {
   let rawInput = (req.query.q || req.query.url || "").trim();
   if (!rawInput) return res.redirect("/");
 
   let url = rawInput;
-  try {
-    url = dec(rawInput);
-  } catch {
-    url = rawInput;
-  }
+  try { url = dec(rawInput); } catch {}
 
-  const domainPattern = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?$/i;
-  const ipPattern = /^(https?:\/\/)?(\d{1,3}\.){3}\d{1,3}(:\d+)?(\/.*)?$/;
+  const isUrl = /^https?:\/\//i.test(url) || /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}/.test(url);
+  if (!isUrl) return res.redirect("/s?q=" + encodeURIComponent(url));
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
 
-  if (!/^https?:\/\//i.test(url)) {
-    if (domainPattern.test(url) || ipPattern.test(url)) {
-      url = "https://" + url;
-    } else {
-      return res.redirect("/s?q=" + encodeURIComponent(url));
-    }
-  }
-
-  const qs = [];
-  if (req.query.nojs === "1") qs.push("nojs=1");
-  if (req.query.noimg === "1") qs.push("noimg=1");
-  if (req.query.eruda === "1") qs.push("eruda=1");
-  const qsStr = qs.length ? "?" + qs.join("&") : "";
-
-  const mode = (req.query.mode || "server").toLowerCase().trim();
-  if (mode === "experimental") return res.redirect(encPe(url) + qsStr);
-  return res.redirect(enc(url) + qsStr);
+  return res.redirect(enc(url));
 });
 
 app.all("/p/:encoded", handleProxy);
-app.all("/pe/:encoded", handleExperimentalProxy);
 
-// Explicit root route with no-cache headers
 app.get("/", (_req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.sendFile(join(__dirname, "public", "index.html"));
@@ -1678,8 +832,6 @@ const server = createServer(app);
 server.on("upgrade", (req, socket, head) => {
   if ((req.url || "").startsWith("/wisp/")) {
     wisp.server.routeRequest(req, socket, head);
-  } else if ((req.url || "").startsWith("/pe-ws/")) {
-    handlePeWsUpgrade(req, socket, head);
   } else {
     socket.destroy();
   }
