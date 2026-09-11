@@ -342,50 +342,50 @@ function injectionScript(base) {
     }
   }, true);
 
+  function rewriteFormSubmit(form, event) {
+    if(!form || !form.tagName || form.tagName.toUpperCase() !== 'FORM') return;
+    if(form.closest('#__vbar')) return;
+    var action = form.getAttribute('action') || form.getAttribute('formaction') || B;
+    if(!action || action === '#') return;
+    var abs = toAbs(action);
+    if(!abs || !abs.startsWith('http')) return;
+
+    var method = (form.method || 'get').toLowerCase();
+    var finalUrl = abs;
+    if(method === 'get' || method === 'dialog') {
+      var params = new URLSearchParams();
+      try {
+        var fields = form.querySelectorAll('input, textarea, select');
+        for (var i = 0; i < fields.length; i++) {
+          var field = fields[i];
+          if (!field.name || field.disabled || field.type === 'submit' || field.type === 'button' || field.type === 'reset' || field.type === 'file') continue;
+          var value = field.value;
+          if (field.type === 'checkbox' || field.type === 'radio') {
+            if (!field.checked) continue;
+          }
+          params.append(field.name, value);
+        }
+      } catch (err) {}
+      var query = params.toString();
+      if (query) finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
+    }
+
+    if(event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    location.href = E(finalUrl);
+  }
+
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Enter') return;
     var el = e.target;
     if(!el || !el.form || el.tagName === 'TEXTAREA' || el.type === 'submit' || el.type === 'button') return;
-    var form = el.form;
-    if(!form || form.closest('#__vbar')) return;
-    var action = form.getAttribute('action') || form.getAttribute('formaction') || B;
-    var abs = toAbs(action);
-    if(!abs || !abs.startsWith('http')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var method = (form.method || 'get').toLowerCase();
-    var finalUrl = abs;
-    if(method === 'get' || method === 'dialog') {
-      try {
-        var params = new URLSearchParams(new FormData(form));
-        var query = params.toString();
-        if(query) finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
-      } catch(err) {}
-    }
-    location.href = E(finalUrl);
+    rewriteFormSubmit(el.form, e);
   }, true);
 
   document.addEventListener('submit', function(e){
-    var f = e.target;
-    if(!f || !f.tagName || f.tagName.toUpperCase() !== 'FORM') return;
-    if(f.closest('#__vbar')) return;
-    var action = f.getAttribute('action') || f.getAttribute('formaction') || B;
-    if(!action || action === '#') return;
-    var abs = toAbs(action);
-    if(!abs || !abs.startsWith('http')) return;
-    e.preventDefault();
-    var method = (f.method || 'get').toLowerCase();
-    var finalUrl = abs;
-    if(method === 'get' || method === 'dialog') {
-      try {
-        var params = new URLSearchParams(new FormData(f));
-        var query = params.toString();
-        if(query) {
-          finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
-        }
-      } catch(e) {}
-    }
-    location.href = E(finalUrl);
+    rewriteFormSubmit(e.target, e);
   }, true);
 })();
 </script>`;
