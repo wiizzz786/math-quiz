@@ -589,6 +589,14 @@
         }
       });
 
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          topInput.value = input.value;
+          form.dispatchEvent(new Event('submit'));
+        }
+      });
+
       function parseVer(v) {
         return (v || '').replace(/^v/i, '').trim().split('.').map(function(n) { return parseInt(n, 10) || 0; });
       }
