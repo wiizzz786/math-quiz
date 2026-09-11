@@ -281,6 +281,55 @@ function injectionScript(base) {
     return _sa.call(this, name, val);
   };
 
+  function hookProperty(proto, propName){
+    if(!proto || !propName) return;
+    var d = Object.getOwnPropertyDescriptor(proto, propName);
+    if(!d || d.configurable === false) return;
+    Object.defineProperty(proto, propName, {
+      configurable: true,
+      enumerable: d.enumerable,
+      get: function(){
+        if(d && d.get) return d.get.call(this);
+        return this.getAttribute(propName) || d.value;
+      },
+      set: function(v){
+        if(v && typeof v === 'string'){
+          var rew = E(v);
+          if(rew && rew !== v) v = rew;
+        }
+        if(d && d.set) return d.set.call(this, v);
+        return this.setAttribute(propName, v);
+      }
+    });
+  }
+
+  hookProperty(HTMLImageElement && HTMLImageElement.prototype, 'src');
+  hookProperty(HTMLAnchorElement && HTMLAnchorElement.prototype, 'href');
+  hookProperty(HTMLFormElement && HTMLFormElement.prototype, 'action');
+  hookProperty(HTMLScriptElement && HTMLScriptElement.prototype, 'src');
+
+  var _formSubmit = HTMLFormElement && HTMLFormElement.prototype.submit;
+  if(_formSubmit){
+    HTMLFormElement.prototype.submit = function(){
+      var action = this.getAttribute('action') || this.action || B;
+      var abs = toAbs(action);
+      if(abs && abs.startsWith('http')){
+        var method = (this.method || 'get').toLowerCase();
+        var finalUrl = abs;
+        if(method === 'get' || method === 'dialog') {
+          try {
+            var params = new URLSearchParams(new FormData(this));
+            var query = params.toString();
+            if(query) finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
+          } catch(e) {}
+        }
+        location.href = E(finalUrl);
+        return;
+      }
+      return _formSubmit.apply(this, arguments);
+    };
+  }
+
   document.addEventListener('click', function(e){
     var t = e.target; while(t && t.tagName !== 'A') t = t.parentElement; if(!t) return;
     if(t.closest('#__vbar')) return;
@@ -291,6 +340,29 @@ function injectionScript(base) {
       e.preventDefault();
       location.href = E(abs);
     }
+  }, true);
+
+  document.addEventListener('submit', function(e){
+    var f = e.target;
+    if(!f || !f.tagName || f.tagName.toUpperCase() !== 'FORM') return;
+    if(f.closest('#__vbar')) return;
+    var action = f.getAttribute('action') || f.getAttribute('formaction') || B;
+    if(!action || action === '#') return;
+    var abs = toAbs(action);
+    if(!abs || !abs.startsWith('http')) return;
+    e.preventDefault();
+    var method = (f.method || 'get').toLowerCase();
+    var finalUrl = abs;
+    if(method === 'get' || method === 'dialog') {
+      try {
+        var params = new URLSearchParams(new FormData(f));
+        var query = params.toString();
+        if(query) {
+          finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
+        }
+      } catch(e) {}
+    }
+    location.href = E(finalUrl);
   }, true);
 })();
 </script>`;
