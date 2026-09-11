@@ -6,7 +6,7 @@ import dns from "node:dns";
 import net from "node:net";
 import tls from "node:tls";
 import { createHash } from "node:crypto";
-import { createUnzip, createInflateRaw, createBrotliDecompress } from "node:zlib";
+import { createGunzip, createInflate, createInflateRaw, createBrotliDecompress } from "node:zlib";
 import * as cheerio from "cheerio";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -328,6 +328,7 @@ const HOP_HEADERS = new Set([
 const STRIP_HEADERS = new Set([
   "content-security-policy", "content-security-policy-report-only",
   "x-frame-options", "strict-transport-security", "transfer-encoding",
+  "content-encoding",
   "cross-origin-opener-policy", "cross-origin-embedder-policy",
   "cross-origin-resource-policy", "permissions-policy",
   "x-content-type-options", "report-to", "link", "alt-svc", "clear-site-data", "nel",
@@ -374,12 +375,13 @@ function buildHeaders(req, targetUrl) {
 
 function decompressStream(stream, encoding) {
   const encType = (encoding || "").toLowerCase().trim();
-  if (encType === "gzip" || encType === "deflate") {
-    const unzip = createUnzip();
-    unzip.on("error", () => stream.pipe(createInflateRaw()));
-    return stream.pipe(unzip);
+  if (!encType) return stream;
+  if (encType.includes("gzip")) return stream.pipe(createGunzip());
+  if (encType.includes("br")) return stream.pipe(createBrotliDecompress());
+  if (encType.includes("deflate")) {
+    if (encType.includes("raw")) return stream.pipe(createInflateRaw());
+    return stream.pipe(createInflate());
   }
-  if (encType === "br") return stream.pipe(createBrotliDecompress());
   return stream;
 }
 
@@ -439,6 +441,8 @@ async function handleProxy(req, res) {
 
   if (isBinary || axiosRes.status === 206) {
     res.status(axiosRes.status);
+    res.removeHeader("content-encoding");
+    res.removeHeader("content-length");
     if (!res.getHeader("content-type") && rawCt) res.setHeader("content-type", rawCt);
 
     axiosRes.data.on("error", () => {
