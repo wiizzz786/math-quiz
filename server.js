@@ -342,6 +342,29 @@ function injectionScript(base) {
     }
   }, true);
 
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter') return;
+    var el = e.target;
+    if(!el || !el.form || el.tagName === 'TEXTAREA' || el.type === 'submit' || el.type === 'button') return;
+    var form = el.form;
+    if(!form || form.closest('#__vbar')) return;
+    var action = form.getAttribute('action') || form.getAttribute('formaction') || B;
+    var abs = toAbs(action);
+    if(!abs || !abs.startsWith('http')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var method = (form.method || 'get').toLowerCase();
+    var finalUrl = abs;
+    if(method === 'get' || method === 'dialog') {
+      try {
+        var params = new URLSearchParams(new FormData(form));
+        var query = params.toString();
+        if(query) finalUrl = abs.includes('?') ? (abs + '&' + query) : (abs + '?' + query);
+      } catch(err) {}
+    }
+    location.href = E(finalUrl);
+  }, true);
+
   document.addEventListener('submit', function(e){
     var f = e.target;
     if(!f || !f.tagName || f.tagName.toUpperCase() !== 'FORM') return;
