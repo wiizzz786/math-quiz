@@ -329,10 +329,10 @@
 
   <!-- Top Browser Header -->
   <header id="browser-header">
-    <div class="tab-strip">
-      <div class="b-tab active">
-        <img src="https://www.google.com/favicon.ico" width="14" height="14" alt=""/>
-        <span>New Tab</span>
+    <div class="tab-strip" id="browser-tab-strip">
+      <div class="b-tab active" data-tab="search">
+        <img src="/favicon.svg" width="14" height="14" alt=""/>
+        <span>Search</span>
       </div>
       <button type="button" class="b-tab-add" id="top-btn-new-tab" title="Open Clean Tab">+</button>
     </div>
@@ -896,22 +896,10 @@
       });
 
       document.getElementById('top-btn-new-tab').addEventListener('click', function() {
-        if (chkAboutBlank.checked) {
-          var win = window.open('about:blank', '_blank');
-          if (win) {
-            win.document.title = 'Classes';
-            var link = win.document.createElement('link');
-            link.type = 'image/svg+xml';
-            link.rel = 'shortcut icon';
-            link.href = window.location.origin + '/favicon.svg';
-            win.document.head.appendChild(link);
-            var fr = win.document.createElement('iframe');
-            fr.style.cssText = 'position:fixed;top:0;left:0;bottom:0;right:0;width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;z-index:999999;';
-            fr.src = window.location.origin;
-            win.document.body.appendChild(fr);
-          }
-        } else {
-          window.open(window.location.origin, '_blank');
+        var newTabUrl = window.location.origin + '/';
+        var win = window.open(newTabUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = newTabUrl;
         }
       });
     })();
